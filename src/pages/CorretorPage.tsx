@@ -97,6 +97,19 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     language,
   });
 
+  const { searchProducts, loading: serverSearchLoading } = useServerSideProductSearch();
+
+  const {
+    filteredProducts,
+    isSearchActive,
+    filters,
+    handleSearch,
+    searchQuery = '',
+  } = useProductSearch({
+    allProducts,
+    settings
+  });
+
   const usePagination = paginatedMode && !isSearchActive;
 
   const {
@@ -115,19 +128,6 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   const { metadata: filterMetadata, loading: filterMetadataLoading } = useProductFilterMetadata({
     userId: corretor?.id || '',
     enabled: true
-  });
-
-  const { searchProducts, loading: serverSearchLoading } = useServerSideProductSearch();
-
-  const {
-    filteredProducts,
-    isSearchActive,
-    filters,
-    handleSearch,
-    searchQuery = '',
-  } = useProductSearch({
-    allProducts,
-    settings
   });
 
   // Initialize page state hook - correctly passes searchResultsPage
