@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { db } from '@/lib/db';
 import type { Product, CategoryDisplaySetting } from '@/types';
@@ -79,6 +79,7 @@ export function useProductData({
   const [paginatedProducts, setPaginatedProducts] = useState<Product[]>([]);
   const [currentProductPage, setCurrentProductPage] = useState(1);
   const [totalProductPages, setTotalProductPages] = useState(0);
+  const sortedProductIdsRef = useRef<string[]>([]);
 
   const loadStorefrontSettings = async (userId: string) => {
     try {
@@ -196,13 +197,72 @@ export function useProductData({
     }
   };
 
-  const loadProductsPage = async (userId: string, page: number): Promise<Product[]> => {
-    const offset = (page - 1) * PAGE_SIZE;
-    const { data, error } = await buildProductsQuery(userId)
-      .range(offset, offset + PAGE_SIZE - 1);
+  const loadSortedProductIds = async (
+    userId: string,
+    categorySettings: CategoryDisplaySetting[]
+  ): Promise<string[]> => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, category, display_order')
+      .eq('user_id', userId)
+      .eq('is_visible_on_storefront', true);
 
     if (error) throw error;
-    return data || [];
+
+    const categoryOrderMap = new Map<string, number>();
+    categorySettings
+      .filter(s => s.enabled)
+      .forEach(s => categoryOrderMap.set(s.category, s.order));
+
+    const othersLabel = language === 'en-US' ? 'Others' :
+                       language === 'es-ES' ? 'Otros' : 'Outros';
+
+    const getCategoryRank = (categories: string[] | null): number => {
+      if (!categories || categories.length === 0) return 999999;
+      let bestRank = 999999;
+      for (const cat of categories) {
+        const sanitized = sanitizeCategoryName(cat);
+        if (!sanitized) continue;
+        const rank = categoryOrderMap.has(sanitized)
+          ? categoryOrderMap.get(sanitized)!
+          : sanitized === othersLabel ? 999998 : 999000;
+        if (rank < bestRank) bestRank = rank;
+      }
+      return bestRank === 999999 ? 999998 : bestRank;
+    };
+
+    const items = (data || []).map(item => ({
+      id: item.id as string,
+      rank: getCategoryRank(item.category as string[] | null),
+      displayOrder: item.display_order ?? 999999,
+    }));
+
+    items.sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
+      return 0;
+    });
+
+    return items.map(i => i.id);
+  };
+
+  const loadProductsByIds = async (ids: string[]): Promise<Product[]> => {
+    if (ids.length === 0) return [];
+    const { data, error } = await supabase
+      .from('products')
+      .select(PRODUCTS_SELECT)
+      .in('id', ids);
+
+    if (error) throw error;
+
+    const products = data || [];
+    const orderMap = new Map(ids.map((id, idx) => [id, idx]));
+    products.sort((a, b) => {
+      const oA = orderMap.get(a.id) ?? 999999;
+      const oB = orderMap.get(b.id) ?? 999999;
+      return oA - oB;
+    });
+    return products;
   };
 
   const loadAllCategories = async (userId: string): Promise<string[]> => {
@@ -369,18 +429,20 @@ export function useProductData({
         setPaginatedMode(true);
         setTotalProductPages(Math.ceil(count / PAGE_SIZE));
 
-        const [firstPageProducts, allCategories] = await Promise.all([
-          loadProductsPage(userId, 1),
-          loadAllCategories(userId)
-        ]);
-
-        await fetchTiersForProducts(firstPageProducts);
-
+        const allCategories = await loadAllCategories(userId);
         const syncedCategorySettings = await syncCategorySettings(
           allCategories,
           settingsData.categoryDisplaySettings,
           userId
         );
+
+        const sortedIds = await loadSortedProductIds(userId, syncedCategorySettings);
+        sortedProductIdsRef.current = sortedIds;
+
+        const firstPageIds = sortedIds.slice(0, PAGE_SIZE);
+        const firstPageProducts = await loadProductsByIds(firstPageIds);
+
+        await fetchTiersForProducts(firstPageProducts);
 
         setPaginatedProducts(firstPageProducts);
         setCurrentProductPage(1);
@@ -424,7 +486,9 @@ export function useProductData({
     if (!userId || !paginatedMode) return;
     setLoading(true);
     try {
-      const products = await loadProductsPage(userId, page);
+      const offset = (page - 1) * PAGE_SIZE;
+      const pageIds = sortedProductIdsRef.current.slice(offset, offset + PAGE_SIZE);
+      const products = await loadProductsByIds(pageIds);
       setPaginatedProducts(products);
       setCurrentProductPage(page);
       await fetchTiersForProducts(products);
