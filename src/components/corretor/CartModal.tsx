@@ -213,6 +213,14 @@ export default function CartModal({
       newErrors.delivery = 'Selecione uma opcao de entrega';
     }
     setFormErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = newErrors.name ? 'Informe seu nome'
+        : newErrors.phone ? 'Informe um numero de WhatsApp valido'
+        : newErrors.payment ? 'Selecione uma forma de pagamento'
+        : newErrors.delivery ? 'Selecione uma opcao de entrega'
+        : 'Verifique os campos destacados';
+      toast.error(firstError);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -240,7 +248,13 @@ export default function CartModal({
       // Open WhatsApp immediately while still in the synchronous user-gesture context.
       // Mobile browsers (iOS Safari, Android Chrome) block window.open() if called
       // after any await, because the user-gesture context is lost across async boundaries.
-      window.open(whatsappUrl, '_blank');
+      const popup = window.open(whatsappUrl, '_blank');
+      if (!popup) {
+        // Popup blocked — fall back to navigation in the same tab
+        window.location.href = whatsappUrl;
+      }
+
+      toast.success('Pedido enviado! Abrindo WhatsApp...');
 
       const orderItems = [
         ...cart.distributions.map((dist) => ({
