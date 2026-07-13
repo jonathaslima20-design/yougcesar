@@ -8,6 +8,7 @@ interface UseCorretorPageStateOptions {
   isSearchActive: boolean;
   filters: any;
   searchQuery: string;
+  isRestoring?: boolean;
 }
 
 export function useCorretorPageState(options: UseCorretorPageStateOptions) {
@@ -43,6 +44,8 @@ export function useCorretorPageState(options: UseCorretorPageStateOptions) {
   }, [options.slug, restoreState]);
 
   useEffect(() => {
+    if (options.isRestoring) return;
+
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
@@ -57,16 +60,16 @@ export function useCorretorPageState(options: UseCorretorPageStateOptions) {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [options.currentPage, options.searchResultsPage, options.isSearchActive, options.filters, options.searchQuery, saveCurrentState]);
+  }, [options.currentPage, options.searchResultsPage, options.isSearchActive, options.filters, options.searchQuery, options.isRestoring, saveCurrentState]);
 
   useEffect(() => {
     return () => {
-      if (!isFirstMountRef.current) {
+      if (!isFirstMountRef.current && !options.isRestoring) {
         const currentScrollPosition = window.scrollY || document.documentElement.scrollTop;
         saveCurrentState(currentScrollPosition);
       }
     };
-  }, [saveCurrentState]);
+  }, [saveCurrentState, options.isRestoring]);
 
   return {
     restoreCurrentState,

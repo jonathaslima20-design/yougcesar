@@ -8,6 +8,7 @@ import { useCorretorData } from '@/hooks/useCorretorData';
 import { useProductData } from '@/hooks/useProductData';
 import { useProductSearch } from '@/hooks/useProductSearch';
 import { useCorretorPageState } from '@/hooks/useCorretorPageState';
+import type { CorretorPageState } from '@/contexts/CorretorPageStateContext';
 import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
 import { useServerSideProductSearch } from '@/hooks/useServerSideProductSearch';
 import { useCategoryPagination } from '@/hooks/useCategoryPagination';
@@ -56,6 +57,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   const savedScrollPositionRef = useRef<number>(0);
   const restoredSearchPageRef = useRef<number | null>(null);
   const scrollRestorationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const savedStateRef = useRef<CorretorPageState | null>(null);
 
   // User-initiated vs system-initiated search guard
   const userInitiatedSearchRef = useRef(false);
@@ -138,6 +140,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     isSearchActive,
     filters,
     searchQuery,
+    isRestoring: restorationPhase !== 'idle' && restorationPhase !== 'done',
   });
 
   // Initialize previousFiltersRef on first load
@@ -274,6 +277,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     if (location.state?.from === 'product-detail' && restorationPhase === 'idle') {
       const savedState = pageStateHook.restoreCurrentState();
       if (savedState && savedState.slug === slug) {
+        savedStateRef.current = savedState;
         savedScrollPositionRef.current = savedState.scrollPosition;
         setRestorationPhase('restoring');
         scrollCoordinator.startScrollRestoration();
@@ -286,7 +290,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     if (restorationPhase !== 'restoring') return;
     if (corretorLoading || productsLoading) return;
 
-    const savedState = pageStateHook.restoreCurrentState();
+    const savedState = savedStateRef.current;
     if (!savedState || savedState.slug !== slug) {
       setRestorationPhase('done');
       scrollCoordinator.endScrollRestoration();
@@ -321,7 +325,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   useEffect(() => {
     if (restorationPhase !== 'awaiting-content') return;
 
-    const savedState = pageStateHook.restoreCurrentState();
+    const savedState = savedStateRef.current;
     if (!savedState || savedScrollPositionRef.current <= 0) {
       setRestorationPhase('done');
       scrollCoordinator.endScrollRestoration();
@@ -382,6 +386,13 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
         clearTimeout(scrollRestorationTimeoutRef.current);
       }
     };
+  }, [restorationPhase]);
+
+  // Clear cached saved state once restoration is complete
+  useEffect(() => {
+    if (restorationPhase === 'done') {
+      savedStateRef.current = null;
+    }
   }, [restorationPhase]);
 
   // ─── Derived display data ─────────────────────────────────────────────────────
