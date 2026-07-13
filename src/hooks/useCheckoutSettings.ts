@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption } from '@/types';
+import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, MinimumPurchaseConfig } from '@/types';
 
 const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   { id: 'pix', name: 'PIX', enabled: false },
@@ -11,12 +11,19 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   { id: 'bank_transfer', name: 'Transferência Bancária', enabled: false },
 ];
 
+const DEFAULT_MINIMUM_PURCHASE: MinimumPurchaseConfig = {
+  enabled: false,
+  type: 'value',
+  value: 0,
+};
+
 const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   paymentMethods: DEFAULT_PAYMENT_METHODS,
   deliveryOptions: [],
   requirePaymentMethod: true,
   requireDeliveryOption: true,
   cartEnabled: true,
+  minimumPurchase: DEFAULT_MINIMUM_PURCHASE,
 };
 
 interface UseCheckoutSettingsReturn {
@@ -55,6 +62,7 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
             requirePaymentMethod: data.settings.checkout.requirePaymentMethod ?? true,
             requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
             cartEnabled: data.settings.checkout.cartEnabled ?? true,
+            minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
           });
         }
       }

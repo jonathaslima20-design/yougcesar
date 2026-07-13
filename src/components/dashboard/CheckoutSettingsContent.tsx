@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart } from 'lucide-react';
+import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart, Minimize2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -175,6 +175,115 @@ export default function CheckoutSettingsContent() {
               disabled={saving}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Minimum Purchase */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Minimize2 className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Compra Mínima</CardTitle>
+          </div>
+          <CardDescription>
+            Defina um valor ou quantidade mínima para que o cliente possa avançar para a finalização do pedido.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="min-purchase-enabled">Ativar compra mínima</Label>
+              <p className="text-xs text-muted-foreground">
+                O cliente só avançará para a finalização quando o mínimo for atingido.
+              </p>
+            </div>
+            <Switch
+              id="min-purchase-enabled"
+              checked={settings.minimumPurchase?.enabled ?? false}
+              onCheckedChange={(checked) =>
+                save({
+                  ...settings,
+                  minimumPurchase: {
+                    ...(settings.minimumPurchase ?? { type: 'value', value: 0 }),
+                    enabled: checked,
+                  },
+                })
+              }
+              disabled={saving}
+            />
+          </div>
+
+          {(settings.minimumPurchase?.enabled ?? false) && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Tipo de mínimo</Label>
+                <Select
+                  value={settings.minimumPurchase?.type ?? 'value'}
+                  onValueChange={(val: 'value' | 'quantity') =>
+                    save({
+                      ...settings,
+                      minimumPurchase: {
+                        ...(settings.minimumPurchase ?? { enabled: true, value: 0 }),
+                        type: val,
+                        value: 0,
+                      },
+                    })
+                  }
+                  disabled={saving}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="value">Valor mínimo (R$)</SelectItem>
+                    <SelectItem value="quantity">Quantidade mínima de itens</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="min-purchase-value">
+                  {settings.minimumPurchase?.type === 'quantity'
+                    ? 'Quantidade mínima'
+                    : 'Valor mínimo'}
+                </Label>
+                {settings.minimumPurchase?.type === 'quantity' ? (
+                  <Input
+                    id="min-purchase-value"
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={settings.minimumPurchase?.value ?? 0}
+                    onChange={(e) =>
+                      save({
+                        ...settings,
+                        minimumPurchase: {
+                          ...(settings.minimumPurchase ?? { enabled: true, type: 'quantity' }),
+                          value: Math.max(1, parseInt(e.target.value) || 1),
+                        },
+                      })
+                    }
+                    disabled={saving}
+                  />
+                ) : (
+                  <CurrencyInput
+                    id="min-purchase-value"
+                    value={settings.minimumPurchase?.value ?? 0}
+                    onValueChange={(vals) =>
+                      save({
+                        ...settings,
+                        minimumPurchase: {
+                          ...(settings.minimumPurchase ?? { enabled: true, type: 'value' }),
+                          value: vals.floatValue ?? 0,
+                        },
+                      })
+                    }
+                    disabled={saving}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

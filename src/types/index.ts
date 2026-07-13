@@ -654,10 +654,17 @@ export interface DeliveryOption {
   freeAbove?: number | null;
 }
 
+export interface MinimumPurchaseConfig {
+  enabled: boolean;
+  type: 'value' | 'quantity';
+  value: number;
+}
+
 export interface CheckoutSettings {
   paymentMethods: PaymentMethodConfig[];
   deliveryOptions: DeliveryOption[];
   requirePaymentMethod: boolean;
   requireDeliveryOption: boolean;
   cartEnabled?: boolean;
+  minimumPurchase?: MinimumPurchaseConfig;
 }

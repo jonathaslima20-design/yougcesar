@@ -39,6 +39,7 @@ import { PhoneInputWithCountry, COUNTRIES } from '@/components/ui/phone-input-wi
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
+import { toast } from 'sonner';
 
 
 interface CartModalProps {
@@ -166,8 +167,29 @@ export default function CartModal({
     setCouponCode('');
   };
 
+  const minPurchase = checkoutSettings.minimumPurchase;
+  const minPurchaseActive = !!(minPurchase?.enabled && minPurchase.value > 0);
+  const minPurchaseMet = !minPurchaseActive || (
+    minPurchase!.type === 'value'
+      ? cart.total >= minPurchase!.value
+      : cart.itemCount >= minPurchase!.value
+  );
+  const minPurchaseRemaining = minPurchaseActive
+    ? minPurchase!.type === 'value'
+      ? Math.max(0, minPurchase!.value - cart.total)
+      : Math.max(0, minPurchase!.value - cart.itemCount)
+    : 0;
+
   const handleGoToCheckout = () => {
     if (cart.items.length === 0 && cart.distributions.length === 0) return;
+    if (minPurchaseActive && !minPurchaseMet) {
+      if (minPurchase!.type === 'value') {
+        toast.error(`O valor mínimo para compra é ${formatCurrencyI18n(minPurchase!.value, currency, language)}. Faltam ${formatCurrencyI18n(minPurchaseRemaining, currency, language)}.`);
+      } else {
+        toast.error(`A quantidade mínima é ${minPurchase!.value} ${minPurchase!.value === 1 ? 'item' : 'itens'}. Adicione mais ${minPurchaseRemaining} ${minPurchaseRemaining === 1 ? 'item' : 'itens'}.`);
+      }
+      return;
+    }
     setStep('checkout');
   };
 
@@ -196,6 +218,14 @@ export default function CartModal({
   const handleSendOrder = async () => {
     if (!validateCustomerInfo()) return;
     if (cart.items.length === 0 && cart.distributions.length === 0) return;
+    if (minPurchaseActive && !minPurchaseMet) {
+      if (minPurchase!.type === 'value') {
+        toast.error(`O valor mínimo para compra é ${formatCurrencyI18n(minPurchase!.value, currency, language)}.`);
+      } else {
+        toast.error(`A quantidade mínima é ${minPurchase!.value} ${minPurchase!.value === 1 ? 'item' : 'itens'}.`);
+      }
+      return;
+    }
 
     try {
       setSendingOrder(true);
@@ -765,6 +795,17 @@ export default function CartModal({
                   </span>
                 </div>
 
+                {minPurchaseActive && !minPurchaseMet && (
+                  <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+                    <ShoppingCart className="h-4 w-4 shrink-0" />
+                    <span>
+                      {minPurchase!.type === 'value'
+                        ? `Faltam ${formatCurrencyI18n(minPurchaseRemaining, currency, language)} para atingir o mínimo da compra`
+                        : `Adicione mais ${minPurchaseRemaining} ${minPurchaseRemaining === 1 ? 'item' : 'itens'} para atingir o mínimo da compra`}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -777,6 +818,7 @@ export default function CartModal({
                   {corretor.whatsapp && (
                     <Button
                       onClick={handleGoToCheckout}
+                      disabled={minPurchaseActive && !minPurchaseMet}
                       className="flex-1"
                     >
                       <MessageCircle className="h-4 w-4 mr-2" />
