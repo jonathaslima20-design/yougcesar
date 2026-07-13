@@ -142,6 +142,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           requirePaymentMethod: data.settings.checkout.requirePaymentMethod ?? true,
           requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
+          minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
         });
       }
       setLoading(false);
