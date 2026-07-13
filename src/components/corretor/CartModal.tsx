@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet, Check, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -40,6 +40,7 @@ import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { toast } from 'sonner';
+import { Progress } from '@/components/ui/progress';
 
 
 interface CartModalProps {
@@ -795,14 +796,28 @@ export default function CartModal({
                   </span>
                 </div>
 
-                {minPurchaseActive && !minPurchaseMet && (
-                  <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
-                    <ShoppingCart className="h-4 w-4 shrink-0" />
-                    <span>
-                      {minPurchase!.type === 'value'
-                        ? `Faltam ${formatCurrencyI18n(minPurchaseRemaining, currency, language)} para atingir o mínimo da compra`
-                        : `Adicione mais ${minPurchaseRemaining} ${minPurchaseRemaining === 1 ? 'item' : 'itens'} para atingir o mínimo da compra`}
-                    </span>
+                {minPurchaseActive && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {minPurchaseMet ? (
+                        <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                      ) : (
+                        <Info className="h-3.5 w-3.5 shrink-0" />
+                      )}
+                      <span>
+                        {minPurchaseMet
+                          ? 'Compra mínima atingida!'
+                          : minPurchase!.type === 'value'
+                            ? `Compra mínima: ${formatCurrencyI18n(minPurchase!.value, currency, language)} — faltam ${formatCurrencyI18n(minPurchaseRemaining, currency, language)}`
+                            : `Mínimo: ${minPurchase!.value} ${minPurchase!.value === 1 ? 'item' : 'itens'} — faltam ${minPurchaseRemaining} ${minPurchaseRemaining === 1 ? 'item' : 'itens'}`}
+                      </span>
+                    </div>
+                    <Progress
+                      value={Math.min(100, minPurchase!.type === 'value'
+                        ? (cart.total / minPurchase!.value) * 100
+                        : (cart.itemCount / minPurchase!.value) * 100)}
+                      className={`h-1.5 ${minPurchaseMet ? '[&_[data-state]]:bg-green-600 dark:[&_[data-state]]:bg-green-400' : ''}`}
+                    />
                   </div>
                 )}
 
