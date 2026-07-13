@@ -325,6 +325,30 @@ body {
     color: var(--sf-accent) !important;
   }
 
+  /* ─── Command / cmdk popover (phone country selector) theming ─────── */
+  .sf-themed [cmdk-root] {
+    background-color: var(--sf-card-bg) !important;
+    color: var(--sf-text) !important;
+  }
+  .sf-themed [cmdk-input] {
+    background-color: var(--sf-bg) !important;
+    border-color: var(--sf-border) !important;
+    color: var(--sf-text) !important;
+  }
+  .sf-themed [cmdk-input]::placeholder {
+    color: var(--sf-muted) !important;
+  }
+  .sf-themed [cmdk-item] {
+    color: var(--sf-text) !important;
+  }
+  .sf-themed [cmdk-item][data-selected="true"] {
+    background-color: color-mix(in srgb, var(--sf-button-bg) 15%, transparent) !important;
+    color: var(--sf-text) !important;
+  }
+  .sf-themed [cmdk-group-heading] {
+    color: var(--sf-muted) !important;
+  }
+
   /* ─── ContactSidebar theming ───────────────────────────────────────── */
   .sf-themed .bg-card {
     background-color: var(--sf-card-bg) !important;
@@ -579,6 +603,30 @@ body {
   .storefront-default [role="listbox"] [role="option"][data-highlighted] {
     background-color: #F4F4F5 !important;
     color: var(--sd-text) !important;
+  }
+
+  /* Command / cmdk popover (phone country selector) */
+  .storefront-default [cmdk-root] {
+    background-color: var(--sd-surface) !important;
+    color: var(--sd-text) !important;
+  }
+  .storefront-default [cmdk-input] {
+    background-color: var(--sd-surface) !important;
+    border-color: var(--sd-border) !important;
+    color: var(--sd-text) !important;
+  }
+  .storefront-default [cmdk-input]::placeholder {
+    color: var(--sd-muted) !important;
+  }
+  .storefront-default [cmdk-item] {
+    color: var(--sd-text) !important;
+  }
+  .storefront-default [cmdk-item][data-selected="true"] {
+    background-color: #F4F4F5 !important;
+    color: var(--sd-text) !important;
+  }
+  .storefront-default [cmdk-group-heading] {
+    color: var(--sd-muted) !important;
   }
 
   /* bg-card usage (ContactSidebar etc.) */
