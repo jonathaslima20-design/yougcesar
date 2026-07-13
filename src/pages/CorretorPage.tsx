@@ -87,10 +87,17 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     sizeTypeMapping,
     totalProducts,
     priceTiersMap,
+    paginatedMode,
+    paginatedProducts,
+    currentProductPage,
+    totalProductPages,
+    loadProductPage,
   } = useProductData({
     userId: corretor?.id || '',
     language,
   });
+
+  const usePagination = paginatedMode && !isSearchActive;
 
   const {
     displayedCategories,
@@ -100,7 +107,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     loadNextCategory,
     resetToFirstCategory,
   } = useCategoryPagination({
-    products: allProducts,
+    products: usePagination ? paginatedProducts : allProducts,
     categorySettings,
     language,
   });
@@ -126,7 +133,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   // Initialize page state hook - correctly passes searchResultsPage
   const pageStateHook = useCorretorPageState({
     slug: slug || '',
-    currentPage,
+    currentPage: usePagination ? currentProductPage : currentPage,
     searchResultsPage,
     isSearchActive,
     filters,
@@ -294,6 +301,11 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
       previousFiltersRef.current = savedState.filters;
       userInitiatedSearchRef.current = false;
       setRestorationPhase('awaiting-content');
+    } else if (usePagination && savedState.currentPage > 1) {
+      loadProductPage(savedState.currentPage).then(() => {
+        setRestorationPhase('awaiting-content');
+      });
+      userInitiatedSearchRef.current = false;
     } else {
       if (savedState.currentPage > 1) {
         setCurrentPage(savedState.currentPage);
@@ -301,7 +313,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
       userInitiatedSearchRef.current = false;
       setRestorationPhase('awaiting-content');
     }
-  }, [restorationPhase, corretorLoading, productsLoading, slug]);
+  }, [restorationPhase, corretorLoading, productsLoading, slug, usePagination, loadProductPage]);
 
   // Phase 3: wait for content to be rendered, then scroll
   // For filtered search: wait until server search results arrive AND pagination is applied
@@ -373,11 +385,17 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   }, [restorationPhase]);
 
   // ─── Derived display data ─────────────────────────────────────────────────────
-  const productsToDisplay = isSearchActive ? serverSearchResults : allProducts;
+  const productsToDisplay = isSearchActive
+    ? serverSearchResults
+    : usePagination
+      ? paginatedProducts
+      : allProducts;
 
   const organizedProducts = isSearchActive
     ? groupProductsByCategory(productsToDisplay, categorySettings, language)
-    : displayedCategories;
+    : usePagination
+      ? groupProductsByCategory(productsToDisplay, categorySettings, language)
+      : displayedCategories;
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   const handlePageChange = (newPage: number) => {
@@ -386,17 +404,31 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
 
     if (isSearchActive) {
       setSearchResultsPage(newPage);
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          if (productsContainerRef.current) {
+            productsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      }, 50);
+    } else if (usePagination) {
+      loadProductPage(newPage).then(() => {
+        requestAnimationFrame(() => {
+          if (productsContainerRef.current) {
+            productsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
     } else {
       setCurrentPage(newPage);
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          if (productsContainerRef.current) {
+            productsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      }, 50);
     }
-
-    setTimeout(() => {
-      requestAnimationFrame(() => {
-        if (productsContainerRef.current) {
-          productsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
-    }, 50);
   };
 
   // ─── Loading / Error states ───────────────────────────────────────────────────
@@ -605,7 +637,22 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
                 </div>
               )}
 
-              {!isSearchActive && hasNextCategory && (
+              {usePagination && (
+                <div className="mt-12">
+                  <PaginationControls
+                    currentPage={currentProductPage}
+                    totalPages={totalProductPages}
+                    hasNextPage={currentProductPage < totalProductPages}
+                    hasPreviousPage={currentProductPage > 1}
+                    onPageChange={handlePageChange}
+                    totalProducts={totalProducts}
+                    pageSize={100}
+                    isLoading={productsLoading}
+                  />
+                </div>
+              )}
+
+              {!isSearchActive && !usePagination && hasNextCategory && (
                 <InfiniteScrollTrigger
                   onLoadMore={loadNextCategory}
                   hasNextPage={hasNextCategory}
