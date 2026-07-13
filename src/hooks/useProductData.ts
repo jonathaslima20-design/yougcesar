@@ -6,6 +6,8 @@ import { logCategoryOperation, sanitizeCategoryName } from '@/lib/categoryUtils'
 import { type SupportedLanguage } from '@/lib/i18n';
 import { loadSizeTypeMapping, type SizeTypeMapping } from '@/lib/sizeTypeUtils';
 import { autoPopulateSizesForUser } from '@/lib/autoPopulateSizes';
+import { fetchProductPriceTiersBatch } from '@/lib/tieredPricingUtils';
+import type { PriceTier } from '@/types';
 
 interface UseProductDataProps {
   userId: string;
@@ -21,6 +23,7 @@ interface UseProductDataReturn {
   refetch: () => Promise<void>;
   sizeTypeMapping: SizeTypeMapping;
   totalProducts: number;
+  priceTiersMap: Map<string, PriceTier[]>;
 }
 
 /**
@@ -39,6 +42,7 @@ export function useProductData({
   const [error, setError] = useState<string | null>(null);
   const [sizeTypeMapping, setSizeTypeMapping] = useState<SizeTypeMapping>({});
   const [totalProducts, setTotalProducts] = useState(0);
+  const [priceTiersMap, setPriceTiersMap] = useState<Map<string, PriceTier[]>>(new Map());
 
   const loadStorefrontSettings = async (userId: string) => {
     try {
@@ -297,6 +301,11 @@ export function useProductData({
         loadSizeTypeMapping(userId)
       ]);
 
+      const tieredProductIds = productsResult.products
+        .filter(p => p.has_tiered_pricing)
+        .map(p => p.id);
+      const tiersMap = await fetchProductPriceTiersBatch(tieredProductIds);
+
       const syncedCategorySettings = await syncCategorySettings(
         productsResult.products,
         settingsData.categoryDisplaySettings,
@@ -308,6 +317,7 @@ export function useProductData({
       setSettings(settingsData.effectiveSettings);
       setCategorySettings(syncedCategorySettings);
       setSizeTypeMapping(sizeMapping);
+      setPriceTiersMap(tiersMap);
 
       autoPopulateSizesForUser(userId).catch(err => {
         console.warn('Non-critical error auto-populating sizes:', err);
@@ -323,6 +333,7 @@ export function useProductData({
 
   const refetch = async () => {
     setAllProducts([]);
+    setPriceTiersMap(new Map());
     await fetchData();
   };
 
@@ -341,5 +352,6 @@ export function useProductData({
     refetch,
     sizeTypeMapping,
     totalProducts,
+    priceTiersMap,
   };
 }

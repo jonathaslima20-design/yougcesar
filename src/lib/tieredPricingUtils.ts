@@ -11,6 +11,37 @@ export interface TieredPricingResult {
   unitsToNextTier: number;
 }
 
+export async function fetchProductPriceTiersBatch(productIds: string[]): Promise<Map<string, PriceTier[]>> {
+  const tiersMap = new Map<string, PriceTier[]>();
+  if (productIds.length === 0) return tiersMap;
+
+  const CHUNK_SIZE = 200;
+  for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
+    const chunk = productIds.slice(i, i + CHUNK_SIZE);
+    const { data, error } = await supabase
+      .from('product_price_tiers')
+      .select('*')
+      .in('product_id', chunk)
+      .order('min_quantity', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching price tiers batch:', error);
+      continue;
+    }
+
+    if (data) {
+      for (const tier of data) {
+        if (!tiersMap.has(tier.product_id)) {
+          tiersMap.set(tier.product_id, []);
+        }
+        tiersMap.get(tier.product_id)!.push(tier);
+      }
+    }
+  }
+
+  return tiersMap;
+}
+
 export async function fetchProductPriceTiers(productId: string): Promise<PriceTier[]> {
   const { data, error } = await supabase
     .from('product_price_tiers')

@@ -86,6 +86,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     error: productsError,
     sizeTypeMapping,
     totalProducts,
+    priceTiersMap,
   } = useProductData({
     userId: corretor?.id || '',
     language,
@@ -577,6 +578,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
                           inventoryEnabled={inventoryEnabled}
                           showStockOnStorefront={showStockOnStorefront}
                           cartEnabled={cartEnabled}
+                          priceTiers={priceTiersMap.get(product.id) || null}
                           onNavigate={() => {
                             const currentScrollPosition = window.scrollY || document.documentElement.scrollTop;
                             pageStateHook.saveCurrentState(currentScrollPosition);

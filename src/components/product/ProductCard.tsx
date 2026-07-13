@@ -10,6 +10,7 @@ import { useCustomDomain } from '@/contexts/CustomDomainContext';
 import ProductVariantModal from './ProductVariantModal';
 import type { Product } from '@/types';
 import { fetchProductPriceTiers, getMinimumPriceFromTiers, getFirstTierPrices } from '@/lib/tieredPricingUtils';
+import type { PriceTier } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { getStockStatus } from '@/lib/stockUtils';
 
@@ -21,6 +22,7 @@ interface ProductCardProps {
   inventoryEnabled?: boolean;
   showStockOnStorefront?: boolean;
   cartEnabled?: boolean;
+  priceTiers?: PriceTier[] | null;
   onNavigate?: () => void;
 }
 
@@ -32,6 +34,7 @@ function ProductCardComponent({
   inventoryEnabled = false,
   showStockOnStorefront = false,
   cartEnabled = true,
+  priceTiers = null,
   onNavigate
 }: ProductCardProps) {
   const { t } = useTranslation(language);
@@ -47,6 +50,13 @@ function ProductCardComponent({
 
   useEffect(() => {
     if (product.has_tiered_pricing) {
+      if (priceTiers) {
+        const minPrice = getMinimumPriceFromTiers(priceTiers);
+        const firstTierData = getFirstTierPrices(priceTiers);
+        setMinimumTieredPrice(minPrice);
+        setFirstTierPrices(firstTierData);
+        return;
+      }
       setLoadingTiers(true);
       fetchProductPriceTiers(product.id)
         .then(tiers => {
@@ -58,7 +68,7 @@ function ProductCardComponent({
         .catch(err => console.error('Error loading price tiers:', err))
         .finally(() => setLoadingTiers(false));
     }
-  }, [product.id, product.has_tiered_pricing]);
+  }, [product.id, product.has_tiered_pricing, priceTiers]);
 
   useEffect(() => {
     const ensureFeaturedImage = async () => {
@@ -406,7 +416,8 @@ const arePropsEqual = (prevProps: ProductCardProps, nextProps: ProductCardProps)
     prevProps.cartEnabled === nextProps.cartEnabled &&
     prevProps.currency === nextProps.currency &&
     prevProps.language === nextProps.language &&
-    prevProps.corretorSlug === nextProps.corretorSlug
+    prevProps.corretorSlug === nextProps.corretorSlug &&
+    prevProps.priceTiers === nextProps.priceTiers
   );
 };
 
