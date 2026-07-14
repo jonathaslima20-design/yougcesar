@@ -57,9 +57,15 @@ export async function deleteNotification(notificationId: string): Promise<void> 
   if (error) throw error;
 }
 
+interface NotificationRealtimeHandlers {
+  onInsert: (notification: AppNotification) => void;
+  onUpdate: (notification: AppNotification) => void;
+  onDelete: (notificationId: string) => void;
+}
+
 export function subscribeToNotifications(
   userId: string,
-  onNew: (notification: AppNotification) => void
+  handlers: NotificationRealtimeHandlers
 ): RealtimeChannel {
   const channel = supabase
     .channel(`notifications:${userId}`)
@@ -72,7 +78,31 @@ export function subscribeToNotifications(
         filter: `user_id=eq.${userId}`,
       },
       (payload) => {
-        onNew(payload.new as AppNotification);
+        handlers.onInsert(payload.new as AppNotification);
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        handlers.onUpdate(payload.new as AppNotification);
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        handlers.onDelete((payload.old as AppNotification).id);
       }
     )
     .subscribe();

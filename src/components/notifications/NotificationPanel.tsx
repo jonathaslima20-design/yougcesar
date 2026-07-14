@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Loader as Loader2 } from 'lucide-react';
+import { AlertCircle, Bell, CheckCheck, Loader as Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@/contexts/NotificationContext';
 import NotificationItem from './NotificationItem';
@@ -10,7 +10,7 @@ interface NotificationPanelProps {
 }
 
 export default function NotificationPanel({ onClose }: NotificationPanelProps) {
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead, deleteNotification } =
+  const { notifications, unreadCount, loading, error, markAsRead, markAllAsRead, deleteNotification, refresh } =
     useNotifications();
   const navigate = useNavigate();
 
@@ -49,6 +49,16 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
         {loading && notifications.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : error && notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center mb-3">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">{error}</p>
+            <Button variant="ghost" size="sm" className="h-7 text-xs mt-2" onClick={refresh}>
+              Tentar novamente
+            </Button>
           </div>
         ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">

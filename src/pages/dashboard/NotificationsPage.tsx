@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, CheckCheck, Filter, Loader as Loader2, Trash2 } from 'lucide-react';
+import { AlertCircle, Bell, CheckCheck, Filter, Loader as Loader2, Trash2 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchNotifications } from '@/lib/notificationService';
@@ -71,6 +71,7 @@ export default function NotificationsPage() {
 
   const [allNotifications, setAllNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<NotificationType | 'all'>('all');
   const [readFilter, setReadFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
@@ -85,8 +86,10 @@ export default function NotificationsPage() {
         const { data, count } = await fetchNotifications(user.id, LIMIT, pageNum * LIMIT);
         setAllNotifications((prev) => (replace ? data : [...prev, ...data]));
         setHasMore((pageNum + 1) * LIMIT < (count || 0));
+        setLoadError(null);
       } catch (err) {
         console.error('Failed to load notifications page:', err);
+        setLoadError('Não foi possível carregar suas notificações agora.');
       } finally {
         setLoading(false);
       }
@@ -190,6 +193,18 @@ export default function NotificationsPage() {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
+      ) : loadError && allNotifications.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <AlertCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="font-medium text-muted-foreground">{loadError}</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => loadPage(0, true)}>
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">

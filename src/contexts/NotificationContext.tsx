@@ -15,6 +15,7 @@ interface NotificationContextType {
   notifications: AppNotification[];
   unreadCount: number;
   loading: boolean;
+  error: string | null;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -41,6 +42,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof subscribeToNotifications> | null>(null);
 
   const loadNotifications = useCallback(async () => {
@@ -53,10 +55,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       ]);
       setNotifications(data);
       setUnreadCount(count);
+      setError(null);
     } catch (err) {
       console.error('Failed to load notifications:', err);
+      setError('Não foi possível carregar suas notificações agora.');
     } finally {
       setLoading(false);
+    }
+  }, [user?.id]);
+
+  // Re-syncs the unread count from the server rather than adjusting it locally,
+  // so a read/delete made on another tab or device can't cause it to drift.
+  const resyncUnreadCount = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const count = await fetchUnreadCount(user.id);
+      setUnreadCount(count);
+    } catch (err) {
+      console.error('Failed to refresh unread count:', err);
     }
   }, [user?.id]);
 
@@ -64,19 +80,30 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (!user?.id) {
       setNotifications([]);
       setUnreadCount(0);
+      setError(null);
       return;
     }
 
     loadNotifications();
 
-    channelRef.current = subscribeToNotifications(user.id, (newNotification) => {
-      setNotifications((prev) => [newNotification, ...prev].slice(0, 30));
-      setUnreadCount((prev) => prev + 1);
+    channelRef.current = subscribeToNotifications(user.id, {
+      onInsert: (newNotification) => {
+        setNotifications((prev) => [newNotification, ...prev].slice(0, 30));
+        setUnreadCount((prev) => prev + 1);
 
-      toast(newNotification.title, {
-        description: newNotification.message,
-        duration: 5000,
-      });
+        toast(newNotification.title, {
+          description: newNotification.message,
+          duration: 5000,
+        });
+      },
+      onUpdate: (updated) => {
+        setNotifications((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+        resyncUnreadCount();
+      },
+      onDelete: (deletedId) => {
+        setNotifications((prev) => prev.filter((n) => n.id !== deletedId));
+        resyncUnreadCount();
+      },
     });
 
     return () => {
@@ -85,7 +112,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         channelRef.current = null;
       }
     };
-  }, [user?.id, loadNotifications]);
+  }, [user?.id, loadNotifications, resyncUnreadCount]);
 
   const markAsRead = useCallback(async (id: string) => {
     try {
@@ -129,6 +156,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notifications,
         unreadCount,
         loading,
+        error,
         markAsRead,
         markAllAsRead,
         deleteNotification,
