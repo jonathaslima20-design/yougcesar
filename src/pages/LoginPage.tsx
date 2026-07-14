@@ -103,23 +103,6 @@ export default function LoginPage() {
           friendlyError = error;
         }
 
-        // For admin accounts, run diagnostic
-        if (normalizedEmail.includes('admin') || normalizedEmail.includes('jonathas')) {
-          console.log('🔧 Running diagnostics for admin account...');
-          try {
-            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-auth-sync`, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              }
-            });
-            const diagnostics = await response.json();
-            console.log('📋 Admin diagnostics:', diagnostics);
-          } catch (diagError) {
-            console.error('Diagnostic error:', diagError);
-          }
-        }
-
         setLoginError(friendlyError);
         toast.error(friendlyError);
         return;

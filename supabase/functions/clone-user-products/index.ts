@@ -167,6 +167,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    // Internal-only endpoint: only the clone-user function (which authenticates the
+    // admin caller) is meant to invoke this, using the service role key as its credential.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { jobId, sourceUserId, targetUserId, offset, limit }: CloneProductsRequest = await req.json();
 
     if (!jobId || !sourceUserId || !targetUserId || offset === undefined || !limit) {
@@ -178,7 +190,7 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      serviceRoleKey
     );
 
     console.log(`Processing products batch: offset=${offset}, limit=${limit}`);
