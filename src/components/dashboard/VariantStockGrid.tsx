@@ -25,6 +25,7 @@ interface CellState {
   quantity: number;
   original: number;
   dirty: boolean;
+  hasRow: boolean;
 }
 
 export default function VariantStockGrid({
@@ -57,13 +58,13 @@ export default function VariantStockGrid({
     if (!hasColors && !hasSizes && !hasFlavors) {
       const key = '--';
       const qty = stockMap.get(key) ?? 0;
-      newCells.push({ key, color: null, size: null, flavor: null, quantity: qty, original: qty, dirty: false });
+      newCells.push({ key, color: null, size: null, flavor: null, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
     } else if (hasColors && hasSizes) {
       for (const color of colors) {
         for (const size of sizes) {
           const key = `${color}-${size}-`;
           const qty = stockMap.get(key) ?? 0;
-          newCells.push({ key, color, size, flavor: null, quantity: qty, original: qty, dirty: false });
+          newCells.push({ key, color, size, flavor: null, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
         }
       }
     } else if (hasColors && hasFlavors) {
@@ -71,7 +72,7 @@ export default function VariantStockGrid({
         for (const flavor of flavors) {
           const key = `${color}--${flavor}`;
           const qty = stockMap.get(key) ?? 0;
-          newCells.push({ key, color, size: null, flavor, quantity: qty, original: qty, dirty: false });
+          newCells.push({ key, color, size: null, flavor, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
         }
       }
     } else if (hasSizes && hasFlavors) {
@@ -79,26 +80,26 @@ export default function VariantStockGrid({
         for (const flavor of flavors) {
           const key = `-${size}-${flavor}`;
           const qty = stockMap.get(key) ?? 0;
-          newCells.push({ key, color: null, size, flavor, quantity: qty, original: qty, dirty: false });
+          newCells.push({ key, color: null, size, flavor, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
         }
       }
     } else if (hasColors) {
       for (const color of colors) {
         const key = `${color}--`;
         const qty = stockMap.get(key) ?? 0;
-        newCells.push({ key, color, size: null, flavor: null, quantity: qty, original: qty, dirty: false });
+        newCells.push({ key, color, size: null, flavor: null, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
       }
     } else if (hasSizes) {
       for (const size of sizes) {
         const key = `-${size}-`;
         const qty = stockMap.get(key) ?? 0;
-        newCells.push({ key, color: null, size, flavor: null, quantity: qty, original: qty, dirty: false });
+        newCells.push({ key, color: null, size, flavor: null, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
       }
     } else if (hasFlavors) {
       for (const flavor of flavors) {
         const key = `--${flavor}`;
         const qty = stockMap.get(key) ?? 0;
-        newCells.push({ key, color: null, size: null, flavor, quantity: qty, original: qty, dirty: false });
+        newCells.push({ key, color: null, size: null, flavor, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
       }
     }
 
@@ -126,16 +127,23 @@ export default function VariantStockGrid({
     );
   };
 
-  const hasDirty = cells.some((c) => c.dirty);
+  // A cell also needs saving when it has no stock record yet, even if its
+  // quantity was never edited — otherwise a variant left at the default "0"
+  // never gets persisted and reads back as "untracked" instead of "esgotado".
+  const hasDirty = cells.some((c) => c.dirty || !c.hasRow);
 
   const handleSave = async () => {
-    const dirtyItems = cells.filter((c) => c.dirty);
-    if (dirtyItems.length === 0) return;
+    // Include cells the merchant never touched but that still have no stock
+    // record yet — otherwise a variant left at the default "0" (e.g. never
+    // restocked) silently never gets persisted and the storefront treats it
+    // as "untracked" instead of "esgotado".
+    const itemsToSave = cells.filter((c) => c.dirty || !c.hasRow);
+    if (itemsToSave.length === 0) return;
 
     setSaving(true);
 
     let allSuccess = true;
-    for (const cell of dirtyItems) {
+    for (const cell of itemsToSave) {
       const success = await upsertVariantStock(
         productId,
         cell.color,
@@ -149,7 +157,7 @@ export default function VariantStockGrid({
 
     if (allSuccess) {
       toast.success('Estoque por variante salvo');
-      setCells((prev) => prev.map((c) => ({ ...c, original: c.quantity, dirty: false })));
+      setCells((prev) => prev.map((c) => ({ ...c, original: c.quantity, dirty: false, hasRow: true })));
       onStockChanged?.();
     } else {
       toast.error('Erro ao salvar algumas variantes');

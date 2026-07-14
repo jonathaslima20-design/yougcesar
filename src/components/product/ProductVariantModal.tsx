@@ -89,6 +89,12 @@ export default function ProductVariantModal({
 
   const getVariantAvailable = (color?: string, size?: string, flavor?: string): number | null => {
     if (!inventoryEnabled || !product.track_inventory || variantStockData.length === 0) return null;
+
+    // Not enough of the variant selected yet to identify a specific combination.
+    if (product.colors && product.colors.length > 0 && !color) return null;
+    if (product.sizes && product.sizes.length > 0 && !size) return null;
+    if (product.flavors && product.flavors.length > 0 && !flavor) return null;
+
     const match = variantStockData.find(
       (v) =>
         (v.color || null) === (color || null) &&
@@ -99,12 +105,14 @@ export default function ProductVariantModal({
     if (variantStockData.length === 1 && !variantStockData[0].color && !variantStockData[0].size && !variantStockData[0].flavor) {
       return variantStockData[0].available;
     }
-    return null;
+    // Product tracks per-variant stock but this specific combination has no record,
+    // meaning it was never stocked — treat as zero available rather than "untracked".
+    return 0;
   };
 
   const currentVariantAvailable = getVariantAvailable(selectedColor, selectedSize, selectedFlavor);
   const isVariantOutOfStock = currentVariantAvailable !== null && currentVariantAvailable <= 0;
-  const maxQuantityForVariant = currentVariantAvailable !== null && currentVariantAvailable > 0 ? currentVariantAvailable : undefined;
+  const maxQuantityForVariant = currentVariantAvailable !== null ? currentVariantAvailable : undefined;
 
   useEffect(() => {
     const loadTieredPricing = async () => {
@@ -284,6 +292,18 @@ export default function ProductVariantModal({
     if (distributedQuantity + newItemQuantity > quantity) {
       toast.error(`Quantidade excede o total. Restante: ${remainingQuantity}`);
       return;
+    }
+
+    const itemAvailable = getVariantAvailable(newItemColor, newItemSize, selectedFlavor);
+    if (blockZeroStock && itemAvailable !== null) {
+      if (itemAvailable <= 0) {
+        toast.error(`${newItemSize ? `Tamanho ${newItemSize}` : 'Esta variação'} está esgotado`);
+        return;
+      }
+      if (newItemQuantity > itemAvailable) {
+        toast.error(`Apenas ${itemAvailable} unidade(s) disponível(is) para esta variação`);
+        return;
+      }
     }
 
     // Check for duplicate
@@ -634,17 +654,24 @@ export default function ProductVariantModal({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {product.colors!.map((color: string) => (
-                            <SelectItem key={color} value={color}>
+                          {product.colors!.map((color: string) => {
+                            const colorAvailable = getVariantAvailable(color, newItemSize, selectedFlavor);
+                            const colorOutOfStock = blockZeroStock && colorAvailable !== null && colorAvailable <= 0;
+                            return (
+                            <SelectItem key={color} value={color} disabled={colorOutOfStock}>
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-3 h-3 rounded-full border border-gray-300"
                                   style={{ backgroundColor: getColorValue(color) }}
                                 />
                                 <span className="capitalize text-xs">{color}</span>
+                                {colorOutOfStock && (
+                                  <Badge variant="destructive" className="text-[10px] px-1 py-0">Esgotado</Badge>
+                                )}
                               </div>
                             </SelectItem>
-                          ))}
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     )}
@@ -663,11 +690,20 @@ export default function ProductVariantModal({
                             const { apparelSizes, shoeSizes } = separateSizes(product.sizes!);
                             const sortedApparelSizes = sortSizes(apparelSizes, false);
                             const sortedShoeSizes = sortSizes(shoeSizes, true);
-                            return [...sortedApparelSizes, ...sortedShoeSizes].map((size: string) => (
-                              <SelectItem key={size} value={size}>
-                                <span className="text-xs">{size}</span>
-                              </SelectItem>
-                            ));
+                            return [...sortedApparelSizes, ...sortedShoeSizes].map((size: string) => {
+                              const sizeAvailable = getVariantAvailable(newItemColor, size, selectedFlavor);
+                              const sizeOutOfStock = blockZeroStock && sizeAvailable !== null && sizeAvailable <= 0;
+                              return (
+                                <SelectItem key={size} value={size} disabled={sizeOutOfStock}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs">{size}</span>
+                                    {sizeOutOfStock && (
+                                      <Badge variant="destructive" className="text-[10px] px-1 py-0">Esgotado</Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              );
+                            });
                           })()}
                         </SelectContent>
                       </Select>
@@ -815,14 +851,19 @@ export default function ProductVariantModal({
                 <SelectContent>
                   {product.colors!.map((color: string) => {
                     const colorValue = getColorValue(color);
+                    const colorAvailable = getVariantAvailable(color, selectedSize, selectedFlavor);
+                    const colorOutOfStock = blockZeroStock && colorAvailable !== null && colorAvailable <= 0;
                     return (
-                      <SelectItem key={color} value={color}>
+                      <SelectItem key={color} value={color} disabled={colorOutOfStock}>
                         <div className="flex items-center gap-2">
-                          <div 
+                          <div
                             className="w-4 h-4 rounded-full border border-gray-300 shadow-sm"
                             style={{ backgroundColor: colorValue }}
                           />
                           <span className="capitalize">{color}</span>
+                          {colorOutOfStock && (
+                            <Badge variant="destructive" className="text-xs">Esgotado</Badge>
+                          )}
                         </div>
                       </SelectItem>
                     );
@@ -864,25 +905,25 @@ export default function ProductVariantModal({
                     const sortedApparelSizes = sortSizes(apparelSizes, false);
                     const sortedShoeSizes = sortSizes(shoeSizes, true);
                     const allSizes = [...sortedApparelSizes, ...sortedShoeSizes];
-                    
+
                     return allSizes.map((size: string) => {
                       const numericSize = parseInt(size);
                       const isShoeSize = !isNaN(numericSize) && numericSize >= 17 && numericSize <= 43;
                       const isApparelSize = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'].includes(size);
-                      
+                      const sizeAvailable = getVariantAvailable(selectedColor, size, selectedFlavor);
+                      const sizeOutOfStock = blockZeroStock && sizeAvailable !== null && sizeAvailable <= 0;
+
                       return (
-                        <SelectItem key={size} value={size}>
+                        <SelectItem key={size} value={size} disabled={sizeOutOfStock}>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{size}</span>
-                            {isShoeSize && (
-                              null
-                            )}
-                            {isApparelSize && (
+                            {sizeOutOfStock ? (
+                              <Badge variant="destructive" className="text-xs">Esgotado</Badge>
+                            ) : isApparelSize ? (
                               <Badge variant="outline" className="text-xs">Vestuário</Badge>
-                            )}
-                            {!isShoeSize && !isApparelSize && (
+                            ) : !isShoeSize ? (
                               <Badge variant="outline" className="text-xs">Personalizado</Badge>
-                            )}
+                            ) : null}
                           </div>
                         </SelectItem>
                       );
