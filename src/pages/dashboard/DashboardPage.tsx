@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, TrendingUp, Users, DollarSign, Loader as Loader2, ExternalLink, ShoppingBag, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { Package, TrendingUp, Users, DollarSign, Loader as Loader2, ExternalLink, ShoppingBag, TriangleAlert as AlertTriangle, Copy, Check } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewsAndLeadsChart } from '@/components/dashboard/ViewsAndLeadsChart';
 import { RevenueCard } from '@/components/dashboard/RevenueCard';
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [periodDays, setPeriodDays] = useState<PeriodOption>(getStoredPeriod);
+  const [copiedLink, setCopiedLink] = useState(false);
   const { totalProducts, totalViews, uniqueVisitors, totalLeads, totalOrders, lowStockCount, outOfStockCount, loading, error } = useDashboardStats(periodDays);
   const { inventoryEnabled } = useInventoryEnabled();
 
@@ -63,10 +65,34 @@ export default function DashboardPage() {
       return;
     }
 
-    const storeUrl = user!.custom_domain
-      ? `https://${user!.custom_domain}`
-      : `https://vitrineturbo.com/${user!.slug}`;
     window.open(storeUrl, '_blank');
+  };
+
+  const storeUrl = user?.custom_domain
+    ? `https://${user.custom_domain}`
+    : user?.slug
+    ? `https://vitrineturbo.com/${user.slug}`
+    : '';
+
+  const handleCopyLink = async () => {
+    if (!storeUrl) {
+      toast.warning('Configure o link da sua vitrine primeiro', {
+        action: {
+          label: 'Configurar agora',
+          onClick: () => navigate('/dashboard/settings'),
+        },
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(storeUrl);
+      setCopiedLink(true);
+      toast.success('Link copiado!');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      toast.error('Não foi possível copiar o link');
+    }
   };
 
   const periodLabel = `nos últimos ${periodDays} dias`;
@@ -74,22 +100,52 @@ export default function DashboardPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-6 space-y-6">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl page-title">Dashboard</h1>
-            <p className="text-muted-foreground text-sm mt-1 hidden sm:block">Bem-vindo de volta, {user?.name || 'Usuário'}!</p>
-          </div>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleViewStorefront}
-            className="gap-2"
-          >
-            <ExternalLink className="h-4 w-4" />
-            <span className="hidden sm:inline">Ver Minha Vitrine</span>
-            <span className="sm:hidden">Vitrine</span>
-          </Button>
+        <div>
+          <h1 className="text-2xl md:text-3xl page-title">Dashboard</h1>
+          <p className="text-muted-foreground text-sm mt-1 hidden sm:block">Bem-vindo de volta, {user?.name || 'Usuário'}!</p>
         </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground mb-2">
+              Este é o link do seu catálogo. Copie para compartilhar ou abra para visualizar.
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                value={storeUrl || 'Configure seu link em Configurações'}
+                readOnly
+                className="font-mono text-xs"
+              />
+              <Button
+                onClick={handleCopyLink}
+                variant={copiedLink ? 'secondary' : 'outline'}
+                className="shrink-0 min-w-[90px] transition-all duration-200"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Copiado
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copiar
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleViewStorefront}
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                title="Abrir vitrine"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <DashboardPeriodFilter value={periodDays} onChange={handlePeriodChange} />
       </div>
 
