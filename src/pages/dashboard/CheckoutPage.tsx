@@ -539,7 +539,9 @@ export default function CheckoutPage() {
   }, [planId, offerId, cycle, navigate]);
 
   useEffect(() => {
-    if (!offerId || !user?.id || !plan) {
+    // Referred users get the referral discount instead — promotional offer discounts
+    // don't stack with it, so skip loading the offer entirely for them.
+    if (!offerId || !user?.id || !plan || user.referred_by) {
       setOfferContext(null);
       return;
     }
@@ -919,8 +921,9 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        {/* Referral Coupon Field */}
-        {!referralValidated && isFirstPayment && (
+        {/* Referral Coupon Field - hidden once a promotional offer discount is active,
+            so the two discount paths never appear stackable to the user */}
+        {!referralValidated && isFirstPayment && !offerContext && (
           <Card>
             <CardContent className="p-4 space-y-3">
               <Label className="text-sm font-medium flex items-center gap-2">

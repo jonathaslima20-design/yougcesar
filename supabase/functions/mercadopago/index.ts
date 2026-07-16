@@ -52,6 +52,15 @@ async function resolveOfferDiscount(
   basePrice: number
 ): Promise<ResolvedDiscount | null> {
   if (!offerId) return null;
+
+  // Referred users get the referral discount instead — the two don't stack.
+  const { data: offerUser } = await admin
+    .from("users")
+    .select("referred_by")
+    .eq("id", userId)
+    .maybeSingle();
+  if (offerUser?.referred_by) return null;
+
   const nowIso = new Date().toISOString();
 
   const { data: offer } = await admin
