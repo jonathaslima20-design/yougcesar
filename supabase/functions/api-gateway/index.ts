@@ -1037,6 +1037,16 @@ async function handleOrders(
       return errorResponse("forbidden", "Missing permission: orders:read", 403);
     }
 
+    const { data: owningOrder, error: ownerError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("id", route.id)
+      .eq("store_owner_id", ctx.userId)
+      .maybeSingle();
+
+    if (ownerError) return errorResponse("internal_error", ownerError.message, 500);
+    if (!owningOrder) return errorResponse("not_found", "Order not found", 404);
+
     const { data: items, error } = await supabase
       .from("order_items")
       .select("*")

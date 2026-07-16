@@ -13,6 +13,17 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Internal-only endpoint: this batch job bypasses RLS via the service role key and is
+    // meant to be triggered only by a scheduled cron job carrying the shared cron secret.
+    const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);

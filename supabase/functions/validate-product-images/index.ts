@@ -39,6 +39,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+
+    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '', {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user: callerUser }, error: callerError } = await supabaseUser.auth.getUser();
+    if (callerError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const body: ValidateProductImagesRequest = await req.json();
     const { userId, productId, imageCount } = body;
 
@@ -52,8 +66,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // The caller may only validate limits for their own account.
+    if (callerUser.id !== userId) {
+      return new Response(
+        JSON.stringify({ error: 'Access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
+      supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     );
 
