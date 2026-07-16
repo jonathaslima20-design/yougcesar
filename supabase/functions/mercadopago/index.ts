@@ -150,7 +150,9 @@ async function resolveReferralDiscount(
 
   if (!referrer || referrer.id === userId) return null;
 
-  // Only allow referral discount on the user's first-ever payment
+  // Only allow referral discount on the user's first-ever payment. Some accounts reach
+  // an active paid plan without ever getting a clean "approved" mp_payments row (e.g.
+  // manually activated by support after a failed card payment), so also check plan_status.
   const { data: priorPayments } = await admin
     .from("mp_payments")
     .select("id")
@@ -160,14 +162,19 @@ async function resolveReferralDiscount(
 
   if (priorPayments && priorPayments.length > 0) return null;
 
-  // Reject if user account was created before the referrer (temporal impossibility)
+  // Reject if user account was created before the referrer (temporal impossibility),
+  // or if they already hold/held a paid plan by some other means
   const { data: currentUser } = await admin
     .from("users")
-    .select("created_at")
+    .select("created_at, plan_status")
     .eq("id", userId)
     .maybeSingle();
 
   if (currentUser && referrer.created_at && currentUser.created_at < referrer.created_at) {
+    return null;
+  }
+
+  if (currentUser?.plan_status && currentUser.plan_status !== "free") {
     return null;
   }
 

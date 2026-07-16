@@ -589,7 +589,10 @@ export default function CheckoutPage() {
     let cancelled = false;
 
     const checkReferral = async () => {
-      // First check if user already has prior approved payments (not eligible for referral discount)
+      // Not eligible for the referral discount if they have a prior approved payment,
+      // OR if their plan status shows they already hold/held a paid plan — some accounts
+      // reach an active paid plan without ever getting a clean "approved" mp_payments row
+      // (e.g. manually activated by support after a failed card payment).
       const { data: priorPayments } = await supabase
         .from('mp_payments')
         .select('id')
@@ -598,7 +601,8 @@ export default function CheckoutPage() {
         .limit(1);
 
       if (cancelled) return;
-      if (priorPayments && priorPayments.length > 0) {
+      const alreadyHadPaidPlan = !!user.plan_status && user.plan_status !== 'free';
+      if ((priorPayments && priorPayments.length > 0) || alreadyHadPaidPlan) {
         // User already paid before - not eligible for referral discount
         setIsFirstPayment(false);
         localStorage.removeItem('vitrineturbo_ref_code');

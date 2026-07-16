@@ -95,7 +95,9 @@ export function formatPixKey(key: string, type: string): string {
 export function getCommissionAmount(planType: string): number {
   const planLower = planType.toLowerCase();
 
-  if (planLower.includes('trimestral') || planLower.includes('quarterly')) {
+  if (planLower.includes('mensal') || planLower.includes('monthly')) {
+    return 17.10;
+  } else if (planLower.includes('trimestral') || planLower.includes('quarterly')) {
     return 50.00;
   } else if (planLower.includes('semestral') || planLower.includes('semiannually')) {
     return 70.00;
@@ -138,7 +140,9 @@ export async function validateReferralCoupon(code: string, currentUserId: string
     return { valid: false, error: 'Voce nao pode usar seu proprio cupom' };
   }
 
-  // Only allow referral discount on the user's first payment
+  // Only allow referral discount on the user's first payment. Some accounts reach an
+  // active paid plan without ever getting a clean "approved" mp_payments row (e.g.
+  // manually activated by support after a failed card payment), so also check plan_status.
   const { data: priorPayments } = await supabase
     .from('mp_payments')
     .select('id')
@@ -146,16 +150,16 @@ export async function validateReferralCoupon(code: string, currentUserId: string
     .eq('status', 'approved')
     .limit(1);
 
-  if (priorPayments && priorPayments.length > 0) {
-    return { valid: false, error: 'Desconto de indicacao disponivel apenas no primeiro pagamento' };
-  }
-
-  // Reject if user was created before the referrer (temporal impossibility)
   const { data: currentUser } = await supabase
     .from('users')
-    .select('created_at')
+    .select('created_at, plan_status')
     .eq('id', currentUserId)
     .maybeSingle();
+
+  const alreadyHadPaidPlan = !!currentUser?.plan_status && currentUser.plan_status !== 'free';
+  if ((priorPayments && priorPayments.length > 0) || alreadyHadPaidPlan) {
+    return { valid: false, error: 'Desconto de indicacao disponivel apenas no primeiro pagamento' };
+  }
 
   if (currentUser && referrer.created_at && currentUser.created_at < referrer.created_at) {
     return { valid: false, error: 'Cupom de indicacao invalido para esta conta' };
