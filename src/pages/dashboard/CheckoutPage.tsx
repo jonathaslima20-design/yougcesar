@@ -9,6 +9,7 @@ import {
   createCardPayment,
   getPaymentStatus,
   getPublicKey,
+  translateCardRejection,
   type PixPaymentResult,
   type CardPaymentResult,
 } from '@/lib/mpPayments';
@@ -407,7 +408,7 @@ function CardSection({ plan, onSuccess, earlyRenewal, offerContext, referralCode
         </div>
         <h3 className="text-lg font-semibold">Pagamento recusado</h3>
         <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-          {result.status_detail || 'Verifique os dados do cartão e tente novamente.'}
+          {translateCardRejection(result.status_detail)}
         </p>
         <Button variant="outline" onClick={() => setResult(null)}>
           Tentar novamente

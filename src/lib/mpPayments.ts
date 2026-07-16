@@ -96,6 +96,27 @@ export interface PaymentStatus {
   updated_at: string;
 }
 
+const CARD_REJECTION_MESSAGES: Record<string, string> = {
+  cc_rejected_bad_filled_card_number: 'Número do cartão incorreto. Confira e tente novamente.',
+  cc_rejected_bad_filled_date: 'Data de validade incorreta. Confira e tente novamente.',
+  cc_rejected_bad_filled_security_code: 'Código de segurança (CVV) incorreto. Confira e tente novamente.',
+  cc_rejected_bad_filled_other: 'Revise os dados do cartão e tente novamente.',
+  cc_rejected_blacklist: 'Cartão não autorizado. Entre em contato com o seu banco.',
+  cc_rejected_call_for_authorize: 'Você precisa autorizar este pagamento diretamente com o seu banco.',
+  cc_rejected_card_disabled: 'Cartão desabilitado. Ligue para o seu banco para ativá-lo ou use outro cartão.',
+  cc_rejected_card_error: 'Não foi possível processar o pagamento. Tente novamente em instantes.',
+  cc_rejected_duplicated_payment: 'Já existe um pagamento igual realizado recentemente.',
+  cc_rejected_high_risk: 'Pagamento recusado por segurança. Tente outro cartão ou use o Pix.',
+  cc_rejected_insufficient_amount: 'Saldo ou limite insuficiente no cartão.',
+  cc_rejected_invalid_installments: 'Número de parcelas não disponível para este cartão.',
+  cc_rejected_max_attempts: 'Limite de tentativas atingido. Tente novamente mais tarde ou use outro cartão.',
+  cc_rejected_other_reason: 'Pagamento recusado pelo seu banco. Tente outro cartão ou use o Pix.',
+};
+
+export function translateCardRejection(statusDetail: string): string {
+  return CARD_REJECTION_MESSAGES[statusDetail] || 'Pagamento recusado. Verifique os dados do cartão ou tente outro meio de pagamento.';
+}
+
 export function getPublicKey(): Promise<{ public_key: string; environment: string }> {
   return callMercadoPago('getPublicKey');
 }

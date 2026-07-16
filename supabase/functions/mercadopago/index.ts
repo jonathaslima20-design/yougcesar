@@ -589,6 +589,19 @@ Deno.serve(async (req: Request) => {
         const docType =
           cardPayer.doc.replace(/\D/g, "").length > 11 ? "CNPJ" : "CPF";
 
+        // Card payments were missing the payer's name, unlike Pix — Mercado Pago's
+        // fraud scoring for card transactions weighs full payer identification, and
+        // omitting it is a likely cause of otherwise-valid cards being rejected.
+        const { data: payerProfile } = await admin
+          .from("users")
+          .select("name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const fullName = (payerProfile?.name || "").trim();
+        const [payerFirstName, ...payerLastNameParts] = fullName ? fullName.split(/\s+/) : [""];
+        const payerLastName = payerLastNameParts.join(" ");
+
         const mpBody = {
           transaction_amount: finalPrice,
           token,
@@ -597,6 +610,8 @@ Deno.serve(async (req: Request) => {
           issuer_id,
           payer: {
             email: cardPayer.email,
+            first_name: payerFirstName || undefined,
+            last_name: payerLastName || undefined,
             identification: {
               type: docType,
               number: cardPayer.doc.replace(/\D/g, ""),
