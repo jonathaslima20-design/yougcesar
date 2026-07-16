@@ -352,7 +352,7 @@ interface PublicPageSEO {
 const PUBLIC_PAGE_SEO: Record<string, PublicPageSEO> = {
   planos: {
     title: 'Planos e Preços | VitrineTurbo — Catálogo Digital Grátis',
-    description: 'Compare os planos do VitrineTurbo: Free, Trimestral, Semestral e Anual. Produtos ilimitados, domínio próprio, API REST e zero taxa sobre vendas.',
+    description: 'Compare os planos do VitrineTurbo: Free, Mensal, Semestral e Anual. Produtos ilimitados, domínio próprio, API REST e zero taxa sobre vendas.',
     canonical: 'https://vitrineturbo.com.br/planos',
   },
   funcionalidades: {

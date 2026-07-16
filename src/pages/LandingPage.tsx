@@ -980,8 +980,8 @@ function PricingSection({ refCode }: { refCode: string | null }) {
 
           <PricingCard
             tag="Flexível"
-            name="Trimestral"
-            price="R$ 149,00"
+            name="Mensal"
+            price="R$ 57,00"
             benefits={allPaidBenefits}
             refCode={refCode}
           />

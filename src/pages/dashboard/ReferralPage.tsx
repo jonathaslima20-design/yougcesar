@@ -249,9 +249,9 @@ export default function ReferralPage() {
           <div className="grid md:grid-cols-3 gap-4">
             <Card className="transition-all duration-200 hover:shadow-md">
               <CardContent className="pt-5 pb-5 text-center space-y-1.5">
-                <div className="text-2xl font-bold">R$ 44,70</div>
-                <div className="text-sm text-muted-foreground">Plano Trimestral</div>
-                <Badge variant="secondary" className="text-xs">30% de R$ 149</Badge>
+                <div className="text-2xl font-bold">R$ 17,10</div>
+                <div className="text-sm text-muted-foreground">Plano Mensal</div>
+                <Badge variant="secondary" className="text-xs">30% de R$ 57</Badge>
               </CardContent>
             </Card>
 
