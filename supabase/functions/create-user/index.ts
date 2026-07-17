@@ -117,7 +117,8 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { email, password, name, country_code, whatsapp, role }: CreateUserRequest = await req.json();
+    const { email: rawEmail, password, name, country_code, whatsapp, role }: CreateUserRequest = await req.json();
+    const email = rawEmail?.trim().toLowerCase();
 
     if (!email || !password || !name || !role) {
       return new Response(

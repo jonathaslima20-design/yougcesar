@@ -111,6 +111,9 @@ Deno.serve(async (req: Request) => {
     );
 
     const { originalUserId, newUserData }: CloneUserRequest = await req.json();
+    if (newUserData?.email) {
+      newUserData.email = newUserData.email.trim().toLowerCase();
+    }
 
     if (!originalUserId || !newUserData?.email || !newUserData?.password || !newUserData?.name || !newUserData?.slug) {
       return new Response(
