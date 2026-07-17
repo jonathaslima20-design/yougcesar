@@ -114,10 +114,11 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         });
         setProduct(productData);
 
-        // Fetch corretor details
+        // Fetch corretor details (only the columns this page and its children actually use —
+        // avoid leaking email, referral_code, subscription/billing fields, custom_domain, etc.)
         const { data: corretorData, error: corretorError } = await supabase
           .from('users')
-          .select('*')
+          .select('id, name, slug, avatar_url, whatsapp, country_code, phone, bio, instagram, location_url, theme, currency, language, plan_status')
           .eq('id', productData.user_id)
           .single();
 
