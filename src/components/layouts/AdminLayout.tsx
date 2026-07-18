@@ -23,7 +23,7 @@ export default function AdminLayout() {
         mobileOpen={mobileMenuOpen}
         onMobileToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
       />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <AdminHeader />
         <motion.main
           className="flex-1 w-full"

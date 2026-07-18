@@ -462,7 +462,7 @@ export default function UsersManagementPage() {
   );
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 min-w-0">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl page-title">Gerenciamento de Usuários</h1>
