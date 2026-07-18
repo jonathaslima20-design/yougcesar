@@ -185,6 +185,8 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
           "fixed inset-y-0 left-0 w-[272px] z-50 transition-transform duration-250 ease-out md:hidden flex flex-col bg-background border-r border-foreground/[0.08]",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        aria-hidden={!mobileOpen}
+        {...(!mobileOpen ? ({ inert: '' } as React.HTMLAttributes<HTMLDivElement>) : {})}
       >
         {sidebarContent(true)}
       </div>

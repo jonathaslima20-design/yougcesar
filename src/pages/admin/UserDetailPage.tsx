@@ -589,7 +589,7 @@ export default function UserDetailPage() {
         {/* Main Content */}
         <div className="space-y-6 min-w-0">
           {/* Quick Stats */}
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
             <QuickStatCard icon={Package} label="Produtos" value={stats.totalProducts} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950" />
             <QuickStatCard icon={Eye} label="Visualizações" value={stats.totalViews.toLocaleString('pt-BR')} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950" />
             <QuickStatCard icon={Users} label="Leads" value={stats.totalLeads.toLocaleString('pt-BR')} color="text-amber-600" bg="bg-amber-50 dark:bg-amber-950" />
@@ -677,12 +677,12 @@ function QuickStatCard({ icon: Icon, label, value, color, bg }: {
     <Card>
       <CardContent className="p-4">
         <div className="flex items-center gap-3">
-          <div className={`rounded-lg p-2 ${bg}`}>
+          <div className={`rounded-lg p-2 shrink-0 ${bg}`}>
             <Icon className={`h-4 w-4 ${color}`} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-xl font-bold truncate">{value}</p>
+            <p className="text-xs text-muted-foreground truncate">{label}</p>
+            <p className="text-xl font-bold truncate" title={String(value)}>{value}</p>
           </div>
         </div>
       </CardContent>
@@ -1012,7 +1012,7 @@ function OrdersTab({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
         <QuickStatCard icon={ShoppingCart} label="Total (30d)" value={orderStats.total} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950" />
         <QuickStatCard icon={Package} label="Pendentes" value={orderStats.pending} color="text-amber-600" bg="bg-amber-50 dark:bg-amber-950" />
         <QuickStatCard icon={Package} label="Entregues" value={orderStats.delivered} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950" />
