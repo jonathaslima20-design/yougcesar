@@ -446,25 +446,25 @@ interface PublicPageSEO {
 }
 
 const PUBLIC_PAGE_SEO: Record<string, PublicPageSEO> = {
-  planos: {
-    title: 'Planos e Preços | VitrineTurbo — Catálogo Digital Grátis',
-    description: 'Compare os planos do VitrineTurbo: Free, Mensal, Semestral e Anual. Produtos ilimitados, domínio próprio, API REST e zero taxa sobre vendas.',
-    canonical: 'https://vitrineturbo.com/planos',
+  'catalogo-digital-gratis': {
+    title: 'Catálogo Digital Grátis para Vender Online | VitrineTurbo',
+    description: 'Crie seu catálogo digital grátis, sem taxa sobre vendas. Produtos, categorias, estoque e cupom no plano gratuito. Comece agora.',
+    canonical: 'https://vitrineturbo.com/catalogo-digital-gratis',
   },
-  funcionalidades: {
-    title: 'Funcionalidades | Catálogo Digital com WhatsApp, Estoque e Pedidos',
-    description: 'Conheça todas as funcionalidades do VitrineTurbo: catálogo digital, controle de estoque, gestão de pedidos, cupons de desconto, domínio próprio e API REST.',
-    canonical: 'https://vitrineturbo.com/funcionalidades',
+  'catalogo-para-whatsapp': {
+    title: 'Catálogo de Produtos para WhatsApp | VitrineTurbo',
+    description: 'Catálogo de produtos digital feito pra vender pelo WhatsApp: categorias, estoque por variação e pedido fechando direto na conversa.',
+    canonical: 'https://vitrineturbo.com/catalogo-para-whatsapp',
   },
-  integracoes: {
-    title: 'Integrações | VitrineTurbo — API REST, Bling, Tiny e ERPs',
-    description: 'Integre o VitrineTurbo com Bling, Tiny e outros ERPs via API REST completa. Sincronize produtos, estoque e pedidos automaticamente.',
-    canonical: 'https://vitrineturbo.com/integracoes',
+  'loja-virtual-sem-taxa': {
+    title: 'Loja Virtual sem Taxa sobre Vendas | VitrineTurbo',
+    description: 'Loja virtual sem taxa sobre vendas: assinatura fixa e previsível, plano grátis pra começar. Veja quanto você deixa de pagar em taxa por venda.',
+    canonical: 'https://vitrineturbo.com/loja-virtual-sem-taxa',
   },
-  faq: {
-    title: 'Perguntas Frequentes | VitrineTurbo — Dúvidas sobre a Plataforma',
-    description: 'Tire suas dúvidas sobre o VitrineTurbo: planos, pagamentos, domínio próprio, controle de estoque, cupons, API e programa de indicações.',
-    canonical: 'https://vitrineturbo.com/faq',
+  'dominio-proprio': {
+    title: 'Catálogo Digital com Domínio Próprio | VitrineTurbo',
+    description: 'Conecte um domínio próprio ao seu catálogo digital: link com a sua marca, SSL automático e configuração em minutos.',
+    canonical: 'https://vitrineturbo.com/dominio-proprio',
   },
 };
 

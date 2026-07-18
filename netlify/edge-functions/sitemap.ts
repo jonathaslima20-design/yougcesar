@@ -4,6 +4,10 @@ const BASE_URL = "https://vitrineturbo.com";
 
 const pages = [
   { path: "/", priority: "1.0" },
+  { path: "/catalogo-digital-gratis", priority: "0.9" },
+  { path: "/catalogo-para-whatsapp", priority: "0.9" },
+  { path: "/loja-virtual-sem-taxa", priority: "0.9" },
+  { path: "/dominio-proprio", priority: "0.8" },
   { path: "/blog", priority: "0.7" },
   { path: "/register", priority: "0.6" },
   { path: "/help", priority: "0.6" },

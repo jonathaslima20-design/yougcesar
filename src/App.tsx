@@ -39,6 +39,7 @@ import HelpArticlePage from '@/pages/HelpArticlePage.tsx';
 import BlogPage from '@/pages/BlogPage.tsx';
 import BlogCategoryPage from '@/pages/BlogCategoryPage.tsx';
 import BlogPostPage from '@/pages/BlogPostPage.tsx';
+import PillarPage from '@/pages/PillarPage.tsx';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage.tsx';
 import CookiesPolicyPage from '@/pages/CookiesPolicyPage.tsx';
 import TermsOfUsePage from '@/pages/TermsOfUsePage.tsx';
@@ -216,6 +217,12 @@ function AppContent() {
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/categoria/:categorySlug" element={<BlogCategoryPage />} />
           <Route path="/blog/:postSlug" element={<BlogPostPage />} />
+
+          {/* Pillar SEO Landing Pages */}
+          <Route path="/catalogo-digital-gratis" element={<PillarPage slug="catalogo-digital-gratis" />} />
+          <Route path="/catalogo-para-whatsapp" element={<PillarPage slug="catalogo-para-whatsapp" />} />
+          <Route path="/loja-virtual-sem-taxa" element={<PillarPage slug="loja-virtual-sem-taxa" />} />
+          <Route path="/dominio-proprio" element={<PillarPage slug="dominio-proprio" />} />
 
           {/* Help Center Routes */}
           <Route path="/help" element={<HelpCenterPage />} />
