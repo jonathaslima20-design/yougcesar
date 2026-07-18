@@ -104,6 +104,13 @@ export default function EditProductPage() {
   const [images, setImages] = useState<MediaItem[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [initialImages, setInitialImages] = useState<MediaItem[]>([]);
+  // Raw text mirrors of the stock number inputs. React Hook Form's Controller
+  // falls back to the field's registered default value whenever field.value
+  // becomes undefined, so an empty field.value can never be displayed as an
+  // empty input. These local strings are the source of truth for what's
+  // rendered, decoupled from that RHF behavior.
+  const [stockQuantityText, setStockQuantityText] = useState('');
+  const [lowStockThresholdText, setLowStockThresholdText] = useState('5');
 
   const userCurrency = (user?.currency as 'BRL' | 'USD' | 'EUR') || 'BRL';
 
@@ -178,6 +185,8 @@ export default function EditProductPage() {
           stock_quantity: product.stock_quantity ?? undefined,
           low_stock_threshold: product.low_stock_threshold ?? 5,
         });
+        setStockQuantityText(product.stock_quantity != null ? String(product.stock_quantity) : '');
+        setLowStockThresholdText(String(product.low_stock_threshold ?? 5));
 
         if (product.track_inventory) {
           setIsInventoryOpen(true);
@@ -678,8 +687,12 @@ export default function EditProductPage() {
                                   type="number"
                                   min={0}
                                   placeholder="0"
-                                  value={field.value ?? ''}
-                                  onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                                  value={stockQuantityText}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    setStockQuantityText(raw);
+                                    field.onChange(raw === '' ? undefined : Number(raw));
+                                  }}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -698,8 +711,12 @@ export default function EditProductPage() {
                                   type="number"
                                   min={0}
                                   placeholder="5"
-                                  value={field.value ?? 5}
-                                  onChange={(e) => field.onChange(e.target.value === '' ? 5 : Number(e.target.value))}
+                                  value={lowStockThresholdText}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    setLowStockThresholdText(raw);
+                                    field.onChange(raw === '' ? undefined : Number(raw));
+                                  }}
                                 />
                               </FormControl>
                               <FormDescription>
