@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const BASE_URL = 'https://vitrineturbo.com.br';
+const BASE_URL = 'https://vitrineturbo.com';
 
 interface PageSEO {
   title: string;

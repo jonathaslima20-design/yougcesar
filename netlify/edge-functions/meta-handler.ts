@@ -404,9 +404,9 @@ function generateDefaultMetaTagsHTML(): string {
     <title>VitrineTurbo: Catálogo Digital para WhatsApp | Venda Mais Sem Taxa</title>
     <meta name="description" content="Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, plano grátis, sem taxa sobre vendas. Comece agora." />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://vitrineturbo.com.br/" />
+    <link rel="canonical" href="https://vitrineturbo.com/" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://vitrineturbo.com.br/" />
+    <meta property="og:url" content="https://vitrineturbo.com/" />
     <meta property="og:title" content="VitrineTurbo: Catálogo Digital para WhatsApp | Venda Mais Sem Taxa" />
     <meta property="og:description" content="Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, plano grátis, sem taxa sobre vendas. Comece agora." />
     <meta property="og:image" content="https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png" />
@@ -419,7 +419,7 @@ function generateDefaultMetaTagsHTML(): string {
     <meta name="twitter:description" content="Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, plano grátis, sem taxa sobre vendas. Comece agora." />
     <meta name="twitter:image" content="https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png" />
     <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"SoftwareApplication","name":"VitrineTurbo","description":"Plataforma completa de catálogo digital para WhatsApp com gestão de produtos, estoque, pedidos, cupons e domínio próprio. Sem taxa sobre vendas.","applicationCategory":"BusinessApplication","operatingSystem":"Web","url":"https://vitrineturbo.com.br","offers":{"@type":"AggregateOffer","lowPrice":"0","highPrice":"336","priceCurrency":"BRL","offerCount":"4"}}
+    {"@context":"https://schema.org","@type":"SoftwareApplication","name":"VitrineTurbo","description":"Plataforma completa de catálogo digital para WhatsApp com gestão de produtos, estoque, pedidos, cupons e domínio próprio. Sem taxa sobre vendas.","applicationCategory":"BusinessApplication","operatingSystem":"Web","url":"https://vitrineturbo.com","offers":{"@type":"AggregateOffer","lowPrice":"0","highPrice":"336","priceCurrency":"BRL","offerCount":"4"}}
     </script>
   </head>
   <body>
@@ -449,22 +449,22 @@ const PUBLIC_PAGE_SEO: Record<string, PublicPageSEO> = {
   planos: {
     title: 'Planos e Preços | VitrineTurbo — Catálogo Digital Grátis',
     description: 'Compare os planos do VitrineTurbo: Free, Mensal, Semestral e Anual. Produtos ilimitados, domínio próprio, API REST e zero taxa sobre vendas.',
-    canonical: 'https://vitrineturbo.com.br/planos',
+    canonical: 'https://vitrineturbo.com/planos',
   },
   funcionalidades: {
     title: 'Funcionalidades | Catálogo Digital com WhatsApp, Estoque e Pedidos',
     description: 'Conheça todas as funcionalidades do VitrineTurbo: catálogo digital, controle de estoque, gestão de pedidos, cupons de desconto, domínio próprio e API REST.',
-    canonical: 'https://vitrineturbo.com.br/funcionalidades',
+    canonical: 'https://vitrineturbo.com/funcionalidades',
   },
   integracoes: {
     title: 'Integrações | VitrineTurbo — API REST, Bling, Tiny e ERPs',
     description: 'Integre o VitrineTurbo com Bling, Tiny e outros ERPs via API REST completa. Sincronize produtos, estoque e pedidos automaticamente.',
-    canonical: 'https://vitrineturbo.com.br/integracoes',
+    canonical: 'https://vitrineturbo.com/integracoes',
   },
   faq: {
     title: 'Perguntas Frequentes | VitrineTurbo — Dúvidas sobre a Plataforma',
     description: 'Tire suas dúvidas sobre o VitrineTurbo: planos, pagamentos, domínio próprio, controle de estoque, cupons, API e programa de indicações.',
-    canonical: 'https://vitrineturbo.com.br/faq',
+    canonical: 'https://vitrineturbo.com/faq',
   },
 };
 

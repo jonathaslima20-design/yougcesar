@@ -1,6 +1,6 @@
 import type { Context } from "https://edge.netlify.com";
 
-const BASE_URL = "https://vitrineturbo.com.br";
+const BASE_URL = "https://vitrineturbo.com";
 
 const pages = [
   { path: "/", priority: "1.0" },

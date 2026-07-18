@@ -3,4 +3,4 @@ Allow: /
 Disallow: /dashboard
 Disallow: /admin
 
-Sitemap: https://vitrineturbo.com.br/sitemap.xml
+Sitemap: https://vitrineturbo.com/sitemap.xml
