@@ -36,6 +36,9 @@ import ProductDetailsPage from '@/pages/ProductDetailsPage.tsx';
 import HelpCenterPage from '@/pages/HelpCenterPage.tsx';
 import HelpCategoryPage from '@/pages/HelpCategoryPage.tsx';
 import HelpArticlePage from '@/pages/HelpArticlePage.tsx';
+import BlogPage from '@/pages/BlogPage.tsx';
+import BlogCategoryPage from '@/pages/BlogCategoryPage.tsx';
+import BlogPostPage from '@/pages/BlogPostPage.tsx';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage.tsx';
 import CookiesPolicyPage from '@/pages/CookiesPolicyPage.tsx';
 import TermsOfUsePage from '@/pages/TermsOfUsePage.tsx';
@@ -73,6 +76,7 @@ import NetlifyIntegrationPage from '@/pages/admin/NetlifyIntegrationPage.tsx';
 import SubscriptionPlansPage from '@/pages/admin/SubscriptionPlansPage.tsx';
 import ReferralManagementPage from '@/pages/admin/ReferralManagementPage.tsx';
 import HelpManagementPage from '@/pages/admin/HelpManagementPage.tsx';
+import BlogManagementPage from '@/pages/admin/BlogManagementPage.tsx';
 import { OrphanedFilesPage } from '@/pages/admin/OrphanedFilesPage.tsx';
 import BannerClientsPage from '@/pages/admin/BannerClientsPage.tsx';
 import MercadoPagoPage from '@/pages/admin/MercadoPagoPage.tsx';
@@ -208,6 +212,11 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
+          {/* Blog Routes */}
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/categoria/:categorySlug" element={<BlogCategoryPage />} />
+          <Route path="/blog/:postSlug" element={<BlogPostPage />} />
+
           {/* Help Center Routes */}
           <Route path="/help" element={<HelpCenterPage />} />
           <Route path="/help/category/:categorySlug" element={<HelpCategoryPage />} />
@@ -259,6 +268,7 @@ function AppContent() {
             <Route path="/admin/tracking" element={<AdminTrackingPage />} />
             <Route path="/admin/netlify" element={<NetlifyIntegrationPage />} />
             <Route path="/admin/help" element={<HelpManagementPage />} />
+            <Route path="/admin/blog" element={<BlogManagementPage />} />
             <Route path="/admin/mercadopago" element={<MercadoPagoPage />} />
             <Route path="/admin/banner-clients" element={<BannerClientsPage />} />
             <Route path="/admin/legal" element={<LegalCenterPage />} />

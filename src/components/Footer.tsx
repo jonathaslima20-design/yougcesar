@@ -85,6 +85,9 @@ export default function Footer() {
       <div className="container mx-auto px-4 flex flex-col items-center">
         {renderLogo()}
         <div className={`flex items-center gap-4 text-xs text-muted-foreground/70 ${footerLogoMode === 'hidden' ? '' : 'mt-2'}`}>
+          <Link to="/blog" className="hover:text-muted-foreground transition-colors">
+            Blog
+          </Link>
           <Link to="/politica-de-privacidade" className="hover:text-muted-foreground transition-colors">
             Privacidade
           </Link>

@@ -22,7 +22,13 @@ interface ProductProfile {
 }
 
 /**
- * Detects if the request is from a social media crawler/bot
+ * Detects if the request is from a social media link-preview bot.
+ *
+ * Search engine crawlers (Googlebot, Bingbot, Google-InspectionTool) are
+ * deliberately excluded: they render JavaScript and index the full SPA, so
+ * serving them this stub HTML instead of context.next() would show search
+ * engines thinner content than real visitors see (cloaking). Only bots that
+ * don't execute JS and need static Open Graph tags belong here.
  */
 function isCrawlerUserAgent(userAgent: string): boolean {
   const crawlerPatterns = [
@@ -37,9 +43,6 @@ function isCrawlerUserAgent(userAgent: string): boolean {
     'SkypeUriPreview',
     'MetaInspector',
     'BingPreview',
-    'GoogleBot',
-    'bingbot',
-    'Google-InspectionTool'
   ];
 
   const ua = userAgent.toLowerCase();
@@ -118,6 +121,99 @@ function generateMetaTagsHTML(profile: UserProfile, requestUrl: string, isCustom
       <p style="font-size: 18px; color: #666; margin-bottom: 20px;">${description}</p>
       <p style="color: #999;">Redirecionando...</p>
     </div>
+  </body>
+</html>`;
+}
+
+interface BlogPost {
+  title: string;
+  slug: string;
+  excerpt?: string;
+  cover_image_url?: string;
+  meta_title?: string;
+  meta_description?: string;
+}
+
+interface BlogCategory {
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+const BLOG_FALLBACK_IMAGE = 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png';
+
+/**
+ * Generates HTML with dynamic Open Graph meta tags for a blog post
+ */
+function generateBlogPostMetaTagsHTML(post: BlogPost, requestUrl: string): string {
+  const title = post.meta_title || `${post.title} | Blog VitrineTurbo`;
+  const description = post.meta_description || post.excerpt || `Leia "${post.title}" no blog do VitrineTurbo.`;
+  const imageUrl = post.cover_image_url || BLOG_FALLBACK_IMAGE;
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <meta name="title" content="${title}" />
+    <meta name="description" content="${description}" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="${requestUrl}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="${requestUrl}" />
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${imageUrl}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="VitrineTurbo" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:image" content="${imageUrl}" />
+    <meta http-equiv="refresh" content="0;url=${requestUrl}" />
+    <script>
+      if (!/bot|crawler|spider|crawling/i.test(navigator.userAgent)) {
+        window.location.href = "${requestUrl}";
+      }
+    </script>
+  </head>
+  <body>
+    <h1>${post.title}</h1>
+    <p>${description}</p>
+  </body>
+</html>`;
+}
+
+function generateBlogCategoryMetaTagsHTML(category: BlogCategory, requestUrl: string): string {
+  const title = `${category.name} | Blog VitrineTurbo`;
+  const description = category.description || `Artigos sobre ${category.name} no blog do VitrineTurbo.`;
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <meta name="description" content="${description}" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="${requestUrl}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${requestUrl}" />
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${BLOG_FALLBACK_IMAGE}" />
+    <meta property="og:site_name" content="VitrineTurbo" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta http-equiv="refresh" content="0;url=${requestUrl}" />
+  </head>
+  <body>
+    <h1>${title}</h1>
+    <p>${description}</p>
   </body>
 </html>`;
 }
@@ -571,6 +667,62 @@ export default async (request: Request, context: Context) => {
       }
     }
 
+    // Handle blog: /blog, /blog/categoria/:slug, /blog/:postSlug
+    if (pathSegments.length > 0 && pathSegments[0] === 'blog' && supabaseUrl && supabaseKey) {
+      if (pathSegments.length === 3 && pathSegments[1] === 'categoria') {
+        const categoryResponse = await fetch(
+          `${supabaseUrl}/rest/v1/blog_categories?slug=eq.${pathSegments[2]}&is_active=eq.true&select=name,slug,description&limit=1`,
+          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' } }
+        );
+        if (categoryResponse.ok) {
+          const categories = await categoryResponse.json() as BlogCategory[];
+          if (categories.length > 0) {
+            const html = generateBlogCategoryMetaTagsHTML(categories[0], request.url);
+            return new Response(html, {
+              status: 200,
+              headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+            });
+          }
+        }
+        return context.next();
+      }
+
+      if (pathSegments.length === 2) {
+        const postResponse = await fetch(
+          `${supabaseUrl}/rest/v1/blog_posts?slug=eq.${pathSegments[1]}&is_published=eq.true&select=title,slug,excerpt,cover_image_url,meta_title,meta_description&limit=1`,
+          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' } }
+        );
+        if (postResponse.ok) {
+          const posts = await postResponse.json() as BlogPost[];
+          if (posts.length > 0) {
+            const html = generateBlogPostMetaTagsHTML(posts[0], request.url);
+            return new Response(html, {
+              status: 200,
+              headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300, s-maxage=600' },
+            });
+          }
+        }
+        return context.next();
+      }
+
+      // /blog index
+      const config = await fetchLinkPreviewConfig(supabaseUrl, supabaseKey, 'blog');
+      if (config) {
+        const html = generateConfigBasedHTML(config, request.url);
+        return new Response(html, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+        });
+      }
+      return new Response(generateBlogPostMetaTagsHTML(
+        { title: 'Blog', slug: 'blog', excerpt: 'Guias práticos sobre catálogo digital, vendas pelo WhatsApp e gestão de loja pequena.' },
+        request.url
+      ), {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+      });
+    }
+
     // Skip special paths (return landing config or default)
     if (pathSegments.length === 0 ||
         pathSegments[0] === 'login' ||
@@ -578,6 +730,7 @@ export default async (request: Request, context: Context) => {
         pathSegments[0] === 'dashboard' ||
         pathSegments[0] === 'admin' ||
         pathSegments[0] === 'help' ||
+        pathSegments[0] === 'blog' ||
         pathSegments[0] === 'ajuda' ||
         pathSegments[0] === 'assets' ||
         pathSegments[0] === 'termos-de-uso' ||

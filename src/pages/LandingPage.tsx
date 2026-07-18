@@ -215,7 +215,7 @@ function Header({ refCode }: { refCode: string | null }) {
             width={180}
             height={56}
             className="h-14 w-auto"
-            fetchPriority="high"
+            fetchpriority="high"
             loading="eager"
             decoding="async"
             onError={(e) => {
@@ -229,6 +229,7 @@ function Header({ refCode }: { refCode: string | null }) {
           <a href="#integracoes" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">Integrações</a>
           <a href="#precos" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">Planos</a>
           <a href="#faq" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">FAQ</a>
+          <Link to="/blog" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">Blog</Link>
         </nav>
         <div className="flex items-center gap-2">
           <a
