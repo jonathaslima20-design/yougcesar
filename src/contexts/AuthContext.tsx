@@ -47,30 +47,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      console.log('🔐 Initializing simplified auth...');
-      
       // Try to get stored user first
       const storedUser = getStoredUser();
       if (storedUser && isAuthenticated()) {
         setUser(storedUser);
         setLoading(false);
-        console.log('✅ User restored from localStorage');
         // Silently refresh from DB to get latest data (billing_cycle, plan_status, etc.)
         refreshUserFromDB().then((fresh) => {
           if (fresh) setUser(fresh);
         });
         return;
       }
-      
+
       // Try auto-login with stored credentials
       const { user: autoLoginUser, error } = await autoLogin();
       if (autoLoginUser && !error) {
         setUser(autoLoginUser);
-        console.log('✅ Auto-login successful');
-      } else {
-        console.log('ℹ️ No valid stored session found');
       }
-      
+
     } catch (error) {
       console.error('❌ Auth initialization error:', error);
     } finally {

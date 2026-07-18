@@ -69,19 +69,6 @@ export default function FloatingWhatsAppButton({ className }: FloatingWhatsAppBu
   
   // MOSTRAR: usuário autenticado + página interna + não é página proibida + visível
   const shouldShow = isVisible && isAuthenticatedUser && isInternalPage && !shouldHide;
-  
-  console.log('🟢 FloatingWhatsAppButton SIMPLE DEBUG:', {
-    pathname: location.pathname,
-    isVisible,
-    authLoading,
-    userAuthenticated: !!user,
-    isDashboardPage,
-    isAdminPage,
-    isInternalPage,
-    shouldHide,
-    shouldShow,
-    finalDecision: shouldShow ? 'SHOW BUTTON' : 'HIDE BUTTON'
-  });
 
   // Se não deve mostrar, não renderiza nada
   if (!shouldShow || !adminWhatsApp) {

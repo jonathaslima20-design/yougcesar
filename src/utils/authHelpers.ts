@@ -46,7 +46,7 @@ export function redirectIfNotAuthenticated(): boolean {
  * Force logout and redirect
  */
 export function forceLogout(reason?: string): void {
-  console.log('🔐 Force logout triggered:', reason);
+  if (import.meta.env.DEV) console.log('🔐 Force logout triggered:', reason);
   clearAllStoredData();
   window.location.href = '/login';
 }

@@ -65,28 +65,17 @@ export const supabase = createClient(supabaseUrl || FALLBACK_URL, supabaseAnonKe
 
 // Add session change listener for debugging
 supabase.auth.onAuthStateChange((event, session) => {
-  console.log('🔐 AUTH STATE CHANGE:', {
-    event,
-    userEmail: session?.user?.email,
-    hasSession: !!session,
-    timestamp: new Date().toISOString()
-  });
-  
-  if (event === 'TOKEN_REFRESHED') {
-    console.log('🔄 Token refreshed successfully');
+  if (import.meta.env.DEV) {
+    console.log('🔐 AUTH STATE CHANGE:', {
+      event,
+      userEmail: session?.user?.email,
+      hasSession: !!session,
+      timestamp: new Date().toISOString()
+    });
   }
-  
+
   if (event === 'SIGNED_OUT') {
-    console.log('🚪 User signed out');
     localStorage.clear(); // Clear all stored data on sign out
-  }
-  
-  if (event === 'SIGNED_IN') {
-    console.log('✅ User signed in successfully');
-  }
-  
-  if (event === 'USER_UPDATED') {
-    console.log('👤 User profile updated');
   }
 });
 

@@ -75,20 +75,7 @@ export default function LoginPage() {
       setIsLoading(true);
       setLoginError(null);
 
-      const normalizedEmail = data.email.trim().toLowerCase();
-
-      console.log('🔐 LOGIN ATTEMPT:', {
-        email: normalizedEmail,
-        hasPassword: !!data.password,
-        passwordLength: data.password.length
-      });
-
       const { error } = await signIn(data.email, data.password);
-
-      console.log('🔐 LOGIN RESULT:', {
-        success: !error,
-        error: error || 'none'
-      });
 
       if (error) {
         let friendlyError: string;

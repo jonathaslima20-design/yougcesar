@@ -1,6 +1,11 @@
 import { supabase } from '../supabase';
 import type { User } from '@/types';
 
+// Logs informativos apenas em desenvolvimento; erros continuam sempre visíveis via console.error
+const devLog = (...args: unknown[]) => {
+  if (import.meta.env.DEV) console.log(...args);
+};
+
 // Pure localStorage authentication (no Supabase Auth)
 export interface StoredCredentials {
   email: string;
@@ -53,7 +58,7 @@ export function storeCredentials(email: string, password: string): void {
       timestamp: Date.now()
     };
     localStorage.setItem(STORAGE_KEYS.CREDENTIALS, JSON.stringify(credentials));
-    console.log('✅ Credentials stored successfully');
+    devLog('✅ Credentials stored successfully');
   } catch (error) {
     console.error('❌ Error storing credentials:', error);
   }
@@ -103,8 +108,8 @@ export function storeUser(user: StoredUser): void {
     
     localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
     localStorage.setItem(STORAGE_KEYS.AUTH_STATE, 'authenticated');
-    
-    console.log('✅ User and session stored successfully');
+
+    devLog('✅ User and session stored successfully');
   } catch (error) {
     console.error('❌ Error storing user:', error);
   }
@@ -147,7 +152,7 @@ export function storeSession(sessionData: Partial<AuthSession>): void {
     };
     
     localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
-    console.log('✅ Session stored successfully');
+    devLog('✅ Session stored successfully');
   } catch (error) {
     console.error('❌ Error storing session:', error);
   }
@@ -208,12 +213,12 @@ export async function authenticateUser(email: string, password: string): Promise
   error: string | null;
 }> {
   try {
-    console.log('🔐 Attempting localStorage-only authentication for:', email);
+    devLog('🔐 Attempting localStorage-only authentication for:', email);
 
     // Test Supabase connectivity before attempting authentication
     try {
       const { data: healthCheck } = await supabase.from('users').select('count').limit(1);
-      console.log('✅ Supabase connectivity test passed');
+      devLog('✅ Supabase connectivity test passed');
     } catch (connectivityError: any) {
       console.error('❌ Supabase connectivity test failed:', connectivityError);
 
@@ -251,7 +256,7 @@ export async function authenticateUser(email: string, password: string): Promise
       }
 
       // For admin users, provide more diagnostic info
-      console.log('🔐 Checking if this is an admin account for diagnostics...');
+      devLog('🔐 Checking if this is an admin account for diagnostics...');
 
       // Special handling for admin accounts - check if they exist in users table
       if (normalizedEmail.includes('admin') || normalizedEmail.includes('jonathas')) {
@@ -262,8 +267,8 @@ export async function authenticateUser(email: string, password: string): Promise
           .maybeSingle();
 
         if (adminUser) {
-          console.log('⚠️ Admin user found in database but auth failed. This may be a Supabase Auth sync issue.');
-          console.log('📋 Admin user details:', { id: adminUser.id, email: adminUser.email, role: adminUser.role });
+          devLog('⚠️ Admin user found in database but auth failed. This may be a Supabase Auth sync issue.');
+          devLog('📋 Admin user details:', { id: adminUser.id, email: adminUser.email, role: adminUser.role });
         }
       }
 
@@ -384,7 +389,7 @@ export async function authenticateUser(email: string, password: string): Promise
     // Store user data with session
     storeUser(enrichedProfile);
 
-    console.log('✅ Supabase authentication successful');
+    devLog('✅ Supabase authentication successful');
     return { user: enrichedProfile, error: null };
 
   } catch (error: any) {
@@ -423,7 +428,7 @@ export async function registerUser(
   error: string | null;
 }> {
   try {
-    console.log('📝 Attempting Supabase registration for:', email);
+    devLog('📝 Attempting Supabase registration for:', email);
 
     // Normalize email to lowercase
     const normalizedEmail = email.trim().toLowerCase();
@@ -441,7 +446,7 @@ export async function registerUser(
     }
 
     if (existingUser) {
-      console.log('📝 Email already exists:', normalizedEmail);
+      devLog('📝 Email already exists:', normalizedEmail);
       return { user: null, error: 'EMAIL_ALREADY_EXISTS' };
     }
 
@@ -466,7 +471,7 @@ export async function registerUser(
     }
 
     // Create user profile in the users table
-    console.log('📝 Creating user with WhatsApp:', userData.whatsapp);
+    devLog('📝 Creating user with WhatsApp:', userData.whatsapp);
 
     // Resolve referral code to referrer user ID
     let referredBy: string | null = null;
@@ -543,7 +548,7 @@ export async function registerUser(
     storeCredentials(normalizedEmail, password);
     storeUser(userProfile);
 
-    console.log('✅ Supabase registration successful');
+    devLog('✅ Supabase registration successful');
     return { user: userProfile, error: null };
 
   } catch (error: any) {
@@ -564,7 +569,7 @@ export async function autoLogin(): Promise<{
     if (isAuthenticated()) {
       const user = getStoredUser();
       if (user) {
-        console.log('✅ User already authenticated from localStorage');
+        devLog('✅ User already authenticated from localStorage');
 
         // Debounced last_login_at update so admin panel reflects recent activity
         const lastRecorded = user.last_login_at ? new Date(user.last_login_at).getTime() : 0;
@@ -589,7 +594,7 @@ export async function autoLogin(): Promise<{
       return { user: null, error: 'No stored credentials found' };
     }
     
-    console.log('🔄 Attempting auto-login with stored credentials');
+    devLog('🔄 Attempting auto-login with stored credentials');
     
     // Attempt authentication with stored credentials
     return await authenticateUser(credentials.email, credentials.password);
@@ -604,7 +609,7 @@ export async function autoLogin(): Promise<{
 // Logout user
 export async function logoutUser(): Promise<void> {
   try {
-    console.log('🚪 Logging out user');
+    devLog('🚪 Logging out user');
 
     const currentUser = getStoredUser();
     if (currentUser?.id) {
@@ -621,7 +626,7 @@ export async function logoutUser(): Promise<void> {
     // Clear all stored data
     clearAllStoredData();
 
-    console.log('✅ User logged out successfully');
+    devLog('✅ User logged out successfully');
   } catch (error) {
     console.error('❌ Logout error:', error);
     // Clear storage even if there's an error
@@ -640,7 +645,7 @@ export async function updateUserProfile(updates: Partial<StoredUser>): Promise<{
       return { user: null, error: 'Usuário não autenticado' };
     }
     
-    console.log('👤 Updating user profile:', updates);
+    devLog('👤 Updating user profile:', updates);
     
     // Update in Supabase
     const { error } = await supabase
@@ -657,7 +662,7 @@ export async function updateUserProfile(updates: Partial<StoredUser>): Promise<{
     const updatedUser = { ...currentUser, ...updates };
     storeUser(updatedUser);
     
-    console.log('✅ Profile updated successfully');
+    devLog('✅ Profile updated successfully');
     return { user: updatedUser, error: null };
     
   } catch (error: any) {
@@ -672,7 +677,7 @@ export function clearAllStoredData(): void {
     Object.values(STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
     });
-    console.log('✅ All stored data cleared');
+    devLog('✅ All stored data cleared');
   } catch (error) {
     console.error('❌ Error clearing stored data:', error);
   }
@@ -682,7 +687,7 @@ export function clearAllStoredData(): void {
 export function clearStoredCredentials(): void {
   try {
     localStorage.removeItem(STORAGE_KEYS.CREDENTIALS);
-    console.log('✅ Stored credentials cleared');
+    devLog('✅ Stored credentials cleared');
   } catch (error) {
     console.error('❌ Error clearing credentials:', error);
   }
@@ -695,7 +700,7 @@ export function updateStoredUser(updates: Partial<StoredUser>): void {
     if (currentUser) {
       const updatedUser = { ...currentUser, ...updates };
       storeUser(updatedUser);
-      console.log('✅ Stored user updated');
+      devLog('✅ Stored user updated');
     }
   } catch (error) {
     console.error('❌ Error updating stored user:', error);
@@ -850,7 +855,7 @@ export async function refreshUserImageLimit(): Promise<number> {
     // Update stored user with new limit
     updateStoredUser({ max_images_per_product: limit });
 
-    console.log('✅ Image limit refreshed:', limit);
+    devLog('✅ Image limit refreshed:', limit);
     return limit;
   } catch (error) {
     console.error('❌ Error refreshing image limit:', error);
