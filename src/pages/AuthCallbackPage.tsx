@@ -26,7 +26,8 @@ export default function AuthCallbackPage() {
         });
         if (cancelled) return;
         if (verifyError) {
-          toast.error('Link de impersonação inválido ou expirado');
+          console.error('impersonation verifyOtp error:', verifyError);
+          toast.error(`Link de impersonação inválido ou expirado: ${verifyError.message}`);
           navigate('/login', { replace: true });
           return;
         }
