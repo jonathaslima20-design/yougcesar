@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader } from 'lucide-react';
 import { toast } from 'sonner';
-import { resolveGoogleSession } from '@/lib/auth/simpleAuth';
+import { resolveActiveSession } from '@/lib/auth/simpleAuth';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -14,7 +14,7 @@ export default function AuthCallbackPage() {
     let cancelled = false;
 
     const process = async () => {
-      const { user, error, needsProfile, pendingAuth } = await resolveGoogleSession();
+      const { user, error, needsProfile, pendingAuth } = await resolveActiveSession();
       if (cancelled) return;
 
       if (needsProfile && pendingAuth) {
@@ -30,7 +30,7 @@ export default function AuthCallbackPage() {
       }
 
       if (error || !user) {
-        toast.error(error || 'Não foi possível concluir o login com Google');
+        toast.error(error || 'Não foi possível concluir o login');
         navigate('/login', { replace: true });
         return;
       }
@@ -50,7 +50,7 @@ export default function AuthCallbackPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
       <Loader className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-muted-foreground text-sm">Concluindo login com Google...</p>
+      <p className="text-muted-foreground text-sm">Concluindo login...</p>
     </div>
   );
 }

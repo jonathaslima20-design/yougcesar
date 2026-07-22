@@ -591,9 +591,10 @@ export interface PendingGoogleAuth {
   fullName?: string;
 }
 
-// Resolve the Supabase session created after the Google OAuth redirect.
-// Returns needsProfile+pendingAuth when this Google account has no matching users row yet.
-export async function resolveGoogleSession(): Promise<{
+// Resolve whatever Supabase Auth session currently exists (from Google OAuth or an admin
+// impersonation magic link) into this app's own localStorage-based session.
+// Returns needsProfile+pendingAuth when this account has no matching users row yet.
+export async function resolveActiveSession(): Promise<{
   user: StoredUser | null;
   error: string | null;
   needsProfile?: boolean;
@@ -602,7 +603,7 @@ export async function resolveGoogleSession(): Promise<{
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.email) {
-      return { user: null, error: 'Sessão do Google não encontrada' };
+      return { user: null, error: 'Sessão não encontrada' };
     }
 
     const normalizedEmail = session.user.email.trim().toLowerCase();

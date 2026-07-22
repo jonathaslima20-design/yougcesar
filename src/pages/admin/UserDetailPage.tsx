@@ -265,7 +265,7 @@ export default function UserDetailPage() {
         throw new Error(result.error || 'Erro ao gerar link de impersonação');
       }
 
-      const redirectUrl = `${result.verifyUrl}&redirect_to=${encodeURIComponent(window.location.origin + '/dashboard')}`;
+      const redirectUrl = `${result.verifyUrl}&redirect_to=${encodeURIComponent(window.location.origin + '/auth/callback')}`;
       window.open(redirectUrl, '_blank');
       toast.success(`Sessão aberta como ${user.name} em nova aba`);
     } catch (error: any) {
