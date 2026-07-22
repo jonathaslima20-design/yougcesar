@@ -75,7 +75,11 @@ export default function AuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, refreshUser]);
+    // Intentionally run once on mount: `navigate` and `refreshUser` are recreated on
+    // every render, and re-running this effect mid-flight was cancelling the in-progress
+    // verification (its cleanup fired and flipped `cancelled` before the flow finished).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
