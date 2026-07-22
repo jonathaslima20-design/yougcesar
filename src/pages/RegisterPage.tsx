@@ -59,8 +59,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Temporarily disabled while the Google Cloud OAuth client config stabilizes
-const GOOGLE_AUTH_ENABLED = false;
+const GOOGLE_AUTH_ENABLED = true;
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
