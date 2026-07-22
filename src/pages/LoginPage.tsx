@@ -185,6 +185,35 @@ export default function LoginPage() {
                 </AlertDescription>
               </Alert>
             )}
+
+            {GOOGLE_AUTH_ENABLED && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleLogin}
+                  disabled={isGoogleLoading || isLoading}
+                >
+                  {isGoogleLoading ? (
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <GoogleIcon className="mr-2 h-4 w-4" />
+                  )}
+                  Entrar com Google
+                </Button>
+
+                <div className="relative my-5">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                  </div>
+                </div>
+              </>
+            )}
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -251,34 +280,6 @@ export default function LoginPage() {
                 </Button>
               </form>
             </Form>
-
-            {GOOGLE_AUTH_ENABLED && (
-              <>
-                <div className="relative my-5">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">ou</span>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGoogleLogin}
-                  disabled={isGoogleLoading || isLoading}
-                >
-                  {isGoogleLoading ? (
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <GoogleIcon className="mr-2 h-4 w-4" />
-                  )}
-                  Entrar com Google
-                </Button>
-              </>
-            )}
           </CardContent>
           <CardFooter className="px-7 pb-7 flex flex-col space-y-4">
             <div className="text-sm text-center text-muted-foreground">
