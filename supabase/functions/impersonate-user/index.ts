@@ -110,21 +110,19 @@ Deno.serve(async (req: Request) => {
     }
 
     const properties = linkData.properties;
-    const token = properties?.hashed_token;
+    const hashedToken = properties?.hashed_token;
 
-    if (!token) {
+    if (!hashedToken) {
       return new Response(
         JSON.stringify({ error: "Failed to extract token from magic link" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const verifyUrl = `${Deno.env.get("SUPABASE_URL")}/auth/v1/verify?token=${token}&type=magiclink`;
-
     return new Response(
       JSON.stringify({
         success: true,
-        verifyUrl,
+        hashedToken,
         targetUser: {
           id: targetUser.id,
           name: targetUser.name,

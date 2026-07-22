@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { resolveActiveSession } from '@/lib/auth/simpleAuth';
@@ -8,12 +8,30 @@ import { supabase } from '@/lib/supabase';
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { refreshUser } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
 
     const process = async () => {
+      // Admin impersonation links carry their own token: verify it directly via the SDK
+      // instead of relying on Supabase's /verify redirect, which requires a PKCE code
+      // verifier this browser never generated (the link was created server-side by an admin).
+      const impersonateToken = searchParams.get('impersonate_token');
+      if (impersonateToken) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: impersonateToken,
+          type: 'magiclink',
+        });
+        if (cancelled) return;
+        if (verifyError) {
+          toast.error('Link de impersonação inválido ou expirado');
+          navigate('/login', { replace: true });
+          return;
+        }
+      }
+
       const { user, error, needsProfile, pendingAuth } = await resolveActiveSession();
       if (cancelled) return;
 
