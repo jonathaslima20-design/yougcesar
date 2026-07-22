@@ -638,6 +638,22 @@ export async function resolveActiveSession(): Promise<{
       return { user: null, error: 'BLOCKED_USER' };
     }
 
+    // Defensive check: a corretor profile missing WhatsApp was never finished through
+    // registerUser()/completeGoogleProfile() (both require it). Route back to complete
+    // the profile instead of letting an incomplete signup straight into the dashboard.
+    if (userProfile.role === 'corretor' && !userProfile.whatsapp) {
+      return {
+        user: null,
+        error: null,
+        needsProfile: true,
+        pendingAuth: {
+          id: userProfile.id,
+          email: normalizedEmail,
+          fullName: userProfile.owner_name || userProfile.name,
+        },
+      };
+    }
+
     const enrichedProfile = await enrichAndFinalizeProfile(userProfile);
     return { user: enrichedProfile, error: null };
   } catch (error: any) {
