@@ -30,6 +30,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import Logo from '@/components/Logo';
+import GoogleIcon from '@/components/icons/GoogleIcon';
 import { getErrorMessage, errorMessages } from '@/lib/errorMessages';
 import { generateWhatsAppUrl } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -46,7 +47,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn } = useAuth();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const { signIn, signInWithGoogle } = useAuth();
 
   useEffect(() => {
     supabase
@@ -106,7 +108,16 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-  
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      toast.error(error);
+      setIsGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
       <div className="absolute inset-0 grid-bg opacity-40 pointer-events-none" />
@@ -238,6 +249,30 @@ export default function LoginPage() {
                 </Button>
               </form>
             </Form>
+
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleLogin}
+              disabled={isGoogleLoading || isLoading}
+            >
+              {isGoogleLoading ? (
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <GoogleIcon className="mr-2 h-4 w-4" />
+              )}
+              Entrar com Google
+            </Button>
           </CardContent>
           <CardFooter className="px-7 pb-7 flex flex-col space-y-4">
             <div className="text-sm text-center text-muted-foreground">

@@ -37,6 +37,7 @@ import { PhoneInputWithCountry } from '@/components/ui/phone-input-with-country'
 import { Checkbox } from '@/components/ui/checkbox';
 import { cleanWhatsAppNumber, generateWhatsAppUrl } from '@/lib/utils';
 import Logo from '@/components/Logo';
+import GoogleIcon from '@/components/icons/GoogleIcon';
 import { supabase } from '@/lib/supabase';
 import { injectMetaPixel } from '@/lib/tracking';
 
@@ -60,6 +61,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const [googleAdsConfig, setGoogleAdsConfig] = useState<{ tagId: string; cadastroId: string } | null>(null);
@@ -86,7 +88,7 @@ export default function RegisterPage() {
         }
       });
   }, []);
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   // Capturar código de indicação da URL ou localStorage
   const referralCode = searchParams.get('ref') || localStorage.getItem('vitrineturbo_ref_code');
@@ -156,7 +158,16 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
-  
+
+  const handleGoogleSignUp = async () => {
+    setIsGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      toast.error(error);
+      setIsGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
       <div className="absolute inset-0 grid-bg opacity-40 pointer-events-none" />
@@ -388,6 +399,30 @@ export default function RegisterPage() {
                 </Button>
               </form>
             </Form>
+
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignUp}
+              disabled={isGoogleLoading || isLoading}
+            >
+              {isGoogleLoading ? (
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <GoogleIcon className="mr-2 h-4 w-4" />
+              )}
+              Cadastrar com Google
+            </Button>
           </CardContent>
           <CardFooter className="flex flex-col px-7 pb-7">
             <div className="text-sm text-center text-muted-foreground mt-2">

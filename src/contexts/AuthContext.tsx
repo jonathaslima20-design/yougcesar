@@ -11,6 +11,7 @@ import {
   validateSession,
   extendSession,
   refreshUserFromDB,
+  signInWithGoogle as startGoogleSignIn,
   type StoredUser
 } from '@/lib/auth/simpleAuth';
 
@@ -19,6 +20,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string }) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<AppUser>) => Promise<{ error: string | null }>;
   refreshUser: () => Promise<void>;
@@ -116,6 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    return startGoogleSignIn();
+  };
+
   const signOut = async () => {
     try {
       await logoutUser();
@@ -169,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     updateUser,
     refreshUser,

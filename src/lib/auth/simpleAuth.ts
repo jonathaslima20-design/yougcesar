@@ -207,6 +207,89 @@ export function isAuthenticated(): boolean {
   }
 }
 
+// Shared post-login processing: subscription expiry check, plan name, activity log, session storage
+async function enrichAndFinalizeProfile(userProfile: any): Promise<StoredUser> {
+  const enrichedProfile = { ...userProfile };
+
+  // Auto-expire users with overdue subscriptions (2-day grace period)
+  if (
+    enrichedProfile.plan_status === 'active' &&
+    enrichedProfile.subscription_end_date &&
+    enrichedProfile.role !== 'admin' &&
+    enrichedProfile.role !== 'parceiro'
+  ) {
+    const endDate = new Date(enrichedProfile.subscription_end_date);
+    const graceCutoff = new Date();
+    graceCutoff.setDate(graceCutoff.getDate() - 2);
+    if (endDate < graceCutoff) {
+      // Check subscriptions table for an active subscription with future date before expiring
+      const { data: activeSub } = await supabase
+        .from('subscriptions')
+        .select('next_payment_date')
+        .eq('user_id', enrichedProfile.id)
+        .eq('status', 'active')
+        .gt('next_payment_date', new Date().toISOString().split('T')[0])
+        .limit(1);
+
+      if (activeSub && activeSub.length > 0) {
+        // Sync the stale users.subscription_end_date from the subscription
+        await supabase
+          .from('users')
+          .update({ subscription_end_date: activeSub[0].next_payment_date.split('T')[0] })
+          .eq('id', enrichedProfile.id);
+        enrichedProfile.subscription_end_date = activeSub[0].next_payment_date.split('T')[0];
+      } else {
+        await supabase
+          .from('users')
+          .update({ plan_status: 'expired' })
+          .eq('id', enrichedProfile.id);
+        enrichedProfile.plan_status = 'expired';
+      }
+    }
+  }
+
+  // Fetch subscription plan name if user has an active plan
+  if (enrichedProfile.plan_status === 'active') {
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('plan_name')
+      .eq('user_id', enrichedProfile.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (subscription?.plan_name) {
+      enrichedProfile.subscription_plan_name = subscription.plan_name;
+    }
+  }
+
+  // Update last_login_at and login_count via SECURITY DEFINER function
+  // (bypasses RLS so it works regardless of users.id / auth.uid() alignment)
+  supabase
+    .rpc('update_user_last_login', { p_email: enrichedProfile.email })
+    .then(({ error }) => {
+      if (error) console.warn('⚠️ last_login_at update failed:', error.message);
+    });
+
+  enrichedProfile.last_login_at = new Date().toISOString();
+  enrichedProfile.login_count = (enrichedProfile.login_count || 0) + 1;
+
+  // Log login activity
+  supabase
+    .from('user_activity_logs')
+    .insert({
+      user_id: enrichedProfile.id,
+      action: 'auth.login',
+      description: 'Fez login no sistema',
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    })
+    .then(() => {});
+
+  storeUser(enrichedProfile);
+
+  return enrichedProfile;
+}
+
 // Authenticate user with email and password
 export async function authenticateUser(email: string, password: string): Promise<{
   user: StoredUser | null;
@@ -308,86 +391,10 @@ export async function authenticateUser(email: string, password: string): Promise
       return { user: null, error: 'BLOCKED_USER' };
     }
 
-    // Auto-expire users with overdue subscriptions (2-day grace period)
-    let enrichedProfile = { ...userProfile };
-    if (
-      userProfile.plan_status === 'active' &&
-      userProfile.subscription_end_date &&
-      userProfile.role !== 'admin' &&
-      userProfile.role !== 'parceiro'
-    ) {
-      const endDate = new Date(userProfile.subscription_end_date);
-      const graceCutoff = new Date();
-      graceCutoff.setDate(graceCutoff.getDate() - 2);
-      if (endDate < graceCutoff) {
-        // Check subscriptions table for an active subscription with future date before expiring
-        const { data: activeSub } = await supabase
-          .from('subscriptions')
-          .select('next_payment_date')
-          .eq('user_id', userProfile.id)
-          .eq('status', 'active')
-          .gt('next_payment_date', new Date().toISOString().split('T')[0])
-          .limit(1);
-
-        if (activeSub && activeSub.length > 0) {
-          // Sync the stale users.subscription_end_date from the subscription
-          await supabase
-            .from('users')
-            .update({ subscription_end_date: activeSub[0].next_payment_date.split('T')[0] })
-            .eq('id', userProfile.id);
-          enrichedProfile.subscription_end_date = activeSub[0].next_payment_date.split('T')[0];
-        } else {
-          await supabase
-            .from('users')
-            .update({ plan_status: 'expired' })
-            .eq('id', userProfile.id);
-          enrichedProfile.plan_status = 'expired';
-        }
-      }
-    }
-
-    // Fetch subscription plan name if user has an active plan
-    if (enrichedProfile.plan_status === 'active') {
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('plan_name')
-        .eq('user_id', userProfile.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (subscription?.plan_name) {
-        enrichedProfile.subscription_plan_name = subscription.plan_name;
-      }
-    }
-
-    // Update last_login_at and login_count via SECURITY DEFINER function
-    // (bypasses RLS so it works regardless of users.id / auth.uid() alignment)
-    supabase
-      .rpc('update_user_last_login', { p_email: normalizedEmail })
-      .then(({ error }) => {
-        if (error) console.warn('⚠️ last_login_at update failed:', error.message);
-      });
-
-    enrichedProfile.last_login_at = new Date().toISOString();
-    enrichedProfile.login_count = (enrichedProfile.login_count || 0) + 1;
-
-    // Log login activity
-    supabase
-      .from('user_activity_logs')
-      .insert({
-        user_id: enrichedProfile.id,
-        action: 'auth.login',
-        description: 'Fez login no sistema',
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-      })
-      .then(() => {});
-
     // Store credentials for future auto-login (with normalized email)
     storeCredentials(normalizedEmail, password);
 
-    // Store user data with session
-    storeUser(enrichedProfile);
+    const enrichedProfile = await enrichAndFinalizeProfile(userProfile);
 
     devLog('✅ Supabase authentication successful');
     return { user: enrichedProfile, error: null };
@@ -554,6 +561,177 @@ export async function registerUser(
   } catch (error: any) {
     console.error('❌ Registration error:', error);
     return { user: null, error: error.message || 'Erro inesperado no registro' };
+  }
+}
+
+// Start Google OAuth flow (redirects the browser to Google, then back to /auth/callback)
+export async function signInWithGoogle(): Promise<{ error: string | null }> {
+  try {
+    const referralCode = localStorage.getItem('vitrineturbo_ref_code');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback${referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''}`,
+      },
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { error: null };
+  } catch (error: any) {
+    return { error: error.message || 'Erro ao iniciar login com Google' };
+  }
+}
+
+export interface PendingGoogleAuth {
+  id: string;
+  email: string;
+  fullName?: string;
+}
+
+// Resolve the Supabase session created after the Google OAuth redirect.
+// Returns needsProfile+pendingAuth when this Google account has no matching users row yet.
+export async function resolveGoogleSession(): Promise<{
+  user: StoredUser | null;
+  error: string | null;
+  needsProfile?: boolean;
+  pendingAuth?: PendingGoogleAuth;
+}> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.email) {
+      return { user: null, error: 'Sessão do Google não encontrada' };
+    }
+
+    const normalizedEmail = session.user.email.trim().toLowerCase();
+
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (profileError) {
+      return { user: null, error: profileError.message };
+    }
+
+    if (!userProfile) {
+      return {
+        user: null,
+        error: null,
+        needsProfile: true,
+        pendingAuth: {
+          id: session.user.id,
+          email: normalizedEmail,
+          fullName: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+        },
+      };
+    }
+
+    if (userProfile.is_blocked) {
+      return { user: null, error: 'BLOCKED_USER' };
+    }
+
+    const enrichedProfile = await enrichAndFinalizeProfile(userProfile);
+    return { user: enrichedProfile, error: null };
+  } catch (error: any) {
+    return { user: null, error: error.message || 'Erro ao processar login com Google' };
+  }
+}
+
+// Create the users row for a first-time Google sign-in, after the user completes the missing profile fields
+export async function completeGoogleProfile(
+  authUserId: string,
+  email: string,
+  userData: {
+    name: string;
+    owner_name?: string;
+    country_code?: string;
+    whatsapp: string;
+    accepted_terms: boolean;
+    referral_code?: string;
+  }
+): Promise<{ user: StoredUser | null; error: string | null }> {
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    let referredBy: string | null = null;
+    if (userData.referral_code) {
+      const { data: referrer } = await supabase
+        .from('users')
+        .select('id')
+        .eq('referral_code', userData.referral_code)
+        .maybeSingle();
+      if (referrer) {
+        referredBy = referrer.id;
+      }
+    }
+
+    const now = new Date().toISOString();
+    const { data: userProfile, error: createError } = await supabase
+      .from('users')
+      .upsert({
+        id: authUserId,
+        email: normalizedEmail,
+        name: userData.name,
+        owner_name: userData.owner_name || null,
+        niche_type: 'diversos',
+        country_code: userData.country_code || '55',
+        whatsapp: userData.whatsapp,
+        role: 'corretor',
+        is_blocked: false,
+        plan_status: 'free',
+        created_at: now,
+        ...(referredBy ? { referred_by: referredBy } : {}),
+        ...(userData.accepted_terms ? {
+          accepted_terms_at: now,
+          accepted_privacy_policy_at: now,
+          terms_version: TERMS_VERSION,
+          privacy_policy_version: PRIVACY_VERSION,
+        } : {}),
+      }, {
+        onConflict: 'email'
+      })
+      .select()
+      .single();
+
+    if (createError || !userProfile) {
+      console.error('📝 Google profile creation error:', createError);
+      return { user: null, error: 'Erro ao criar usuário' };
+    }
+
+    await supabase
+      .from('user_storefront_settings')
+      .upsert({ user_id: userProfile.id, settings: { enableInventory: true } }, { onConflict: 'user_id' });
+
+    supabase
+      .rpc('update_user_last_login', { p_email: normalizedEmail })
+      .then(({ error }) => {
+        if (error) console.warn('⚠️ last_login_at update on Google register failed:', error.message);
+      });
+
+    supabase
+      .from('user_activity_logs')
+      .insert({
+        user_id: userProfile.id,
+        action: 'auth.register',
+        description: 'Criou conta no sistema via Google',
+        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+      })
+      .then(() => {});
+
+    userProfile.last_login_at = now;
+    userProfile.login_count = 1;
+
+    storeUser(userProfile);
+
+    devLog('✅ Google registration successful');
+    return { user: userProfile, error: null };
+  } catch (error: any) {
+    console.error('❌ Google registration error:', error);
+    return { user: null, error: error.message || 'Erro inesperado no cadastro' };
   }
 }
 

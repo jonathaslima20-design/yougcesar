@@ -31,6 +31,8 @@ import AdminLayout from '@/components/layouts/AdminLayout';
 import LandingPage from '@/pages/LandingPage.tsx';
 import LoginPage from '@/pages/LoginPage.tsx';
 import RegisterPage from '@/pages/RegisterPage.tsx';
+import AuthCallbackPage from '@/pages/AuthCallbackPage.tsx';
+import CompleteProfilePage from '@/pages/CompleteProfilePage.tsx';
 import CorretorPage from '@/pages/CorretorPage.tsx';
 import ProductDetailsPage from '@/pages/ProductDetailsPage.tsx';
 import HelpCenterPage from '@/pages/HelpCenterPage.tsx';
@@ -212,6 +214,8 @@ function AppContent() {
           {!isCustomDomain && <Route path="/" element={<LandingPage />} />}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/completar-cadastro" element={<CompleteProfilePage />} />
 
           {/* Blog Routes */}
           <Route path="/blog" element={<BlogPage />} />
