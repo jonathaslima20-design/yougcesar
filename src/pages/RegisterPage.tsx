@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Loader, CircleAlert as AlertCircle, MessageCircle } from 'lucide-react';
+import { Loader, CircleAlert as AlertCircle, MessageCircle, Mail, ArrowLeft } from 'lucide-react';
 import { trackLead } from '@/lib/metaEvents';
 import { trackGoogleAdsCadastro } from '@/lib/googleAdsEvents';
 
@@ -65,6 +65,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [searchParams] = useSearchParams();
   const [googleAdsConfig, setGoogleAdsConfig] = useState<{ tagId: string; cadastroId: string } | null>(null);
 
@@ -198,40 +199,7 @@ export default function RegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-7">
-            {registerError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {registerError === 'EMAIL_ALREADY_EXISTS' ? (
-                    <>
-                      <div>Este e-mail já está cadastrado no sistema.</div>
-                      <div className="text-sm mt-1">Por favor, utilize outro e-mail ou entre em contato com o suporte.</div>
-                      <div className="mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full bg-green-50 hover:bg-green-100 border-green-200 text-green-800"
-                          asChild
-                        >
-                          <a
-                            href={generateWhatsAppUrl('5591982465495')}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            Falar com Suporte via WhatsApp
-                          </a>
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    registerError
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {GOOGLE_AUTH_ENABLED && (
+            {GOOGLE_AUTH_ENABLED && !showEmailForm ? (
               <>
                 <Button
                   type="button"
@@ -256,8 +224,64 @@ export default function RegisterPage() {
                     <span className="bg-card px-2 text-muted-foreground">ou</span>
                   </div>
                 </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowEmailForm(true)}
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  Cadastrar com Email
+                </Button>
               </>
-            )}
+            ) : (
+              <>
+                {GOOGLE_AUTH_ENABLED && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mb-4 -ml-2 text-muted-foreground"
+                    onClick={() => setShowEmailForm(false)}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar
+                  </Button>
+                )}
+
+                {registerError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {registerError === 'EMAIL_ALREADY_EXISTS' ? (
+                        <>
+                          <div>Este e-mail já está cadastrado no sistema.</div>
+                          <div className="text-sm mt-1">Por favor, utilize outro e-mail ou entre em contato com o suporte.</div>
+                          <div className="mt-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full bg-green-50 hover:bg-green-100 border-green-200 text-green-800"
+                              asChild
+                            >
+                              <a
+                                href={generateWhatsAppUrl('5591982465495')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <MessageCircle className="h-4 w-4 mr-2" />
+                                Falar com Suporte via WhatsApp
+                              </a>
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        registerError
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -430,6 +454,8 @@ export default function RegisterPage() {
                 </Button>
               </form>
             </Form>
+              </>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col px-7 pb-7">
             <div className="text-sm text-center text-muted-foreground mt-2">
