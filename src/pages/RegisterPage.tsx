@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { Loader, CircleAlert as AlertCircle, MessageCircle, Mail, ArrowLeft } from 'lucide-react';
 import { trackLead } from '@/lib/metaEvents';
 import { trackGoogleAdsCadastro } from '@/lib/googleAdsEvents';
+import { getStoredAttribution, clearStoredAttribution } from '@/lib/attribution';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -129,6 +130,7 @@ export default function RegisterPage() {
           whatsapp: cleanedWhatsApp,
           accepted_terms: data.accepted_terms,
           referral_code: referralCode || undefined,
+          attribution: getStoredAttribution(),
         }
       );
 
@@ -144,8 +146,9 @@ export default function RegisterPage() {
         return;
       }
 
-      // Clear referral code from localStorage after successful registration
+      // Clear referral code and attribution data from localStorage after successful registration
       localStorage.removeItem('vitrineturbo_ref_code');
+      clearStoredAttribution();
       trackLead(data.email);
       if (googleAdsConfig) {
         trackGoogleAdsCadastro(googleAdsConfig.tagId, googleAdsConfig.cadastroId);

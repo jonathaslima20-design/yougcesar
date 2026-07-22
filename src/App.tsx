@@ -21,6 +21,7 @@ import GoogleAdsSnippet from '@/components/GoogleAdsSnippet';
 import FloatingWhatsAppButton from '@/components/FloatingWhatsAppButton';
 import CookieConsentBanner from '@/components/CookieConsentBanner';
 import { OfferDisplayManager } from '@/components/offers/OfferDisplayManager';
+import { captureAttributionParams } from '@/lib/attribution';
 
 // Layouts
 import PublicLayout from '@/components/layouts/PublicLayout';
@@ -107,6 +108,13 @@ function AppContent() {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   usePageSEO();
+
+  // Capture ad/campaign attribution params (utm_*, gclid, fbclid) as soon as the app loads,
+  // so they're available at signup time regardless of which page the user landed on.
+  useEffect(() => {
+    captureAttributionParams(window.location.search);
+  }, []);
+
   // Error boundary effect
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {

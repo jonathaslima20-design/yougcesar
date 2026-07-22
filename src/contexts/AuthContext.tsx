@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User as AppUser } from '@/types';
+import type { AttributionData } from '@/lib/attribution';
 import {
   authenticateUser,
   registerUser,
@@ -19,7 +20,7 @@ interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string }) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string; attribution?: AttributionData }) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<AppUser>) => Promise<{ error: string | null }>;
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string }) => {
+  const signUp = async (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string; attribution?: AttributionData }) => {
     try {
       setLoading(true);
       const { user: registeredUser, error } = await registerUser(email, password, userData);

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone } from 'lucide-react';
 import { EditImageLimitDialog } from '@/components/admin/EditImageLimitDialog';
 import { CloneUserDialog } from '@/components/admin/CloneUserDialog';
 import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
@@ -521,6 +521,30 @@ export default function UserDetailPage() {
                       <span className="text-sm font-medium">
                         {format(new Date(user.accepted_terms_at), 'dd/MM/yyyy', { locale: ptBR })}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Signup Source */}
+                  {(user.gclid || user.fbclid || user.utm_source || user.referred_by) && (
+                    <div className="flex items-start gap-2.5">
+                      <Megaphone className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <span className="text-sm text-muted-foreground block">Origem do cadastro:</span>
+                        <span className="text-sm font-medium">
+                          {user.gclid
+                            ? 'Google Ads'
+                            : user.fbclid
+                            ? 'Meta Ads (Facebook/Instagram)'
+                            : user.utm_source
+                            ? user.utm_source
+                            : 'Indicação'}
+                        </span>
+                        {user.utm_campaign && (
+                          <span className="text-xs text-muted-foreground block truncate">
+                            Campanha: {user.utm_campaign}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

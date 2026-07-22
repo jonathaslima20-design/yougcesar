@@ -54,6 +54,13 @@ export interface User {
   subscription_plan_name?: string;
   referral_code?: string;
   referred_by?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  gclid?: string;
+  fbclid?: string;
   max_images_per_product?: number;
   last_login_at?: string;
   login_count?: number;

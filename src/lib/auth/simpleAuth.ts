@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import type { User } from '@/types';
+import type { AttributionData } from '@/lib/attribution';
 
 // Logs informativos apenas em desenvolvimento; erros continuam sempre visíveis via console.error
 const devLog = (...args: unknown[]) => {
@@ -429,6 +430,7 @@ export async function registerUser(
     whatsapp?: string;
     accepted_terms?: boolean;
     referral_code?: string;
+    attribution?: AttributionData;
   }
 ): Promise<{
   user: StoredUser | null;
@@ -515,6 +517,7 @@ export async function registerUser(
           terms_version: TERMS_VERSION,
           privacy_policy_version: PRIVACY_VERSION,
         } : {}),
+        ...(userData.attribution || {}),
       }, {
         onConflict: 'email'
       })
@@ -653,6 +656,7 @@ export async function completeGoogleProfile(
     whatsapp: string;
     accepted_terms: boolean;
     referral_code?: string;
+    attribution?: AttributionData;
   }
 ): Promise<{ user: StoredUser | null; error: string | null }> {
   try {
@@ -692,6 +696,7 @@ export async function completeGoogleProfile(
           terms_version: TERMS_VERSION,
           privacy_policy_version: PRIVACY_VERSION,
         } : {}),
+        ...(userData.attribution || {}),
       }, {
         onConflict: 'email'
       })

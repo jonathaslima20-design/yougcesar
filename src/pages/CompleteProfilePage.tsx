@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Loader } from 'lucide-react';
 import { trackLead } from '@/lib/metaEvents';
+import { getStoredAttribution, clearStoredAttribution } from '@/lib/attribution';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -87,6 +88,7 @@ export default function CompleteProfilePage() {
         whatsapp: cleanedWhatsApp,
         accepted_terms: data.accepted_terms,
         referral_code: referralCode || undefined,
+        attribution: getStoredAttribution(),
       });
 
       if (error) {
@@ -95,6 +97,7 @@ export default function CompleteProfilePage() {
       }
 
       localStorage.removeItem('vitrineturbo_ref_code');
+      clearStoredAttribution();
       trackLead(pendingAuth.email);
       await refreshUser();
       toast.success('Cadastro concluído com sucesso!');
