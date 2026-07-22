@@ -22,12 +22,15 @@ export default function AuthCallbackPage() {
       // Admin impersonation links carry their own token: verify it directly via the SDK
       // instead of relying on Supabase's /verify redirect, which requires a PKCE code
       // verifier this browser never generated (the link was created server-side by an admin).
+      console.log('[callback] start');
       const impersonateToken = searchParams.get('impersonate_token');
       if (impersonateToken) {
+        console.log('[callback] verifying impersonation token...');
         const { error: verifyError } = await supabase.auth.verifyOtp({
           token_hash: impersonateToken,
           type: 'magiclink',
         });
+        console.log('[callback] verifyOtp done', { verifyError });
         if (cancelled) return;
         if (verifyError) {
           console.error('impersonation verifyOtp error:', verifyError);
@@ -37,7 +40,9 @@ export default function AuthCallbackPage() {
         }
       }
 
+      console.log('[callback] resolving active session...');
       const { user, error, needsProfile, pendingAuth } = await resolveActiveSession();
+      console.log('[callback] resolveActiveSession done', { hasUser: !!user, error, needsProfile });
       if (cancelled) return;
 
       if (needsProfile && pendingAuth) {
@@ -58,7 +63,9 @@ export default function AuthCallbackPage() {
         return;
       }
 
+      console.log('[callback] refreshing user in context...');
       await refreshUser();
+      console.log('[callback] done, navigating to dashboard');
       toast.success('Login realizado com sucesso!');
       navigate('/dashboard', { replace: true });
     };
