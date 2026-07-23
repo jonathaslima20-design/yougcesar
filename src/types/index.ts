@@ -1,4 +1,4 @@
-export type UserRole = 'corretor' | 'admin' | 'parceiro';
+export type UserRole = 'corretor' | 'admin' | 'parceiro' | 'partner';
 export type NicheType = 'diversos';
 export type PlanStatus = 'active' | 'expired' | 'suspended' | 'free';
 
@@ -43,6 +43,7 @@ export interface User {
   instagram?: string;
   location_url?: string;
   created_by?: string;
+  managed_by_partner_id?: string | null;
   theme?: 'light' | 'dark';
   niche_type?: NicheType;
   currency?: string;

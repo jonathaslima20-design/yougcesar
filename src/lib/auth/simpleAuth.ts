@@ -484,14 +484,21 @@ export async function registerUser(
 
     // Resolve referral code to referrer user ID
     let referredBy: string | null = null;
+    let managedByPartnerId: string | null = null;
     if (userData.referral_code) {
       const { data: referrer } = await supabase
         .from('users')
-        .select('id')
+        .select('id, role')
         .eq('referral_code', userData.referral_code)
         .maybeSingle();
       if (referrer) {
         referredBy = referrer.id;
+        // A signup through a partner's referral link also falls under that
+        // partner's management scope (Partners panel "meus usuários"),
+        // separate from the money-referral `referred_by` linkage above.
+        if (referrer.role === 'partner') {
+          managedByPartnerId = referrer.id;
+        }
       }
     }
 
@@ -511,6 +518,7 @@ export async function registerUser(
         plan_status: 'free',
         created_at: now,
         ...(referredBy ? { referred_by: referredBy } : {}),
+        ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
         ...(userData.accepted_terms ? {
           accepted_terms_at: now,
           accepted_privacy_policy_at: now,
@@ -679,14 +687,18 @@ export async function completeGoogleProfile(
     const normalizedEmail = email.trim().toLowerCase();
 
     let referredBy: string | null = null;
+    let managedByPartnerId: string | null = null;
     if (userData.referral_code) {
       const { data: referrer } = await supabase
         .from('users')
-        .select('id')
+        .select('id, role')
         .eq('referral_code', userData.referral_code)
         .maybeSingle();
       if (referrer) {
         referredBy = referrer.id;
+        if (referrer.role === 'partner') {
+          managedByPartnerId = referrer.id;
+        }
       }
     }
 
@@ -706,6 +718,7 @@ export async function completeGoogleProfile(
         plan_status: 'free',
         created_at: now,
         ...(referredBy ? { referred_by: referredBy } : {}),
+        ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
         ...(userData.accepted_terms ? {
           accepted_terms_at: now,
           accepted_privacy_policy_at: now,

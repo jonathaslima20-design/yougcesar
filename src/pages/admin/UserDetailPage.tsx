@@ -374,7 +374,13 @@ export default function UserDetailPage() {
                 </div>
                 <div className="flex items-center justify-center gap-1.5 flex-wrap">
                   <Badge variant="secondary" className="text-xs">
-                    {user.role === 'admin' ? 'Administrador' : user.role === 'parceiro' ? 'Parceiro' : 'Vendedor'}
+                    {user.role === 'admin'
+                      ? 'Administrador'
+                      : user.role === 'parceiro'
+                      ? 'Parceiro'
+                      : user.role === 'partner'
+                      ? 'Parceiro (Partners)'
+                      : 'Vendedor'}
                   </Badge>
                   <Badge
                     variant={user.plan_status === 'active' ? 'default' : 'secondary'}

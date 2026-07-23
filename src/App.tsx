@@ -95,9 +95,18 @@ import OfferAnalyticsPage from '@/pages/admin/OfferAnalyticsPage.tsx';
 import NotificationSettingsPage from '@/pages/admin/NotificationSettingsPage.tsx';
 import AdminTrackingPage from '@/pages/admin/TrackingPage.tsx';
 
+// Partners Pages
+import PartnersDashboardPage from '@/pages/partners/PartnersDashboardPage.tsx';
+import PartnersUsersPage from '@/pages/partners/PartnersUsersPage.tsx';
+import PartnersCreateUserPage from '@/pages/partners/PartnersCreateUserPage.tsx';
+import PartnersUserDetailPage from '@/pages/partners/PartnersUserDetailPage.tsx';
+import PartnersReferralPage from '@/pages/partners/PartnersReferralPage.tsx';
+import PartnersLayout from '@/components/layouts/PartnersLayout';
+
 // Route Guards
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminRoute from '@/components/AdminRoute';
+import PartnerRoute from '@/components/PartnerRoute';
 
 import { usePageSEO } from '@/hooks/usePageSEO';
 
@@ -299,6 +308,17 @@ function AppContent() {
             <Route path="/admin/offers/new" element={<OfferEditorPage />} />
             <Route path="/admin/offers/:offerId" element={<OfferEditorPage />} />
             <Route path="/admin/offers/:offerId/analytics" element={<OfferAnalyticsPage />} />
+          </Route>
+        </Route>
+
+        {/* Protected Partners Routes (VitrineTurbo Partners) */}
+        <Route element={<PartnerRoute />}>
+          <Route element={<PartnersLayout />}>
+            <Route path="/partners" element={<PartnersDashboardPage />} />
+            <Route path="/partners/users" element={<PartnersUsersPage />} />
+            <Route path="/partners/users/new" element={<PartnersCreateUserPage />} />
+            <Route path="/partners/users/:id" element={<PartnersUserDetailPage />} />
+            <Route path="/partners/referral" element={<PartnersReferralPage />} />
           </Route>
         </Route>
 

@@ -2,9 +2,8 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader } from 'lucide-react';
 import { isAuthenticated } from '@/lib/auth/simpleAuth';
-import SubscriptionBlocker from '@/components/SubscriptionBlocker';
 
-export default function ProtectedRoute() {
+export default function PartnerRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -22,26 +21,9 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user.role === 'admin') {
-    return <Navigate to="/admin" replace />;
+  if (user.role !== 'partner') {
+    return <Navigate to="/dashboard" replace />;
   }
 
-  if (user.role === 'parceiro') {
-    return <Navigate to="/admin/users" replace />;
-  }
-
-  if (user.role === 'partner') {
-    return <Navigate to="/partners" replace />;
-  }
-
-  if (user.role === 'corretor') {
-    return (
-      <>
-        <SubscriptionBlocker />
-        <Outlet />
-      </>
-    );
-  }
-
-  return <Navigate to="/login" replace />;
+  return <Outlet />;
 }

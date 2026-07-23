@@ -55,6 +55,8 @@ export function UserListItem({
         return <Badge className="bg-primary text-xs">Admin</Badge>;
       case 'parceiro':
         return <Badge className="bg-blue-500 text-xs">Parceiro</Badge>;
+      case 'partner':
+        return <Badge className="bg-indigo-500 text-xs">Parceiro (Partners)</Badge>;
       case 'corretor':
         return <Badge variant="secondary" className="text-xs">Vendedor</Badge>;
       default:

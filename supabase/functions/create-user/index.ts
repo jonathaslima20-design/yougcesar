@@ -102,7 +102,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!userProfile || userProfile.role !== 'admin') {
+    const requestingRole = userProfile?.role;
+    if (requestingRole !== 'admin' && requestingRole !== 'partner') {
       return new Response(
         JSON.stringify({ error: 'Forbidden: Admin access required' }),
         {
@@ -117,8 +118,12 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { email: rawEmail, password, name, country_code, whatsapp, role }: CreateUserRequest = await req.json();
+    const { email: rawEmail, password, name, country_code, whatsapp, role: requestedRole }: CreateUserRequest = await req.json();
     const email = rawEmail?.trim().toLowerCase();
+
+    // Partners can only ever create corretor accounts — never trust the role
+    // field from a partner caller, force it regardless of what was sent.
+    const role = requestingRole === 'partner' ? 'corretor' : requestedRole;
 
     if (!email || !password || !name || !role) {
       return new Response(
@@ -151,9 +156,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!['admin', 'corretor'].includes(role)) {
+    const allowedRolesForCaller = requestingRole === 'partner' ? ['corretor'] : ['admin', 'corretor', 'partner'];
+    if (!allowedRolesForCaller.includes(role)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid role. Must be "admin" or "corretor"' }),
+        JSON.stringify({ error: `Invalid role. Must be one of: ${allowedRolesForCaller.join(', ')}` }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -218,6 +224,7 @@ Deno.serve(async (req: Request) => {
         slug,
         plan_status: 'free',
         is_blocked: false,
+        ...(requestingRole === 'partner' ? { managed_by_partner_id: requestingUser.id } : {}),
       });
 
     if (profileError2) {

@@ -175,6 +175,7 @@ export function UserListControls({
                       <SelectItem value="all">Todas as funções</SelectItem>
                       <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="parceiro">Parceiro</SelectItem>
+                      <SelectItem value="partner">Parceiro (Partners)</SelectItem>
                       <SelectItem value="corretor">Vendedor</SelectItem>
                     </SelectContent>
                   </Select>

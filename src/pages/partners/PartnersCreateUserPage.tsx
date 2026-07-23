@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PhoneInputWithCountry } from '@/components/ui/phone-input-with-country';
 import { toast } from 'sonner';
 
@@ -17,7 +16,6 @@ const userSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo de 6 caracteres'),
   confirmPassword: z.string().min(6, 'Mínimo de 6 caracteres'),
-  role: z.string().min(1, 'Função é obrigatória'),
   country_code: z.string().default('55'),
   whatsapp: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -27,7 +25,7 @@ const userSchema = z.object({
 
 type UserFormData = z.infer<typeof userSchema>;
 
-export default function CreateUserPage() {
+export default function PartnersCreateUserPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +36,6 @@ export default function CreateUserPage() {
       email: '',
       password: '',
       confirmPassword: '',
-      role: '',
       country_code: '55',
       whatsapp: '',
     },
@@ -47,17 +44,19 @@ export default function CreateUserPage() {
   const onSubmit = async (data: UserFormData) => {
     setLoading(true);
     try {
+      // Role is always forced to 'corretor' server-side for partner callers
+      // (see supabase/functions/create-user), the value sent here is ignored.
       await createUser({
         email: data.email,
         password: data.password,
         name: data.name,
         country_code: data.country_code,
         whatsapp: data.whatsapp || '',
-        role: data.role,
+        role: 'corretor',
       });
 
       toast.success('Usuário criado com sucesso!');
-      navigate('/admin/users');
+      navigate('/partners/users');
     } catch (error: any) {
       console.error('Error creating user:', error);
       toast.error(error.message || 'Erro ao criar usuário');
@@ -71,8 +70,10 @@ export default function CreateUserPage() {
       <div className="space-y-6">
         <div className="bg-card rounded-lg border p-8">
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold text-foreground mb-2">Criar Novo Usuário</h1>
-            <p className="text-sm text-muted-foreground">Cadastre um novo usuário e configure sua assinatura</p>
+            <h1 className="text-2xl font-semibold text-foreground mb-2">Cadastrar Usuário</h1>
+            <p className="text-sm text-muted-foreground">
+              A conta é criada imediatamente e vinculada a você em "Meus Usuários".
+            </p>
           </div>
 
           <div className="space-y-6">
@@ -107,8 +108,8 @@ export default function CreateUserPage() {
                       <FormControl>
                         <Input
                           type="email"
-                          placeholder="jonathaslima@live.com"
-                          className="h-11 bg-blue-50/50 dark:bg-blue-950/20"
+                          placeholder="cliente@email.com"
+                          className="h-11"
                           {...field}
                         />
                       </FormControl>
@@ -126,7 +127,7 @@ export default function CreateUserPage() {
                       <FormControl>
                         <PasswordInput
                           placeholder="••••••"
-                          className="h-11 bg-blue-50/50 dark:bg-blue-950/20"
+                          className="h-11"
                           {...field}
                         />
                       </FormControl>
@@ -151,29 +152,6 @@ export default function CreateUserPage() {
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-foreground">Função</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Vendedor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="corretor">Vendedor</SelectItem>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                          <SelectItem value="partner">Parceiro (VitrineTurbo Partners)</SelectItem>
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
