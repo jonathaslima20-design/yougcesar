@@ -33,6 +33,9 @@ const PRODUCTS_SELECT = `
   min_variant_price,
   max_variant_price,
   external_checkout_url,
+  track_inventory,
+  stock_quantity,
+  low_stock_threshold,
   product_images (
     id,
     url,

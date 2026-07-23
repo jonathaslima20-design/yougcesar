@@ -358,6 +358,18 @@ export default function ProductVariantModal({
       return;
     }
 
+    if (!distributionMode) {
+      if (hasColors && !selectedColor) {
+        toast.error('Selecione uma cor antes de adicionar ao carrinho');
+        return;
+      }
+
+      if (hasSizes && !selectedSize) {
+        toast.error('Selecione um tamanho antes de adicionar ao carrinho');
+        return;
+      }
+    }
+
     const selectedWeight = hasWeightVariants
       ? weightVariants.find((v) => v.id === selectedWeightVariantId)
       : undefined;
@@ -399,7 +411,13 @@ export default function ProductVariantModal({
   };
 
   const stockBlocked = blockZeroStock && isVariantOutOfStock;
-  const canAddToCart = (distributionMode ? isDistributionComplete : true) && (!hasFlavors || !!selectedFlavor) && (!hasWeightVariants || !!selectedWeightVariantId) && !stockBlocked;
+  const canAddToCart =
+    (distributionMode
+      ? isDistributionComplete
+      : (!hasColors || !!selectedColor) && (!hasSizes || !!selectedSize)) &&
+    (!hasFlavors || !!selectedFlavor) &&
+    (!hasWeightVariants || !!selectedWeightVariantId) &&
+    !stockBlocked;
 
   const selectedWeightVariantForPrice = hasWeightVariants
     ? weightVariants.find((v) => v.id === selectedWeightVariantId)

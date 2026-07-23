@@ -13,6 +13,7 @@ import { fetchProductPriceTiers, getMinimumPriceFromTiers, getFirstTierPrices } 
 import type { PriceTier } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { getStockStatus } from '@/lib/stockUtils';
+import { getAvailableVariantStock } from '@/lib/stockReservationService';
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +22,7 @@ interface ProductCardProps {
   language?: SupportedLanguage;
   inventoryEnabled?: boolean;
   showStockOnStorefront?: boolean;
+  blockZeroStock?: boolean;
   cartEnabled?: boolean;
   priceTiers?: PriceTier[] | null;
   onNavigate?: () => void;
@@ -33,6 +35,7 @@ function ProductCardComponent({
   language = 'pt-BR',
   inventoryEnabled = false,
   showStockOnStorefront = false,
+  blockZeroStock = false,
   cartEnabled = true,
   priceTiers = null,
   onNavigate
@@ -41,6 +44,7 @@ function ProductCardComponent({
   const { addToCart, isInCart, getItemQuantity } = useCart();
   const { isCustomDomain } = useCustomDomain();
   const [showVariantModal, setShowVariantModal] = useState(false);
+  const [variantStockData, setVariantStockData] = useState<Array<{ id: string; color: string | null; size: string | null; flavor: string | null; weight_variant_id: string | null; quantity: number; reserved_quantity: number; available: number }>>([]);
   const [minimumTieredPrice, setMinimumTieredPrice] = useState<number | null>(null);
   const [firstTierPrices, setFirstTierPrices] = useState<any>(null);
   const [loadingTiers, setLoadingTiers] = useState(false);
@@ -69,6 +73,12 @@ function ProductCardComponent({
         .finally(() => setLoadingTiers(false));
     }
   }, [product.id, product.has_tiered_pricing, priceTiers]);
+
+  useEffect(() => {
+    if (showVariantModal && inventoryEnabled && product.track_inventory) {
+      getAvailableVariantStock(product.id).then(setVariantStockData);
+    }
+  }, [showVariantModal, product.id, inventoryEnabled, product.track_inventory]);
 
   useEffect(() => {
     const ensureFeaturedImage = async () => {
@@ -242,11 +252,6 @@ function ProductCardComponent({
                   Últimas unidades
                 </Badge>
               )}
-              {stockStatus === 'in_stock' && showStockOnStorefront && (
-                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1">
-                  Em estoque
-                </Badge>
-              )}
             </div>
           </div>
 
@@ -390,6 +395,10 @@ function ProductCardComponent({
         product={product}
         currency={currency}
         language={language}
+        variantStockData={variantStockData}
+        inventoryEnabled={inventoryEnabled}
+        blockZeroStock={blockZeroStock}
+        showStockOnStorefront={showStockOnStorefront}
       />
     </motion.div>
   );

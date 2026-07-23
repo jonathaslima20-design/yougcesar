@@ -72,7 +72,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   const { corretor, loading: corretorLoading, error: corretorError, preloadedAppearance } = useCorretorData({ slug });
 
   const isPaidPlan = corretor?.plan_status === 'active';
-  const { inventoryEnabled, showStockOnStorefront } = useInventoryEnabledForStore(corretor?.id);
+  const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
   const cartEnabled = checkoutSettings.cartEnabled ?? true;
 
@@ -620,6 +620,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
                           language={language}
                           inventoryEnabled={inventoryEnabled}
                           showStockOnStorefront={showStockOnStorefront}
+                          blockZeroStock={blockZeroStock}
                           cartEnabled={cartEnabled}
                           priceTiers={priceTiersMap.get(product.id) || null}
                           onNavigate={() => {

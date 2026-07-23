@@ -73,6 +73,9 @@ export function useServerSideProductSearch(): UseServerSideProductSearchReturn {
           min_tiered_price,
           max_tiered_price,
           is_visible_on_storefront,
+          track_inventory,
+          stock_quantity,
+          low_stock_threshold,
           product_images (
             id,
             url,
