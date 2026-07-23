@@ -257,14 +257,18 @@ export default function CartModal({
       toast.success('Pedido enviado! Abrindo WhatsApp...');
 
       const orderItems = [
-        ...cart.distributions.map((dist) => ({
-          product_id: dist.product.id,
-          product_title: dist.product.title,
-          product_image_url: dist.product.featured_image_url || '',
-          quantity: dist.distribution.total_quantity,
-          unit_price: dist.distribution.applied_tier_price,
-          subtotal: dist.distribution.applied_tier_price * dist.distribution.total_quantity,
-        })),
+        ...cart.distributions.flatMap((dist) =>
+          dist.items.map((distItem) => ({
+            product_id: dist.product.id,
+            product_title: dist.product.title,
+            product_image_url: dist.product.featured_image_url || '',
+            quantity: distItem.quantity,
+            unit_price: dist.distribution.applied_tier_price,
+            selected_color: distItem.color || null,
+            selected_size: distItem.size || null,
+            subtotal: dist.distribution.applied_tier_price * distItem.quantity,
+          }))
+        ),
         ...cart.items.map((item) => ({
           product_id: item.id,
           product_title: item.title,
