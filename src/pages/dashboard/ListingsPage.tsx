@@ -38,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { copyProductImageFile, deleteProductImagesIfUnshared, fetchProductImages } from '@/lib/productImageService';
 import type { Product } from '@/types';
 
 export default function ListingsPage() {
@@ -207,15 +208,27 @@ export default function ListingsPage() {
 
       if (insertError) throw insertError;
 
-      if (newProduct && product.product_images && product.product_images.length > 0) {
-        const imageInserts = product.product_images.map(img => ({
-          product_id: newProduct.id,
-          url: img.url,
-          is_featured: img.is_featured,
-          media_type: img.media_type || 'image',
-          display_order: img.display_order,
-        }));
-        await supabase.from('product_images').insert(imageInserts);
+      if (newProduct) {
+        const sourceImages = await fetchProductImages(product.id);
+
+        if (sourceImages.length > 0) {
+          const imageInserts = await Promise.all(sourceImages.map(async img => ({
+            product_id: newProduct.id,
+            url: await copyProductImageFile(img.url, user.id, newProduct.id),
+            is_featured: img.is_featured,
+            media_type: img.media_type || 'image',
+            display_order: img.display_order,
+          })));
+          await supabase.from('product_images').insert(imageInserts);
+
+          const featuredImage = imageInserts.find(img => img.is_featured) || imageInserts[0];
+          if (featuredImage) {
+            await supabase.from('products').update({ featured_image_url: featuredImage.url }).eq('id', newProduct.id);
+          }
+        } else if (product.featured_image_url) {
+          const copiedUrl = await copyProductImageFile(product.featured_image_url, user.id, newProduct.id);
+          await supabase.from('products').update({ featured_image_url: copiedUrl }).eq('id', newProduct.id);
+        }
       }
 
       toast.success('Produto duplicado com sucesso', {
@@ -234,19 +247,7 @@ export default function ListingsPage() {
   const handleDeleteSingle = async () => {
     if (!deleteProduct || !user?.id) return;
     try {
-      const { data: images } = await supabase
-        .from('product_images')
-        .select('url')
-        .eq('product_id', deleteProduct.id);
-
-      if (images) {
-        for (const image of images) {
-          const fileName = image.url.split('/').pop();
-          if (fileName) {
-            await supabase.storage.from('public').remove([`products/${fileName}`]);
-          }
-        }
-      }
+      await deleteProductImagesIfUnshared(deleteProduct.id);
 
       const { error } = await supabase
         .from('products')

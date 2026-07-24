@@ -7,6 +7,7 @@ import type { Product, CategoryDisplaySetting } from '@/types';
 import { getCroppedImg } from '@/lib/image';
 import { useDashboardCategoryPagination } from './useDashboardCategoryPagination';
 import { errorLogger } from '@/lib/errorLogger';
+import { deleteProductImagesIfUnshared } from '@/lib/productImageService';
 
 interface UseProductListManagementProps {
   userId?: string;
@@ -482,21 +483,7 @@ export function useProductListManagement({ userId }: UseProductListManagementPro
       const productsToDelete = products.filter(p => selectedIds.includes(p.id));
 
       for (const product of productsToDelete) {
-        const { data: images } = await supabase
-          .from('product_images')
-          .select('url')
-          .eq('product_id', product.id);
-
-        if (images) {
-          for (const image of images) {
-            const fileName = image.url.split('/').pop();
-            if (fileName) {
-              await supabase.storage
-                .from('public')
-                .remove([`products/${fileName}`]);
-            }
-          }
-        }
+        await deleteProductImagesIfUnshared(product.id);
       }
 
       const { error } = await supabase

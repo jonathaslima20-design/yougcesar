@@ -233,10 +233,20 @@ export async function saveProductImages(
   }
 }
 
+function getStorageObjectPath(fileUrl: string): string | null {
+  const urlObj = new URL(fileUrl);
+  const afterBucketRoute = urlObj.pathname.split('/object/public/')[1];
+  if (!afterBucketRoute) return null;
+
+  const firstSlashIndex = afterBucketRoute.indexOf('/');
+  if (firstSlashIndex === -1) return null;
+
+  return afterBucketRoute.slice(firstSlashIndex + 1);
+}
+
 export async function deleteProductImage(imageUrl: string): Promise<void> {
   try {
-    const urlObj = new URL(imageUrl);
-    const path = urlObj.pathname.split('/public/')[1];
+    const path = getStorageObjectPath(imageUrl);
 
     if (path) {
       await storageFromSupabase(
@@ -379,6 +389,62 @@ export async function fetchProductImages(productId: string): Promise<UploadedIma
   } catch (error) {
     console.error('Error fetching product images:', error);
     return [];
+  }
+}
+
+export async function copyProductImageFile(
+  sourceUrl: string,
+  userId: string,
+  newProductId: string
+): Promise<string> {
+  try {
+    const sourcePath = getStorageObjectPath(sourceUrl);
+    if (!sourcePath) return sourceUrl;
+
+    const extMatch = sourcePath.match(/\.[a-zA-Z0-9]+$/);
+    const ext = extMatch ? extMatch[0] : '.jpg';
+    const destPath = `product/${userId}/product-${newProductId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${ext}`;
+
+    const { error: copyError } = await supabase.storage.from('public').copy(sourcePath, destPath);
+    if (copyError) throw copyError;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('public').getPublicUrl(destPath);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('Error copying product image file, reusing original URL:', error);
+    return sourceUrl;
+  }
+}
+
+export async function deleteProductImagesIfUnshared(productId: string): Promise<void> {
+  try {
+    const { data: images } = await supabase
+      .from('product_images')
+      .select('url')
+      .eq('product_id', productId);
+
+    if (!images || images.length === 0) return;
+
+    const urls = Array.from(new Set(images.map((img) => img.url)));
+
+    const { data: sharedRows } = await supabase
+      .from('product_images')
+      .select('url')
+      .in('url', urls)
+      .neq('product_id', productId);
+
+    const sharedUrls = new Set((sharedRows || []).map((row) => row.url));
+
+    await Promise.all(
+      images
+        .filter((image) => !sharedUrls.has(image.url))
+        .map((image) => deleteProductImage(image.url))
+    );
+  } catch (error) {
+    console.error('Error deleting product images from storage:', error);
   }
 }
 
