@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, LogOut, Menu, X, Settings, Settings2, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, CreditCard, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, Plug } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Menu, X, Settings, Settings2, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, CreditCard, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, Plug, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn, getInitials } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 import Logo from '@/components/Logo';
 import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
 import PlanUsageIndicator from '@/components/dashboard/PlanUsageIndicator';
@@ -14,6 +15,7 @@ export default function DashboardSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<'catalog' | 'stock' | 'sales' | null>(null);
   const [pendingOrders, setPendingOrders] = useState(0);
+  const [pendingPayment, setPendingPayment] = useState<{ plan_name: string; payment_due_at: string } | null>(null);
   const { signOut, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -37,6 +39,40 @@ export default function DashboardSidebar() {
     getPendingOrderCount(user.id).then(setPendingOrders);
   }, [user?.id]);
 
+  // Partner-assigned accounts start with plan_status 'active' while payment is still
+  // pending — surface it here so the user can pay before the deadline auto-blocks them.
+  useEffect(() => {
+    if (!user?.id || user.plan_status !== 'active') {
+      setPendingPayment(null);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('plan_name, payment_due_at')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .not('payment_due_at', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setPendingPayment(data || null);
+    })();
+  }, [user?.id, user?.plan_status]);
+
+  const handlePayPendingPlan = async (isMobile: boolean) => {
+    if (!pendingPayment?.plan_name) return;
+    const { data: plan } = await supabase
+      .from('subscription_plans')
+      .select('id, duration')
+      .eq('name', pendingPayment.plan_name)
+      .maybeSingle();
+    if (plan) {
+      navigate(`/dashboard/checkout?plan=${plan.id}&cycle=${plan.duration}`);
+      if (isMobile) toggleMobileSidebar();
+    }
+  };
+
   const catalogSubItems = [
     { name: 'Produtos', href: '/dashboard/listings', icon: Package },
     { name: 'Categorias', href: '/dashboard/categories', icon: FolderTree },
@@ -51,7 +87,7 @@ export default function DashboardSidebar() {
   const salesSubItems = [
     { name: 'Pedidos', href: '/dashboard/orders', icon: ClipboardList, badge: pendingOrders },
     { name: 'Cupons', href: '/dashboard/coupons', icon: Ticket },
-    { name: 'Vendas Online', href: '/dashboard/sales', icon: CreditCard, comingSoon: true },
+    { name: 'Vendas Online', href: '/dashboard/sales', icon: CreditCard },
   ];
 
   const toggleMobileSidebar = () => setMobileOpen(!mobileOpen);
@@ -161,7 +197,14 @@ export default function DashboardSidebar() {
           <div className="border-t border-foreground/[0.06] pt-3 mt-1">
             <button
               className="flex items-center gap-3 w-full p-2.5 hover:bg-foreground/[0.03] transition-colors duration-150 text-left group"
-              onClick={() => { navigate('/dashboard/account'); if (isMobile) toggleMobileSidebar(); }}
+              onClick={() => {
+                if (pendingPayment) {
+                  handlePayPendingPlan(isMobile);
+                  return;
+                }
+                navigate('/dashboard/account');
+                if (isMobile) toggleMobileSidebar();
+              }}
             >
               <Avatar className="h-9 w-9 shrink-0 ring-1 ring-foreground/10">
                 <AvatarImage src={user?.avatar_url} alt={user?.owner_name || user?.name} />
@@ -176,6 +219,16 @@ export default function DashboardSidebar() {
                 </div>
               </div>
             </button>
+            {pendingPayment && (
+              <button
+                onClick={() => handlePayPendingPlan(isMobile)}
+                title={`Pagamento pendente até ${new Date(pendingPayment.payment_due_at).toLocaleString('pt-BR')} — clique para pagar`}
+                className="flex items-center gap-1.5 w-full px-2.5 py-1.5 mt-1 text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors text-left"
+              >
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                <span className="flex-1">Pagamento Pendente</span>
+              </button>
+            )}
             <button
               onClick={() => signOut()}
               className="flex items-center gap-2.5 py-2.5 px-2.5 w-full text-left text-muted-foreground hover:text-foreground transition-colors duration-150 mt-1 text-[15px] tracking-tight"
