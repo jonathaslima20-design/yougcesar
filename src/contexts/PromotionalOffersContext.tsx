@@ -43,6 +43,19 @@ function isPathBlocked(pathname: string): boolean {
   return BLOCKED_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
 }
 
+// Promotional offers target regular (corretor) accounts only:
+// - admins and both partner role variants ('parceiro' legacy, 'partner' VitrineTurbo
+//   Partners) never subscribe to a plan themselves.
+// - accounts a partner created or that self-registered through a partner's referral
+//   link (`managed_by_partner_id` is set either way) already get their plan/pricing
+//   arranged through the partner, so the generic new-user promo doesn't apply.
+function isExcludedFromOffers(user: { role?: string; managed_by_partner_id?: string | null } | null | undefined): boolean {
+  if (!user) return true;
+  if (user.role === 'admin' || user.role === 'parceiro' || user.role === 'partner') return true;
+  if (user.managed_by_partner_id) return true;
+  return false;
+}
+
 export function usePromotionalOffers() {
   return useContext(PromotionalOffersContext);
 }
@@ -74,7 +87,7 @@ export function PromotionalOffersProvider({ children }: { children: React.ReactN
   }, [user?.id]);
 
   const loadEligibleOffers = useCallback(async () => {
-    if (!user || user.role === 'admin') return;
+    if (!user || isExcludedFromOffers(user)) return;
 
     // Referred users cannot receive promotional offers
     if (user.referred_by) {
@@ -180,7 +193,7 @@ export function PromotionalOffersProvider({ children }: { children: React.ReactN
   }, [user]);
 
   useEffect(() => {
-    if (!user || user.role === 'admin') {
+    if (!user || isExcludedFromOffers(user)) {
       setOfferQueue([]);
       setCurrentOffer(null);
       lastLoadedFingerprintRef.current = null;
@@ -195,7 +208,7 @@ export function PromotionalOffersProvider({ children }: { children: React.ReactN
 
   // Realtime: react to assignment INSERT/UPDATE and offer UPDATE
   useEffect(() => {
-    if (!user || user.role === 'admin') return;
+    if (!user || isExcludedFromOffers(user)) return;
 
     const channel = supabase
       .channel(`offer_assignments_${user.id}`)
@@ -237,7 +250,7 @@ export function PromotionalOffersProvider({ children }: { children: React.ReactN
 
   // Broadcast channel: admin "send now" push — fetch the specific offer and show immediately
   useEffect(() => {
-    if (!user || user.role === 'admin') return;
+    if (!user || isExcludedFromOffers(user)) return;
 
     const channel = supabase
       .channel(OFFER_PUSH_CHANNEL)
@@ -331,7 +344,7 @@ export function PromotionalOffersProvider({ children }: { children: React.ReactN
     const currentBlocked = isPathBlocked(location.pathname);
     prevPathnameRef.current = location.pathname;
 
-    if (prevBlocked && !currentBlocked && user && user.role !== 'admin') {
+    if (prevBlocked && !currentBlocked && user && !isExcludedFromOffers(user)) {
       const fingerprint = `${user.id}:${user.plan_status || 'free'}`;
       lastLoadedFingerprintRef.current = null;
       loadEligibleOffers().then(() => {
