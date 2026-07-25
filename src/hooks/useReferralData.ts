@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getReferralStats, generateReferralLink } from '@/lib/referralUtils';
+import { getReferralStats, generateReferralLink, generateReferralCode } from '@/lib/referralUtils';
 import type { ReferralStats, ReferralCommission, WithdrawalRequest, UserPixKey } from '@/types';
 
 export interface ReferredUser {
@@ -58,10 +58,7 @@ export function useReferralData(userId: string | undefined): UseReferralDataRetu
       let referralCode = user?.referral_code;
 
       if (!referralCode || referralCode.length > 10) {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = 'VT';
-        for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
-        referralCode = code;
+        referralCode = generateReferralCode();
         await supabase
           .from('users')
           .update({ referral_code: referralCode })

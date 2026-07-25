@@ -3,7 +3,7 @@ import { Copy, Loader, MousePointerClick, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { generateReferralLink } from '@/lib/referralUtils';
+import { generateReferralLink, generateReferralCode } from '@/lib/referralUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,11 +29,8 @@ export default function PartnersReferralPage() {
       setLoading(true);
 
       let referralCode = user.referral_code;
-      if (!referralCode) {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = 'VT';
-        for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
-        referralCode = code;
+      if (!referralCode || referralCode.length > 10) {
+        referralCode = generateReferralCode();
         await supabase.from('users').update({ referral_code: referralCode }).eq('id', user.id);
         await refreshUser();
       }

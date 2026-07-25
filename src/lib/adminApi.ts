@@ -147,6 +147,7 @@ export async function createUser(userData: {
   country_code?: string;
   whatsapp?: string;
   role: string;
+  plan_id?: string;
 }): Promise<{ userId: string }> {
   const { data: { session } } = await supabase.auth.getSession();
 

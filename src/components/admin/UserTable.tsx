@@ -48,6 +48,9 @@ function getDaysUntilExpiration(nextPaymentDate: string): number {
 }
 
 function PlanCell({ user }: { user: User }) {
+  if (user.role === 'partner') {
+    return <Badge className="bg-indigo-600 text-white hover:bg-indigo-600 text-xs">Partners</Badge>;
+  }
   return user.plan_status === 'free' ? (
     <Badge variant="outline" className="text-xs">Free</Badge>
   ) : (

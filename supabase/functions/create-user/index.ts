@@ -34,7 +34,22 @@ interface CreateUserRequest {
   country_code?: string;
   whatsapp?: string;
   role: string;
+  plan_id?: string;
 }
+
+const DURATION_MONTHS: Record<string, number> = {
+  Mensal: 1,
+  Trimestral: 3,
+  Semestral: 6,
+  Anual: 12,
+};
+
+const MONTHS_TO_BILLING_CYCLE: Record<number, string> = {
+  1: 'monthly',
+  3: 'quarterly',
+  6: 'semiannually',
+  12: 'annually',
+};
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -118,7 +133,7 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { email: rawEmail, password, name, country_code, whatsapp, role: requestedRole }: CreateUserRequest = await req.json();
+    const { email: rawEmail, password, name, country_code, whatsapp, role: requestedRole, plan_id: planId }: CreateUserRequest = await req.json();
     const email = rawEmail?.trim().toLowerCase();
 
     // Partners can only ever create corretor accounts — never trust the role
@@ -160,6 +175,18 @@ Deno.serve(async (req: Request) => {
     if (!allowedRolesForCaller.includes(role)) {
       return new Response(
         JSON.stringify({ error: `Invalid role. Must be one of: ${allowedRolesForCaller.join(', ')}` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Partners must assign a paid plan directly — Free accounts are only
+    // reachable via self-registration through the partner's referral link.
+    if (requestingRole === 'partner' && !planId) {
+      return new Response(
+        JSON.stringify({ error: 'Selecione um plano para o usuário' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -243,6 +270,51 @@ Deno.serve(async (req: Request) => {
     await supabaseAdmin
       .from('user_storefront_settings')
       .upsert({ user_id: userId, settings: { enableInventory: true } }, { onConflict: 'user_id' });
+
+    // Partner-assigned plan: grant immediate access while payment is pending,
+    // with an admin-configurable deadline (in hours) before auto-block.
+    if (requestingRole === 'partner' && planId) {
+      const { data: plan } = await supabaseAdmin
+        .from('subscription_plans')
+        .select('name, duration, price')
+        .eq('id', planId)
+        .maybeSingle();
+
+      if (plan) {
+        const months = DURATION_MONTHS[plan.duration] || 1;
+        const billingCycleDb = MONTHS_TO_BILLING_CYCLE[months] || 'monthly';
+
+        const { data: partnerSettings } = await supabaseAdmin
+          .from('partner_settings')
+          .select('payment_deadline_hours')
+          .limit(1)
+          .maybeSingle();
+
+        const deadlineHours = partnerSettings?.payment_deadline_hours ?? 6;
+        const now = new Date();
+        const paymentDueAt = new Date(now.getTime() + deadlineHours * 60 * 60 * 1000);
+
+        await supabaseAdmin.from('subscriptions').insert({
+          user_id: userId,
+          plan_name: plan.name,
+          plan_price: plan.price,
+          billing_cycle: billingCycleDb,
+          status: 'pending',
+          payment_status: 'pending',
+          start_date: now.toISOString().split('T')[0],
+          next_payment_date: paymentDueAt.toISOString().split('T')[0],
+          payment_due_at: paymentDueAt.toISOString(),
+        });
+
+        await supabaseAdmin
+          .from('users')
+          .update({
+            plan_status: 'active',
+            billing_cycle: billingCycleDb,
+          })
+          .eq('id', userId);
+      }
+    }
 
     return new Response(
       JSON.stringify({

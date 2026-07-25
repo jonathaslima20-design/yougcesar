@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Loader, DollarSign, Clock, CircleCheck as CheckCircle, Plus } from 'lucide-react';
+import { Loader, DollarSign, Clock, CircleCheck as CheckCircle, Plus, CreditCard, CircleAlert as AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyI18n } from '@/lib/i18n';
+import { formatPixKey } from '@/lib/referralUtils';
 import WithdrawalDialog from '@/components/referral/WithdrawalDialog';
 import PixKeyDialog from '@/components/referral/PixKeyDialog';
 import type { UserPixKey, WithdrawalRequest } from '@/types';
@@ -99,6 +101,37 @@ export default function PartnersCommissionsPage() {
         <SummaryCard title="Pendente" value={formatCurrencyI18n(pendingAmount, 'BRL', 'pt-BR')} icon={Clock} loading={loading} accent="amber" />
         <SummaryCard title="Pago" value={formatCurrencyI18n(paidAmount, 'BRL', 'pt-BR')} icon={CheckCircle} loading={loading} accent="green" />
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            Dados para Recebimento
+          </CardTitle>
+          <Button variant="outline" size="sm" onClick={() => setPixKeyDialogOpen(true)}>
+            {pixKeys.length > 0 ? 'Editar Chave PIX' : 'Cadastrar Chave PIX'}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {pixKeys.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma chave PIX cadastrada ainda.</p>
+          ) : (
+            <div>
+              <p className="text-sm font-medium">{pixKeys[0].holder_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {pixKeys[0].pix_key_type.toUpperCase()}: {formatPixKey(pixKeys[0].pix_key, pixKeys[0].pix_key_type)}
+              </p>
+            </div>
+          )}
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              A chave PIX deve ter a mesma titularidade do CPF cadastrado e o nome deve corresponder ao cadastro do
+              usuário.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

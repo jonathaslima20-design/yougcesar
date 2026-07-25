@@ -34,7 +34,7 @@ export default function PartnersDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Meus Usuários" value={totalUsers} icon={Users} loading={loading} href="/partners/users" />
+        <StatCard title="Usuários Indicados" value={totalUsers} icon={Users} loading={loading} href="/partners/users" />
         <StatCard title="Novos (30 dias)" value={newUsers30Days} icon={UserPlus} loading={loading} />
         <StatCard title="Acessos ao Link" value={clickCount} icon={MousePointerClick} loading={loading} href="/partners/referral" />
         <StatCard title="Conversão" value={`${conversionRate}%`} icon={TrendingUp} loading={loading} />

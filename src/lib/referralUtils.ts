@@ -52,6 +52,14 @@ export function generateReferralLink(referralCode: string): string {
   return `https://vitrineturbo.com/?ref=${referralCode}`;
 }
 
+const REFERRAL_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+export function generateReferralCode(): string {
+  let code = 'VT';
+  for (let i = 0; i < 5; i++) code += REFERRAL_CODE_CHARS[Math.floor(Math.random() * REFERRAL_CODE_CHARS.length)];
+  return code;
+}
+
 export function validatePixKey(key: string, type: string): boolean {
   const cleanKey = key.replace(/\D/g, '');
 

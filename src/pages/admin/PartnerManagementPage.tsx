@@ -27,6 +27,7 @@ interface PartnerSettings {
   minimum_withdrawal_amount: number;
   grace_period_days: number;
   self_referral_block: boolean;
+  payment_deadline_hours: number;
 }
 
 interface CommissionTier {
@@ -161,6 +162,7 @@ export default function PartnerManagementPage() {
           minimum_withdrawal_amount: settings.minimum_withdrawal_amount,
           grace_period_days: settings.grace_period_days,
           self_referral_block: settings.self_referral_block,
+          payment_deadline_hours: settings.payment_deadline_hours,
           updated_at: new Date().toISOString(),
         })
         .eq('id', settings.id);
@@ -376,6 +378,20 @@ export default function PartnerManagementPage() {
                       />
                       <p className="text-xs text-muted-foreground">
                         Dias que um usuário com plano vencido ainda conta como "ativo" para o tier do parceiro
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Prazo de Pagamento (horas)</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        min="1"
+                        value={settings.payment_deadline_hours}
+                        onChange={(e) => setSettings({ ...settings, payment_deadline_hours: parseInt(e.target.value) || 1 })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Prazo para pagamento quando o parceiro cadastra um usuário com plano selecionado. Vencido o
+                        prazo sem pagamento, a vitrine é bloqueada automaticamente.
                       </p>
                     </div>
                   </div>

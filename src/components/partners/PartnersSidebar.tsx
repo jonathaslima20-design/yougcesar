@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserPlus, Link2, Wallet, LogOut, Menu, X, Handshake } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Link2, Wallet, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,7 +19,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', href: '/partners', icon: LayoutDashboard },
-  { name: 'Meus Usuários', href: '/partners/users', icon: Users },
+  { name: 'Usuários', href: '/partners/users', icon: Users },
   { name: 'Cadastrar Usuário', href: '/partners/users/new', icon: UserPlus },
   { name: 'Meu Link', href: '/partners/referral', icon: Link2 },
   { name: 'Comissões', href: '/partners/commissions', icon: Wallet },
@@ -34,27 +34,16 @@ export default function PartnersSidebar({ mobileOpen = false, onMobileToggle }: 
       <div className="flex items-center justify-between px-5 py-5">
         <div className="flex items-center gap-2">
           <Logo showText={false} size="sm" />
-          <span className="font-semibold text-[15px] tracking-tight leading-none">
-            VitrineTurbo<br />
-            <span className="font-serif italic text-sm font-medium text-muted-foreground">Partners</span>
-          </span>
+          <span className="font-serif italic text-lg text-foreground/90 tracking-tight">Partners</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-foreground/[0.05] rounded">
-            <Handshake className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[11px] font-medium text-muted-foreground tracking-tight">
-              Parceiro
-            </span>
-          </div>
-          {isMobile && (
-            <button
-              onClick={onMobileToggle}
-              className="h-8 w-8 flex items-center justify-center hover:bg-foreground/5 transition-colors ml-1"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {isMobile && (
+          <button
+            onClick={onMobileToggle}
+            className="h-8 w-8 flex items-center justify-center hover:bg-foreground/5 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
