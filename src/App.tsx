@@ -79,6 +79,7 @@ import AdminSettingsPage from '@/pages/admin/SettingsPage.tsx';
 import NetlifyIntegrationPage from '@/pages/admin/NetlifyIntegrationPage.tsx';
 import SubscriptionPlansPage from '@/pages/admin/SubscriptionPlansPage.tsx';
 import ReferralManagementPage from '@/pages/admin/ReferralManagementPage.tsx';
+import PartnerManagementPage from '@/pages/admin/PartnerManagementPage.tsx';
 import HelpManagementPage from '@/pages/admin/HelpManagementPage.tsx';
 import BlogManagementPage from '@/pages/admin/BlogManagementPage.tsx';
 import { OrphanedFilesPage } from '@/pages/admin/OrphanedFilesPage.tsx';
@@ -101,6 +102,8 @@ import PartnersUsersPage from '@/pages/partners/PartnersUsersPage.tsx';
 import PartnersCreateUserPage from '@/pages/partners/PartnersCreateUserPage.tsx';
 import PartnersUserDetailPage from '@/pages/partners/PartnersUserDetailPage.tsx';
 import PartnersReferralPage from '@/pages/partners/PartnersReferralPage.tsx';
+import PartnersCommissionsPage from '@/pages/partners/PartnersCommissionsPage.tsx';
+import PartnersLoginPage from '@/pages/partners/PartnersLoginPage.tsx';
 import PartnersLayout from '@/components/layouts/PartnersLayout';
 
 // Route Guards
@@ -230,6 +233,7 @@ function AppContent() {
         <Route element={<PublicLayout />}>
           {!isCustomDomain && <Route path="/" element={<LandingPage />} />}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/partners/login" element={<PartnersLoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/completar-cadastro" element={<CompleteProfilePage />} />
@@ -290,6 +294,7 @@ function AppContent() {
             <Route path="/admin/users/new" element={<CreateUserPage />} />
             <Route path="/admin/users/:userId" element={<UserDetailPage />} />
             <Route path="/admin/referrals" element={<ReferralManagementPage />} />
+            <Route path="/admin/partners" element={<PartnerManagementPage />} />
             <Route path="/admin/orphaned-files" element={<OrphanedFilesPage />} />
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
             <Route path="/admin/notifications" element={<NotificationSettingsPage />} />
@@ -319,6 +324,7 @@ function AppContent() {
             <Route path="/partners/users/new" element={<PartnersCreateUserPage />} />
             <Route path="/partners/users/:id" element={<PartnersUserDetailPage />} />
             <Route path="/partners/referral" element={<PartnersReferralPage />} />
+            <Route path="/partners/commissions" element={<PartnersCommissionsPage />} />
           </Route>
         </Route>
 

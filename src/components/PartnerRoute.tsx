@@ -18,7 +18,7 @@ export default function PartnerRoute() {
   }
 
   if (!user || !isSimpleAuth) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/partners/login" state={{ from: location }} replace />;
   }
 
   if (user.role !== 'partner') {

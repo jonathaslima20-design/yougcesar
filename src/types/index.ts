@@ -364,6 +364,7 @@ export interface WithdrawalRequest {
   pix_key: string;
   pix_key_type: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random';
   status: 'pending' | 'approved' | 'rejected' | 'paid';
+  source?: 'referral' | 'partner';
   admin_notes?: string;
   created_at: string;
   processed_at?: string;
@@ -372,6 +373,23 @@ export interface WithdrawalRequest {
     name: string;
     email: string;
   };
+}
+
+export interface PartnerCommission {
+  id: string;
+  partner_id: string;
+  managed_user_id: string;
+  subscription_id?: string | null;
+  plan_name?: string | null;
+  plan_price: number;
+  commission_percentage: number;
+  amount: number;
+  type: 'new' | 'renewal';
+  active_users_snapshot: number;
+  status: 'pending' | 'paid' | 'reversed';
+  created_at: string;
+  paid_at?: string | null;
+  reversed_at?: string | null;
 }
 
 export interface UserPixKey {

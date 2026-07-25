@@ -31,9 +31,11 @@ interface WithdrawalDialogProps {
   availableAmount: number;
   pixKeys: UserPixKey[];
   onConfigurePixKey: () => void;
+  source?: 'referral' | 'partner';
+  minimumAmount?: number;
 }
 
-const MIN_WITHDRAWAL_AMOUNT = 50.00;
+const DEFAULT_MIN_WITHDRAWAL_AMOUNT = 50.00;
 
 export default function WithdrawalDialog({
   open,
@@ -41,12 +43,15 @@ export default function WithdrawalDialog({
   onSuccess,
   availableAmount,
   pixKeys,
-  onConfigurePixKey
+  onConfigurePixKey,
+  source = 'referral',
+  minimumAmount,
 }: WithdrawalDialogProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPixKeyId, setSelectedPixKeyId] = useState<string>('');
   const [amount, setAmount] = useState('');
+  const MIN_WITHDRAWAL_AMOUNT = minimumAmount ?? DEFAULT_MIN_WITHDRAWAL_AMOUNT;
 
   useEffect(() => {
     if (pixKeys.length > 0 && !selectedPixKeyId) {
@@ -100,7 +105,8 @@ export default function WithdrawalDialog({
           amount: withdrawalAmount,
           pix_key: selectedPixKey.pix_key,
           pix_key_type: selectedPixKey.pix_key_type,
-          status: 'pending'
+          status: 'pending',
+          source,
         });
 
       if (error) throw error;

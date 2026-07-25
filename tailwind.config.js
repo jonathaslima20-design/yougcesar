@@ -22,6 +22,7 @@ export default {
       fontFamily: {
         display: ['"Inter Tight"', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['"Geist Mono"', 'ui-monospace', 'monospace'],
+        serif: ['"Fraunces"', 'Georgia', 'serif'],
       },
       colors: {
         surface: '#F8F9FA',

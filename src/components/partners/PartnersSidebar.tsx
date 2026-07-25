@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserPlus, Link2, LogOut, Menu, X, Handshake } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Link2, Wallet, LogOut, Menu, X, Handshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'Meus Usuários', href: '/partners/users', icon: Users },
   { name: 'Cadastrar Usuário', href: '/partners/users/new', icon: UserPlus },
   { name: 'Meu Link', href: '/partners/referral', icon: Link2 },
+  { name: 'Comissões', href: '/partners/commissions', icon: Wallet },
 ];
 
 export default function PartnersSidebar({ mobileOpen = false, onMobileToggle }: PartnersSidebarProps) {
@@ -35,7 +36,7 @@ export default function PartnersSidebar({ mobileOpen = false, onMobileToggle }: 
           <Logo showText={false} size="sm" />
           <span className="font-semibold text-[15px] tracking-tight leading-none">
             VitrineTurbo<br />
-            <span className="text-xs font-normal text-muted-foreground">Partners</span>
+            <span className="font-serif italic text-sm font-medium text-muted-foreground">Partners</span>
           </span>
         </div>
         <div className="flex items-center gap-1">

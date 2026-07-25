@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { PhoneInputWithCountry } from '@/components/ui/phone-input-with-country';
 import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatCurrencyI18n } from '@/lib/i18n';
 
 interface ManagedUserDetail {
   id: string;
@@ -24,6 +26,23 @@ interface ManagedUserDetail {
   plan_status: string;
   created_at: string;
 }
+
+interface ManagedUserCommission {
+  id: string;
+  plan_name: string | null;
+  amount: number;
+  type: string;
+  status: string;
+  created_at: string;
+}
+
+const PLAN_STATUS_LABELS: Record<string, string> = {
+  active: 'Ativo',
+  free: 'Free',
+  expired: 'Expirado',
+  suspended: 'Suspenso',
+  inactive: 'Inativo',
+};
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -37,6 +56,7 @@ export default function PartnersUserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [managedUser, setManagedUser] = useState<ManagedUserDetail | null>(null);
+  const [commissions, setCommissions] = useState<ManagedUserCommission[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingBlock, setTogglingBlock] = useState(false);
@@ -71,6 +91,14 @@ export default function PartnersUserDetailPage() {
       country_code: data.country_code || '55',
       whatsapp: data.whatsapp || '',
     });
+
+    const { data: commissionRows } = await supabase
+      .from('partner_commissions')
+      .select('id, plan_name, amount, type, status, created_at')
+      .eq('managed_user_id', id)
+      .order('created_at', { ascending: false });
+    setCommissions(commissionRows || []);
+
     setLoading(false);
   };
 
@@ -150,9 +178,14 @@ export default function PartnersUserDetailPage() {
           <h1 className="text-2xl font-semibold text-foreground">{managedUser.name}</h1>
           <p className="text-sm text-muted-foreground">{managedUser.email}</p>
         </div>
-        <Badge variant={managedUser.is_blocked ? 'destructive' : 'default'} className="ml-auto">
-          {managedUser.is_blocked ? 'Bloqueado' : 'Ativo'}
-        </Badge>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge variant="outline">
+            Plano: {PLAN_STATUS_LABELS[managedUser.plan_status] || managedUser.plan_status}
+          </Badge>
+          <Badge variant={managedUser.is_blocked ? 'destructive' : 'default'}>
+            {managedUser.is_blocked ? 'Bloqueado' : 'Ativo'}
+          </Badge>
+        </div>
       </div>
 
       <Card>
@@ -240,6 +273,63 @@ export default function PartnersUserDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Comissões geradas por este usuário</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {commissions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Nenhuma comissão gerada por este usuário ainda.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Plano</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {commissions.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {c.type === 'renewal' ? 'Renovação' : 'Nova assinatura'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">{c.plan_name || '-'}</TableCell>
+                    <TableCell className="font-medium">{formatCurrencyI18n(c.amount, 'BRL', 'pt-BR')}</TableCell>
+                    <TableCell>
+                      <CommissionStatusBadge status={c.status} />
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
+}
+
+function CommissionStatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'pending':
+      return <Badge variant="outline" className="text-xs border-amber-300 text-amber-600">Pendente</Badge>;
+    case 'paid':
+      return <Badge className="bg-green-500 text-xs">Pago</Badge>;
+    case 'reversed':
+      return <Badge variant="destructive" className="text-xs">Revertido</Badge>;
+    default:
+      return <Badge variant="outline" className="text-xs">{status}</Badge>;
+  }
 }
