@@ -7,7 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { EditImageLimitDialog } from '@/components/admin/EditImageLimitDialog';
 import { CloneUserDialog } from '@/components/admin/CloneUserDialog';
 import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
@@ -16,12 +18,16 @@ import { toast } from 'sonner';
 import { format, formatDistanceToNow, subDays, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { usePartnerDashboardStats } from '@/hooks/usePartnerDashboardStats';
+import { usePartnerCommissionStats } from '@/hooks/usePartnerCommissionStats';
 import SubscriptionManagement from '@/components/admin/SubscriptionManagement';
 import UserActivityLog from '@/components/admin/UserActivityLog';
+import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
 import { generateReferralLink } from '@/lib/referralUtils';
+import { formatCurrencyI18n } from '@/lib/i18n';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import { fetchOrders, getOrderStats } from '@/lib/orderService';
-import type { Order } from '@/types';
+import type { Order, PlanStatus, BillingCycle } from '@/types';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Legend,
@@ -86,56 +92,73 @@ export default function UserDetailPage() {
       }
       setUser(userData);
 
-      const [
-        { count: totalProducts },
-        { count: activeProducts },
-        { count: soldProducts },
-        { count: reservedProducts },
-      ] = await Promise.all([
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'disponivel'),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'vendido'),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'reservado'),
-      ]);
-
-      const { data: productIds } = await supabase
-        .from('products')
-        .select('id')
-        .eq('user_id', userId);
-      const ids = productIds?.map(p => p.id) || [];
-
-      let totalViews = 0;
-      let totalLeads = 0;
-      if (ids.length > 0) {
-        const [viewsRes, leadsRes] = await Promise.all([
-          supabase.from('property_views').select('id', { count: 'exact', head: true }).in('property_id', ids),
-          supabase.from('leads').select('id', { count: 'exact', head: true }).in('property_id', ids),
+      // Partners don't sell products themselves — none of the storefront stats apply.
+      if (userData.role !== 'partner') {
+        const [
+          { count: totalProducts },
+          { count: activeProducts },
+          { count: soldProducts },
+          { count: reservedProducts },
+        ] = await Promise.all([
+          supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+          supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'disponivel'),
+          supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'vendido'),
+          supabase.from('products').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'reservado'),
         ]);
-        totalViews = viewsRes.count || 0;
-        totalLeads = leadsRes.count || 0;
+
+        const { data: productIds } = await supabase
+          .from('products')
+          .select('id')
+          .eq('user_id', userId);
+        const ids = productIds?.map(p => p.id) || [];
+
+        let totalViews = 0;
+        let totalLeads = 0;
+        if (ids.length > 0) {
+          const [viewsRes, leadsRes] = await Promise.all([
+            supabase.from('property_views').select('id', { count: 'exact', head: true }).in('property_id', ids),
+            supabase.from('leads').select('id', { count: 'exact', head: true }).in('property_id', ids),
+          ]);
+          totalViews = viewsRes.count || 0;
+          totalLeads = leadsRes.count || 0;
+        }
+
+        const { data: categoryData } = await supabase
+          .from('products')
+          .select('category')
+          .eq('user_id', userId);
+
+        const catCounts: Record<string, number> = {};
+        categoryData?.forEach(p => {
+          const cat = p.category?.[0] || 'Sem categoria';
+          catCounts[cat] = (catCounts[cat] || 0) + 1;
+        });
+        const topCategories = Object.entries(catCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, count]) => ({ name, count }));
+
+        const { data: valueData } = await supabase
+          .from('products')
+          .select('price, discounted_price')
+          .eq('user_id', userId)
+          .eq('status', 'disponivel');
+        const totalValue = valueData?.reduce((sum, p) => sum + (p.discounted_price || p.price || 0), 0) || 0;
+
+        const conversionRate = totalViews > 0 ? (totalLeads / totalViews) * 100 : 0;
+
+        setStats({
+          totalProducts: totalProducts || 0,
+          activeProducts: activeProducts || 0,
+          soldProducts: soldProducts || 0,
+          reservedProducts: reservedProducts || 0,
+          totalValue,
+          totalViews,
+          totalLeads,
+          conversionRate,
+          topCategories,
+        });
       }
-
-      const { data: categoryData } = await supabase
-        .from('products')
-        .select('category')
-        .eq('user_id', userId);
-
-      const catCounts: Record<string, number> = {};
-      categoryData?.forEach(p => {
-        const cat = p.category?.[0] || 'Sem categoria';
-        catCounts[cat] = (catCounts[cat] || 0) + 1;
-      });
-      const topCategories = Object.entries(catCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, count]) => ({ name, count }));
-
-      const { data: valueData } = await supabase
-        .from('products')
-        .select('price, discounted_price')
-        .eq('user_id', userId)
-        .eq('status', 'disponivel');
-      const totalValue = valueData?.reduce((sum, p) => sum + (p.discounted_price || p.price || 0), 0) || 0;
 
       // Fetch last activity and last login device
       const [lastActRes, lastLoginRes] = await Promise.all([
@@ -171,20 +194,6 @@ export default function UserDetailPage() {
         else if (ua.includes('Linux')) os = 'Linux';
         setLastLoginDevice(os ? `${browser}, ${os}` : browser);
       }
-
-      const conversionRate = totalViews > 0 ? (totalLeads / totalViews) * 100 : 0;
-
-      setStats({
-        totalProducts: totalProducts || 0,
-        activeProducts: activeProducts || 0,
-        soldProducts: soldProducts || 0,
-        reservedProducts: reservedProducts || 0,
-        totalValue,
-        totalViews,
-        totalLeads,
-        conversionRate,
-        topCategories,
-      });
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast.error('Erro ao carregar dados do usuário');
@@ -303,6 +312,7 @@ export default function UserDetailPage() {
 
   if (!user) return null;
 
+  const isPartnerAccount = user.role === 'partner';
   const memberSince = formatDistanceToNow(new Date(user.created_at), { locale: ptBR, addSuffix: false });
 
   return (
@@ -561,18 +571,24 @@ export default function UserDetailPage() {
               {/* Management Actions */}
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Gestão</p>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => setShowCloneDialog(true)}>
-                  <ClipboardCopy className="h-3.5 w-3.5" /> Clonar Usuário
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => setShowCopyDialog(true)}>
-                  <Copy className="h-3.5 w-3.5" /> Copiar Produtos
-                </Button>
+                {!isPartnerAccount && (
+                  <>
+                    <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => setShowCloneDialog(true)}>
+                      <ClipboardCopy className="h-3.5 w-3.5" /> Clonar Usuário
+                    </Button>
+                    <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => setShowCopyDialog(true)}>
+                      <Copy className="h-3.5 w-3.5" /> Copiar Produtos
+                    </Button>
+                  </>
+                )}
                 <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => setShowPasswordDialog(true)}>
                   <Lock className="h-3.5 w-3.5" /> Alterar Senha
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => setShowImageLimitDialog(true)}>
-                  <ImageIcon className="h-3.5 w-3.5" /> Limite de Imagens ({user.max_images_per_product || 10})
-                </Button>
+                {!isPartnerAccount && (
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => setShowImageLimitDialog(true)}>
+                    <ImageIcon className="h-3.5 w-3.5" /> Limite de Imagens ({user.max_images_per_product || 10})
+                  </Button>
+                )}
               </div>
 
               <Separator />
@@ -618,55 +634,61 @@ export default function UserDetailPage() {
 
         {/* Main Content */}
         <div className="space-y-6 min-w-0">
-          {/* Quick Stats */}
-          <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
-            <QuickStatCard icon={Package} label="Produtos" value={stats.totalProducts} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950" />
-            <QuickStatCard icon={Eye} label="Visualizações" value={stats.totalViews.toLocaleString('pt-BR')} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950" />
-            <QuickStatCard icon={Users} label="Leads" value={stats.totalLeads.toLocaleString('pt-BR')} color="text-amber-600" bg="bg-amber-50 dark:bg-amber-950" />
-            <QuickStatCard icon={TrendingUp} label="Conversão" value={`${stats.conversionRate.toFixed(1)}%`} color="text-rose-600" bg="bg-rose-50 dark:bg-rose-950" />
-          </div>
+          {isPartnerAccount ? (
+            <PartnerDetailContent userId={userId!} activeTab={activeTab} setActiveTab={setActiveTab} />
+          ) : (
+            <>
+              {/* Quick Stats */}
+              <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
+                <QuickStatCard icon={Package} label="Produtos" value={stats.totalProducts} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950" />
+                <QuickStatCard icon={Eye} label="Visualizações" value={stats.totalViews.toLocaleString('pt-BR')} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950" />
+                <QuickStatCard icon={Users} label="Leads" value={stats.totalLeads.toLocaleString('pt-BR')} color="text-amber-600" bg="bg-amber-50 dark:bg-amber-950" />
+                <QuickStatCard icon={TrendingUp} label="Conversão" value={`${stats.conversionRate.toFixed(1)}%`} color="text-rose-600" bg="bg-rose-50 dark:bg-rose-950" />
+              </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full grid grid-cols-5 h-10">
-              <TabsTrigger value="visao-geral" className="text-xs sm:text-sm">Visão Geral</TabsTrigger>
-              <TabsTrigger value="pedidos" className="text-xs sm:text-sm">Pedidos</TabsTrigger>
-              <TabsTrigger value="assinatura" className="text-xs sm:text-sm">Assinatura</TabsTrigger>
-              <TabsTrigger value="indicacoes" className="text-xs sm:text-sm">Indicações</TabsTrigger>
-              <TabsTrigger value="atividade" className="text-xs sm:text-sm">Atividade</TabsTrigger>
-            </TabsList>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="w-full grid grid-cols-5 h-10">
+                  <TabsTrigger value="visao-geral" className="text-xs sm:text-sm">Visão Geral</TabsTrigger>
+                  <TabsTrigger value="pedidos" className="text-xs sm:text-sm">Pedidos</TabsTrigger>
+                  <TabsTrigger value="assinatura" className="text-xs sm:text-sm">Assinatura</TabsTrigger>
+                  <TabsTrigger value="indicacoes" className="text-xs sm:text-sm">Indicações</TabsTrigger>
+                  <TabsTrigger value="atividade" className="text-xs sm:text-sm">Atividade</TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="visao-geral" className="mt-5 space-y-5">
-              <OverviewTab userId={userId!} stats={stats} userSlug={user.slug} />
-            </TabsContent>
+                <TabsContent value="visao-geral" className="mt-5 space-y-5">
+                  <OverviewTab userId={userId!} stats={stats} userSlug={user.slug} />
+                </TabsContent>
 
-            <TabsContent value="pedidos" className="mt-5">
-              <OrdersTab userId={userId!} />
-            </TabsContent>
+                <TabsContent value="pedidos" className="mt-5">
+                  <OrdersTab userId={userId!} />
+                </TabsContent>
 
-            <TabsContent value="assinatura" className="mt-5 space-y-5">
-              <SubscriptionTab
-                subscription={subscription}
-                subscriptionLoading={subscriptionLoading}
-                recentPayments={recentPayments}
-                userId={userId}
-                userName={user.name}
-                refetchSubscription={refetchSubscription}
-                refetchUser={fetchUserData}
-              />
-            </TabsContent>
+                <TabsContent value="assinatura" className="mt-5 space-y-5">
+                  <SubscriptionTab
+                    subscription={subscription}
+                    subscriptionLoading={subscriptionLoading}
+                    recentPayments={recentPayments}
+                    userId={userId}
+                    userName={user.name}
+                    refetchSubscription={refetchSubscription}
+                    refetchUser={fetchUserData}
+                  />
+                </TabsContent>
 
-            <TabsContent value="indicacoes" className="mt-5">
-              <ReferralsTab userId={userId!} referralCode={user?.referral_code} />
-            </TabsContent>
+                <TabsContent value="indicacoes" className="mt-5">
+                  <ReferralsTab userId={userId!} referralCode={user?.referral_code} />
+                </TabsContent>
 
-            <TabsContent value="atividade" className="mt-5">
-              <Card>
-                <CardContent className="pt-6">
-                  <UserActivityLog userId={userId!} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                <TabsContent value="atividade" className="mt-5">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <UserActivityLog userId={userId!} />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
         </div>
       </div>
 
@@ -695,6 +717,411 @@ export default function UserDetailPage() {
         userId={user.id}
         userName={user.name}
       />
+    </div>
+  );
+}
+
+/* ─── Partner Detail Content (role === 'partner') ─── */
+function PartnerDetailContent({ userId, activeTab, setActiveTab }: { userId: string; activeTab: string; setActiveTab: (v: string) => void }) {
+  const { totalUsers, newUsers30Days, clickCount, recentUsers, loading: dashLoading } = usePartnerDashboardStats(userId);
+  const {
+    totalEarned, pendingAmount, paidAmount, monthlySeries, tiers, currentTier, nextTier,
+    progressToNextTier, activeUserCount, minimumWithdrawalAmount, loading: commissionsLoading,
+  } = usePartnerCommissionStats(userId);
+
+  const conversionRate = clickCount > 0 ? Math.round((totalUsers / clickCount) * 100) : 0;
+
+  return (
+    <>
+      {/* Quick Stats */}
+      <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
+        <QuickStatCard icon={UserPlus} label="Usuários Indicados" value={totalUsers} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950" />
+        <QuickStatCard icon={Users} label="Novos (30 dias)" value={newUsers30Days} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950" />
+        <QuickStatCard icon={MousePointerClick} label="Acessos ao Link" value={clickCount} color="text-amber-600" bg="bg-amber-50 dark:bg-amber-950" />
+        <QuickStatCard icon={TrendingUp} label="Conversão" value={`${conversionRate}%`} color="text-rose-600" bg="bg-rose-50 dark:bg-rose-950" />
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="w-full grid grid-cols-5 h-10">
+          <TabsTrigger value="visao-geral" className="text-xs sm:text-sm">Visão Geral</TabsTrigger>
+          <TabsTrigger value="usuarios-geridos" className="text-xs sm:text-sm">Usuários</TabsTrigger>
+          <TabsTrigger value="comissoes" className="text-xs sm:text-sm">Comissões</TabsTrigger>
+          <TabsTrigger value="link" className="text-xs sm:text-sm">Meu Link</TabsTrigger>
+          <TabsTrigger value="atividade" className="text-xs sm:text-sm">Atividade</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao-geral" className="mt-5 space-y-5">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Comissões (últimos 12 meses)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {commissionsLoading ? (
+                  <div className="flex items-center justify-center h-[220px]"><Skeleton className="h-full w-full" /></div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={monthlySeries} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => (v >= 1000 ? `R$${(v / 1000).toFixed(1)}k` : `R$${v}`)}
+                      />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))' }}
+                        formatter={(value: number) => formatCurrencyI18n(value, 'BRL', 'pt-BR')}
+                      />
+                      <Bar dataKey="new" name="Novas" stackId="a" fill="hsl(var(--chart-1))" maxBarSize={32} />
+                      <Bar dataKey="renewal" name="Renovações" stackId="a" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Award className="h-4 w-4" /> Tier Atual
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {commissionsLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold">{currentTier ? `${currentTier.commission_percentage}%` : '—'}</p>
+                      {nextTier ? (
+                        <>
+                          <Progress value={progressToNextTier * 100} />
+                          <p className="text-xs text-muted-foreground">
+                            {activeUserCount} de {nextTier.min_active_users} usuários ativos para atingir {nextTier.commission_percentage}%
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Já está no maior nível de comissão.</p>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Wallet className="h-4 w-4" /> Disponível para saque
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {commissionsLoading ? (
+                    <Skeleton className="h-8 w-24" />
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold">{formatCurrencyI18n(pendingAmount, 'BRL', 'pt-BR')}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Total ganho: {formatCurrencyI18n(totalEarned, 'BRL', 'pt-BR')} · pago: {formatCurrencyI18n(paidAmount, 'BRL', 'pt-BR')} · mínimo p/ saque {formatCurrencyI18n(minimumWithdrawalAmount, 'BRL', 'pt-BR')}
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Cadastros recentes</CardTitle></CardHeader>
+            <CardContent>
+              {dashLoading ? (
+                <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : recentUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum usuário cadastrado ainda.</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentUsers.map((u) => (
+                    <Link key={u.id} to={`/admin/users/${u.id}`} className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/40 transition-colors">
+                      <div>
+                        <p className="font-medium text-sm">{u.name}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="usuarios-geridos" className="mt-5">
+          <PartnerManagedUsersTab partnerId={userId} />
+        </TabsContent>
+
+        <TabsContent value="comissoes" className="mt-5 space-y-5">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Faixas de Comissão</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {tiers.map((tier) => (
+                <div key={tier.id} className={`flex items-center justify-between rounded-lg border p-3 ${currentTier?.id === tier.id ? 'border-foreground/30 bg-foreground/[0.03]' : 'border-border'}`}>
+                  <p className="text-sm font-medium">
+                    A partir de {tier.min_active_users} usuários ativos{tier.label && <span className="text-muted-foreground"> — {tier.label}</span>}
+                  </p>
+                  <Badge variant={currentTier?.id === tier.id ? 'default' : 'outline'}>{tier.commission_percentage}%</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <PartnerCommissionsHistoryTab partnerId={userId} />
+        </TabsContent>
+
+        <TabsContent value="link" className="mt-5">
+          <PartnerReferralLinkTab partnerId={userId} clickCount={clickCount} clickLoading={dashLoading} />
+        </TabsContent>
+
+        <TabsContent value="atividade" className="mt-5">
+          <Card>
+            <CardContent className="pt-6">
+              <UserActivityLog userId={userId} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </>
+  );
+}
+
+/* ─── Partner: Managed Users Tab ─── */
+function PartnerManagedUsersTab({ partnerId }: { partnerId: string }) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [pendingPaymentIds, setPendingPaymentIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('users')
+        .select('id, name, email, whatsapp, is_blocked, plan_status, billing_cycle, slug, created_at')
+        .eq('managed_by_partner_id', partnerId)
+        .order('created_at', { ascending: false });
+      setUsers(data || []);
+
+      const ids = (data || []).map((u) => u.id);
+      if (ids.length > 0) {
+        const { data: pendingSubs } = await supabase
+          .from('subscriptions')
+          .select('user_id')
+          .in('user_id', ids)
+          .eq('status', 'pending')
+          .not('payment_due_at', 'is', null);
+        setPendingPaymentIds(new Set((pendingSubs || []).map((s) => s.user_id)));
+      }
+      setLoading(false);
+    })();
+  }, [partnerId]);
+
+  if (loading) {
+    return <Card><CardContent className="py-12 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></CardContent></Card>;
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        {users.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Nenhum usuário gerido por este parceiro</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Usuário</TableHead>
+                <TableHead>Plano</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Cadastro</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell>
+                    <Link to={`/admin/users/${u.id}`} className="hover:underline">
+                      <p className="text-sm font-medium">{u.name}</p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <PlanStatusBadge status={u.plan_status as PlanStatus} billingCycle={u.billing_cycle as BillingCycle | undefined} />
+                      {pendingPaymentIds.has(u.id) && (
+                        <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-800">Pagamento Pendente</Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={u.is_blocked ? 'destructive' : 'default'} className="text-xs">{u.is_blocked ? 'Bloqueado' : 'Ativo'}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Partner: Commissions History Tab ─── */
+function PartnerCommissionsHistoryTab({ partnerId }: { partnerId: string }) {
+  const [commissions, setCommissions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('partner_commissions')
+        .select('id, managed_user_id, plan_name, amount, type, status, created_at')
+        .eq('partner_id', partnerId)
+        .order('created_at', { ascending: false });
+
+      const commissionsData = data || [];
+      const managedUserIds = [...new Set(commissionsData.map((c) => c.managed_user_id))];
+      const usersMap = new Map<string, string>();
+      if (managedUserIds.length > 0) {
+        const { data: usersData } = await supabase.from('users').select('id, name').in('id', managedUserIds);
+        for (const u of usersData || []) usersMap.set(u.id, u.name);
+      }
+      setCommissions(commissionsData.map((c) => ({ ...c, managed_user_name: usersMap.get(c.managed_user_id) || 'Desconhecido' })));
+      setLoading(false);
+    })();
+  }, [partnerId]);
+
+  if (loading) {
+    return <Card><CardContent className="py-12 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></CardContent></Card>;
+  }
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Histórico de Comissões</CardTitle></CardHeader>
+      <CardContent>
+        {commissions.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Nenhuma comissão encontrada</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Usuário</TableHead>
+                <TableHead>Plano</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Data</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {commissions.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="text-sm font-medium">{c.managed_user_name}</TableCell>
+                  <TableCell className="text-sm">{c.plan_name || '-'}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs">{c.type === 'renewal' ? 'Renovação' : 'Nova assinatura'}</Badge></TableCell>
+                  <TableCell className="font-medium">{formatCurrencyI18n(c.amount, 'BRL', 'pt-BR')}</TableCell>
+                  <TableCell>
+                    {c.status === 'pending'
+                      ? <Badge variant="outline" className="text-xs border-amber-300 text-amber-600">Pendente</Badge>
+                      : c.status === 'paid'
+                      ? <Badge className="bg-green-500 text-xs">Pago</Badge>
+                      : <Badge variant="destructive" className="text-xs">Revertido</Badge>}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Partner: Referral Link Tab ─── */
+function PartnerReferralLinkTab({ partnerId, clickCount, clickLoading }: { partnerId: string; clickCount: number; clickLoading: boolean }) {
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referredUsers, setReferredUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data: userData } = await supabase.from('users').select('referral_code').eq('id', partnerId).maybeSingle();
+      setReferralCode(userData?.referral_code || null);
+
+      const { data } = await supabase
+        .from('users')
+        .select('id, name, email, created_at')
+        .eq('managed_by_partner_id', partnerId)
+        .eq('referred_by', partnerId)
+        .order('created_at', { ascending: false });
+      setReferredUsers(data || []);
+      setLoading(false);
+    })();
+  }, [partnerId]);
+
+  const referralLink = referralCode ? generateReferralLink(referralCode) : null;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader><CardTitle className="text-base">Link de Indicação</CardTitle></CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-9 w-full" />
+          ) : referralLink ? (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-muted px-3 py-2 rounded truncate">{referralLink}</code>
+              <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(referralLink); toast.success('Link copiado'); }}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum código de indicação gerado ainda.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2"><MousePointerClick className="h-4 w-4" /> Acessos ao link</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {clickLoading ? <Skeleton className="h-8 w-16" /> : <p className="text-2xl font-bold">{clickCount}</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-sm font-medium flex items-center gap-2"><Link2 className="h-4 w-4" /> Cadastrados pelo link</CardTitle></CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-16 w-full" />
+          ) : referredUsers.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Ninguém se cadastrou pelo link ainda.</p>
+          ) : (
+            <div className="space-y-2">
+              {referredUsers.map((u) => (
+                <Link key={u.id} to={`/admin/users/${u.id}`} className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/40 transition-colors">
+                  <div>
+                    <p className="font-medium text-sm">{u.name}</p>
+                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
