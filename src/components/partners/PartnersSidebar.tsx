@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserPlus, Link2, Wallet, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Link2, Wallet, CircleHelp as HelpCircle, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'Cadastrar Usuário', href: '/partners/users/new', icon: UserPlus },
   { name: 'Meu Link', href: '/partners/referral', icon: Link2 },
   { name: 'Comissões', href: '/partners/commissions', icon: Wallet },
+  { name: 'Ajuda', href: '/partners/help', icon: HelpCircle },
 ];
 
 export default function PartnersSidebar({ mobileOpen = false, onMobileToggle }: PartnersSidebarProps) {

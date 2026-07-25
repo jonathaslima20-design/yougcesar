@@ -103,6 +103,7 @@ import PartnersCreateUserPage from '@/pages/partners/PartnersCreateUserPage.tsx'
 import PartnersUserDetailPage from '@/pages/partners/PartnersUserDetailPage.tsx';
 import PartnersReferralPage from '@/pages/partners/PartnersReferralPage.tsx';
 import PartnersCommissionsPage from '@/pages/partners/PartnersCommissionsPage.tsx';
+import PartnersHelpPage from '@/pages/partners/PartnersHelpPage.tsx';
 import PartnersLoginPage from '@/pages/partners/PartnersLoginPage.tsx';
 import PartnersLayout from '@/components/layouts/PartnersLayout';
 
@@ -325,6 +326,7 @@ function AppContent() {
             <Route path="/partners/users/:id" element={<PartnersUserDetailPage />} />
             <Route path="/partners/referral" element={<PartnersReferralPage />} />
             <Route path="/partners/commissions" element={<PartnersCommissionsPage />} />
+            <Route path="/partners/help" element={<PartnersHelpPage />} />
           </Route>
         </Route>
 
