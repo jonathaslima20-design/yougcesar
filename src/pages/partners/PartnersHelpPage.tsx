@@ -10,7 +10,6 @@ import { formatCurrencyI18n } from '@/lib/i18n';
 
 interface PartnerRules {
   payment_deadline_hours: number;
-  grace_period_days: number;
   self_referral_block: boolean;
   renewal_commissions_enabled: boolean;
 }
@@ -24,7 +23,7 @@ export default function PartnersHelpPage() {
     (async () => {
       const { data } = await supabase
         .from('partner_settings')
-        .select('payment_deadline_hours, grace_period_days, self_referral_block, renewal_commissions_enabled')
+        .select('payment_deadline_hours, self_referral_block, renewal_commissions_enabled')
         .limit(1)
         .maybeSingle();
       setRules(data);
@@ -90,9 +89,6 @@ export default function PartnersHelpPage() {
           {!statsLoading && (
             <p className="text-xs text-muted-foreground">
               Você tem hoje <strong className="text-foreground">{activeUserCount}</strong> usuário(s) ativo(s) contando para sua faixa.
-              {rules && rules.grace_period_days > 0 && (
-                <> Usuários com pagamento em atraso ainda contam por até {rules.grace_period_days} dia(s) de carência.</>
-              )}
             </p>
           )}
 

@@ -28,6 +28,7 @@ interface ManagedUser {
   billing_cycle: string | null;
   slug: string | null;
   created_at: string;
+  referred_by: string | null;
 }
 
 export default function PartnersUsersPage() {
@@ -44,7 +45,7 @@ export default function PartnersUsersPage() {
       setLoading(true);
       const { data } = await supabase
         .from('users')
-        .select('id, name, email, whatsapp, is_blocked, plan_status, billing_cycle, slug, created_at')
+        .select('id, name, email, whatsapp, is_blocked, plan_status, billing_cycle, slug, created_at, referred_by')
         .eq('managed_by_partner_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -125,6 +126,11 @@ export default function PartnersUsersPage() {
                       <Link to={`/partners/users/${u.id}`} className="hover:underline">
                         {u.name}
                       </Link>
+                      <div className="mt-1">
+                        <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                          {u.referred_by ? 'Via link' : 'Cadastro direto'}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
                     <TableCell className="text-muted-foreground">{u.whatsapp || '—'}</TableCell>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -229,6 +229,10 @@ export default function PartnersCreateUserPage() {
                         <FormDescription className="text-xs text-muted-foreground">
                           O usuário fica com o plano ativo imediatamente. Ele terá {deadlineHours ?? 6} hora(s) para
                           efetuar o pagamento — se o prazo vencer sem pagamento, a vitrine é bloqueada automaticamente.
+                          {' '}
+                          <Link to="/partners/help" className="text-foreground underline underline-offset-2 hover:no-underline">
+                            Saiba mais na Central de Ajuda
+                          </Link>.
                         </FormDescription>
                       )}
                       <FormMessage />

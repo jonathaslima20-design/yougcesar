@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { formatPixKey } from '@/lib/referralUtils';
 import WithdrawalDialog from '@/components/referral/WithdrawalDialog';
@@ -33,6 +35,8 @@ export default function PartnersCommissionsPage() {
   const [pixKeys, setPixKeys] = useState<UserPixKey[]>([]);
   const [minimumWithdrawalAmount, setMinimumWithdrawalAmount] = useState(50);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [pixKeyDialogOpen, setPixKeyDialogOpen] = useState(false);
 
@@ -81,7 +85,13 @@ export default function PartnersCommissionsPage() {
   const paidAmount = commissions.filter((c) => c.status === 'paid').reduce((s, c) => s + Number(c.amount), 0);
   const totalEarned = pendingAmount + paidAmount;
 
-  const filteredCommissions = statusFilter === 'all' ? commissions : commissions.filter((c) => c.status === statusFilter);
+  const filteredCommissions = commissions.filter((c) => {
+    if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+    const createdDate = c.created_at.slice(0, 10);
+    if (dateFrom && createdDate < dateFrom) return false;
+    if (dateTo && createdDate > dateTo) return false;
+    return true;
+  });
 
   return (
     <div className="container mx-auto p-6 max-w-5xl space-y-6">
@@ -134,19 +144,48 @@ export default function PartnersCommissionsPage() {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Histórico de Comissões</CardTitle>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="pending">Pendente</SelectItem>
-              <SelectItem value="paid">Pago</SelectItem>
-              <SelectItem value="reversed">Revertido</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex items-end gap-1.5">
+              <div className="space-y-1">
+                <Label htmlFor="commissions-date-from" className="text-xs text-muted-foreground">De</Label>
+                <Input
+                  id="commissions-date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-9 w-[150px] text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="commissions-date-to" className="text-xs text-muted-foreground">Até</Label>
+                <Input
+                  id="commissions-date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-9 w-[150px] text-sm"
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" className="h-9" onClick={() => { setDateFrom(''); setDateTo(''); }}>
+                  Limpar
+                </Button>
+              )}
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[160px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="pending">Pendente</SelectItem>
+                <SelectItem value="paid">Pago</SelectItem>
+                <SelectItem value="reversed">Revertido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
