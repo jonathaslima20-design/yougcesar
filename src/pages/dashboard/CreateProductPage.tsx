@@ -45,7 +45,7 @@ const productSchema = z.object({
   status: z.enum(['disponivel', 'vendido', 'reservado']).default('disponivel'),
   category: z.array(z.string()).default([]),
   brand: z.string().optional(),
-  model: z.string().optional(),
+  gender: z.string().optional(),
   condition: z.enum(['novo', 'usado', 'seminovo']).default('novo'),
   external_checkout_url: z.string().optional(),
   is_visible_on_storefront: z.boolean().default(true),
@@ -109,7 +109,7 @@ export default function CreateProductPage() {
       status: 'disponivel',
       category: [],
       brand: '',
-      model: '',
+      gender: '',
       condition: 'novo',
       external_checkout_url: '',
       is_visible_on_storefront: true,
@@ -144,7 +144,7 @@ export default function CreateProductPage() {
         status: data.status ?? 'disponivel',
         category: data.category?.length > 0 ? data.category : ['Sem Categoria'],
         brand: data.brand || '',
-        model: data.model || '',
+        gender: data.gender || null,
         condition: data.condition ?? 'novo',
         featured_image_url: '',
         external_checkout_url: data.external_checkout_url || '',
@@ -238,7 +238,7 @@ export default function CreateProductPage() {
         status: data.status,
         category: data.category.length > 0 ? data.category : ['Sem Categoria'],
         brand: data.brand || '',
-        model: data.model || '',
+        gender: data.gender || null,
         condition: data.condition,
         featured_image_url: '',
         external_checkout_url: data.external_checkout_url || '',
@@ -422,7 +422,7 @@ export default function CreateProductPage() {
 
                 <FormField
                   control={form.control}
-                  name="model"
+                  name="gender"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Gênero</FormLabel>

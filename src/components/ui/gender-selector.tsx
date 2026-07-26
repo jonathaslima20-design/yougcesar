@@ -12,9 +12,9 @@ export function GenderSelector({ value, onChange }: GenderSelectorProps) {
         <SelectValue placeholder="Selecione o gênero" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="Masculino">Masculino</SelectItem>
-        <SelectItem value="Feminino">Feminino</SelectItem>
-        <SelectItem value="Unissex">Unissex</SelectItem>
+        <SelectItem value="masculino">Masculino</SelectItem>
+        <SelectItem value="feminino">Feminino</SelectItem>
+        <SelectItem value="unissex">Unissex</SelectItem>
       </SelectContent>
     </Select>
   );
