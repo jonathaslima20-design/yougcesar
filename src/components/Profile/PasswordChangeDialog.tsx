@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { Loader2, Key } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ interface PasswordChangeDialogProps {
   user: User | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  client?: SupabaseClient;
 }
 
 const passwordSchema = z.object({
@@ -43,7 +45,7 @@ const passwordSchema = z.object({
   path: ['confirmPassword'],
 });
 
-export function PasswordChangeDialog({ user, open, onOpenChange }: PasswordChangeDialogProps) {
+export function PasswordChangeDialog({ user, open, onOpenChange, client = supabase }: PasswordChangeDialogProps) {
   const [changing, setChanging] = useState(false);
 
   const passwordForm = useForm<z.infer<typeof passwordSchema>>({
@@ -59,7 +61,7 @@ export function PasswordChangeDialog({ user, open, onOpenChange }: PasswordChang
     try {
       setChanging(true);
 
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await client.auth.updateUser({
         password: values.newPassword,
       });
 

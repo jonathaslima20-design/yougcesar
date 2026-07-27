@@ -431,6 +431,7 @@ export type LimitReason = 'products' | 'categories' | null;
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
 export type OrderType = 'whatsapp' | 'ecommerce';
 export type OrderSource = 'cart' | 'product_page';
+export type OrderPaymentStatus = 'not_applicable' | 'pending' | 'approved' | 'rejected' | 'refunded' | 'cancelled';
 
 export interface Order {
   id: string;
@@ -456,6 +457,15 @@ export interface Order {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
+  buyer_id?: string | null;
+  payment_status?: OrderPaymentStatus;
+  shipping_street?: string | null;
+  shipping_number?: string | null;
+  shipping_complement?: string | null;
+  shipping_neighborhood?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_zip_code?: string | null;
 }
 
 export interface OrderItem {
@@ -641,12 +651,17 @@ export interface PaymentMethodConfig {
   discountValue?: number;
 }
 
+export type ShippingCalculationType = 'flat' | 'free_above' | 'region' | 'carrier';
+
 export interface DeliveryOption {
   id: string;
   name: string;
   fee: number;
   enabled: boolean;
   freeAbove?: number | null;
+  calculationType?: ShippingCalculationType; // missing = treated as 'flat' (back-compat)
+  regions?: string[]; // UF codes, used when calculationType === 'region'
+  carrierProvider?: 'correios' | 'melhor_envio' | null; // reserved for a future phase, always null today
 }
 
 export interface MinimumPurchaseConfig {
@@ -655,6 +670,8 @@ export interface MinimumPurchaseConfig {
   value: number;
 }
 
+export type CheckoutMode = 'whatsapp' | 'ecommerce_optional' | 'ecommerce_only';
+
 export interface CheckoutSettings {
   paymentMethods: PaymentMethodConfig[];
   deliveryOptions: DeliveryOption[];
@@ -662,4 +679,5 @@ export interface CheckoutSettings {
   requireDeliveryOption: boolean;
   cartEnabled?: boolean;
   minimumPurchase?: MinimumPurchaseConfig;
+  checkoutMode?: CheckoutMode; // missing = treated as 'whatsapp' (back-compat)
 }

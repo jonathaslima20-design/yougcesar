@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet, Check, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet, Check, Info, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -39,6 +40,9 @@ import { PhoneInputWithCountry, COUNTRIES } from '@/components/ui/phone-input-wi
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
+import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import BuyerAuthInline from '@/components/corretor/BuyerAuthInline';
+import { fetchCustomerAddresses, type CustomerAddress } from '@/lib/customerAddressService';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 
@@ -78,8 +82,69 @@ export default function CartModal({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string | null>(null);
 
+  const navigate = useNavigate();
+  const { customer: buyerAccount } = useBuyerAuth();
+  const checkoutMode = checkoutSettings.checkoutMode || 'whatsapp';
+  const [orderMode, setOrderMode] = useState<'whatsapp' | 'ecommerce'>(
+    checkoutMode === 'ecommerce_only' ? 'ecommerce' : 'whatsapp'
+  );
+  const [shippingAddress, setShippingAddress] = useState({
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    zipCode: '',
+  });
+  const [placingEcommerceOrder, setPlacingEcommerceOrder] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (checkoutMode === 'ecommerce_only') setOrderMode('ecommerce');
+    else if (checkoutMode === 'whatsapp') setOrderMode('whatsapp');
+  }, [checkoutMode]);
+
+  useEffect(() => {
+    if (!buyerAccount) {
+      setSavedAddresses([]);
+      return;
+    }
+    fetchCustomerAddresses(buyerAccount.id)
+      .then((addresses) => {
+        setSavedAddresses(addresses);
+        const defaultAddress = addresses.find((a) => a.is_default) || addresses[0];
+        if (defaultAddress) applySavedAddress(defaultAddress);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buyerAccount]);
+
+  const applySavedAddress = (address: CustomerAddress) => {
+    setSelectedAddressId(address.id);
+    setShippingAddress({
+      street: address.street,
+      number: address.number,
+      complement: address.complement || '',
+      neighborhood: address.neighborhood,
+      city: address.city,
+      state: address.state,
+      zipCode: address.zip_code,
+    });
+  };
+
   const enabledPaymentMethods = checkoutSettings.paymentMethods.filter(m => m.enabled);
-  const enabledDeliveryOptions = checkoutSettings.deliveryOptions.filter(d => d.enabled);
+  const enabledDeliveryOptions = checkoutSettings.deliveryOptions.filter((d) => {
+    if (!d.enabled) return false;
+    // Once the customer has typed their state, hide region-restricted options
+    // that don't cover it. Before that (or outside ecommerce mode, where no
+    // address is ever collected), region options remain visible like any other.
+    if (d.calculationType === 'region' && shippingAddress.state) {
+      return (d.regions || []).includes(shippingAddress.state);
+    }
+    return true;
+  });
 
   const selectedPaymentConfig = enabledPaymentMethods.find(m => m.id === selectedPaymentMethod);
   const selectedDeliveryConfig = enabledDeliveryOptions.find(d => d.id === selectedDeliveryOption);
@@ -224,6 +289,118 @@ export default function CartModal({
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateShippingAddress = (): boolean => {
+    if (
+      !shippingAddress.street.trim() ||
+      !shippingAddress.number.trim() ||
+      !shippingAddress.city.trim() ||
+      !shippingAddress.state.trim() ||
+      !shippingAddress.zipCode.trim()
+    ) {
+      toast.error('Preencha o endereço de entrega completo');
+      return false;
+    }
+    return true;
+  };
+
+  const buildOrderItems = () => [
+    ...cart.distributions.flatMap((dist) =>
+      dist.items.map((distItem) => ({
+        product_id: dist.product.id,
+        product_title: dist.product.title,
+        product_image_url: dist.product.featured_image_url || '',
+        quantity: distItem.quantity,
+        unit_price: dist.distribution.applied_tier_price,
+        selected_color: distItem.color || null,
+        selected_size: distItem.size || null,
+        subtotal: dist.distribution.applied_tier_price * distItem.quantity,
+      }))
+    ),
+    ...cart.items.map((item) => ({
+      product_id: item.id,
+      product_title: item.title,
+      product_image_url: item.featured_image_url || '',
+      quantity: item.quantity,
+      unit_price: item.applied_tier_price || item.discounted_price || item.price,
+      selected_color: item.selectedColor || null,
+      selected_size: item.selectedSize || null,
+      selected_flavor: item.selectedFlavor || null,
+      selected_variant_label: item.selectedVariantLabel || null,
+      item_notes: item.notes || '',
+      subtotal: (item.applied_tier_price || item.discounted_price || item.price) * item.quantity,
+    })),
+  ];
+
+  const handlePayOnline = async () => {
+    if (!validateCustomerInfo()) return;
+    if (!validateShippingAddress()) return;
+    if (cart.items.length === 0 && cart.distributions.length === 0) return;
+    if (!buyerAccount) {
+      toast.error('Entre ou crie uma conta para continuar');
+      return;
+    }
+    if (minPurchaseActive && !minPurchaseMet) {
+      toast.error(
+        minPurchase!.type === 'value'
+          ? `O valor mínimo para compra é ${formatCurrencyI18n(minPurchase!.value, currency, language)}.`
+          : `A quantidade mínima é ${minPurchase!.value} ${minPurchase!.value === 1 ? 'item' : 'itens'}.`
+      );
+      return;
+    }
+
+    setPlacingEcommerceOrder(true);
+    try {
+      const cleanPhone = customerPhone.replace(/\D/g, '');
+      const countryCode = customerCountryCode.replace('+', '');
+      const orderItems = buildOrderItems();
+
+      const order = await createOrder(
+        {
+          store_owner_id: corretor.id,
+          customer_name: customerName.trim(),
+          customer_whatsapp: cleanPhone,
+          customer_country_code: countryCode,
+          order_type: 'ecommerce',
+          subtotal: cart.total,
+          total: finalTotal,
+          source: 'cart',
+          coupon_id: appliedCoupon?.couponId || null,
+          coupon_code: appliedCoupon?.code || null,
+          discount_amount: discountAmount,
+          delivery_fee: deliveryFee,
+          delivery_option: selectedDeliveryConfig?.name || null,
+          buyer_id: buyerAccount.id,
+          payment_status: 'pending',
+          shipping_street: shippingAddress.street.trim(),
+          shipping_number: shippingAddress.number.trim(),
+          shipping_complement: shippingAddress.complement.trim() || null,
+          shipping_neighborhood: shippingAddress.neighborhood.trim() || null,
+          shipping_city: shippingAddress.city.trim(),
+          shipping_state: shippingAddress.state.trim(),
+          shipping_zip_code: shippingAddress.zipCode.trim(),
+        },
+        orderItems,
+        inventoryEnabled && autoDeductStock ? { enabled: true, storeOwnerId: corretor.id } : undefined
+      );
+
+      if (!order?.id) {
+        toast.error('Não foi possível criar o pedido. Tente novamente.');
+        return;
+      }
+
+      clearCart();
+      clearCoupon();
+      setCouponCode('');
+      onOpenChange(false);
+      navigate(`/${corretor.slug}/pedido/${order.id}/pagamento`);
+    } catch (error) {
+      console.error('Error creating ecommerce order:', error);
+      toast.error('Não foi possível criar o pedido. Tente novamente.');
+    } finally {
+      setPlacingEcommerceOrder(false);
+    }
+  };
+
   const handleSendOrder = async () => {
     if (!validateCustomerInfo()) return;
     if (cart.items.length === 0 && cart.distributions.length === 0) return;
@@ -256,33 +433,7 @@ export default function CartModal({
 
       toast.success('Pedido enviado! Abrindo WhatsApp...');
 
-      const orderItems = [
-        ...cart.distributions.flatMap((dist) =>
-          dist.items.map((distItem) => ({
-            product_id: dist.product.id,
-            product_title: dist.product.title,
-            product_image_url: dist.product.featured_image_url || '',
-            quantity: distItem.quantity,
-            unit_price: dist.distribution.applied_tier_price,
-            selected_color: distItem.color || null,
-            selected_size: distItem.size || null,
-            subtotal: dist.distribution.applied_tier_price * distItem.quantity,
-          }))
-        ),
-        ...cart.items.map((item) => ({
-          product_id: item.id,
-          product_title: item.title,
-          product_image_url: item.featured_image_url || '',
-          quantity: item.quantity,
-          unit_price: item.applied_tier_price || item.discounted_price || item.price,
-          selected_color: item.selectedColor || null,
-          selected_size: item.selectedSize || null,
-          selected_flavor: item.selectedFlavor || null,
-          selected_variant_label: item.selectedVariantLabel || null,
-          item_notes: item.notes || '',
-          subtotal: (item.applied_tier_price || item.discounted_price || item.price) * item.quantity,
-        })),
-      ];
+      const orderItems = buildOrderItems();
 
       try {
         await createOrder(
@@ -848,19 +999,23 @@ export default function CartModal({
                     Limpar Carrinho
                   </Button>
 
-                  {corretor.whatsapp && (
+                  {(corretor.whatsapp || checkoutMode !== 'whatsapp') && (
                     <Button
                       onClick={handleGoToCheckout}
                       disabled={minPurchaseActive && !minPurchaseMet}
                       className="flex-1"
                     >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Enviar Pedido
+                      {checkoutMode === 'ecommerce_only' ? (
+                        <CreditCard className="h-4 w-4 mr-2" />
+                      ) : (
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {checkoutMode === 'ecommerce_only' ? 'Continuar' : 'Enviar Pedido'}
                     </Button>
                   )}
                 </div>
 
-                {!corretor.whatsapp && (
+                {!corretor.whatsapp && checkoutMode === 'whatsapp' && (
                   <p className="text-xs text-muted-foreground text-center">
                     WhatsApp nao configurado para este vendedor
                   </p>
@@ -869,6 +1024,27 @@ export default function CartModal({
             ) : (
               <div className="flex flex-col gap-0 -mb-2">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[calc(85vh-200px)]">
+                  {checkoutMode === 'ecommerce_optional' && (
+                    <div className="flex gap-1 text-xs bg-muted/40 rounded-lg p-1">
+                      <button
+                        type="button"
+                        onClick={() => setOrderMode('whatsapp')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'whatsapp' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        Finalizar por WhatsApp
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOrderMode('ecommerce')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'ecommerce' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                      >
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Pagar Agora
+                      </button>
+                    </div>
+                  )}
+
                   {/* Customer Info */}
                   <div className="space-y-3">
                     <div className="space-y-1.5">
@@ -1056,6 +1232,83 @@ export default function CartModal({
                     </div>
                   )}
 
+                  {orderMode === 'ecommerce' && (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Endereço de entrega</Label>
+                        {buyerAccount && savedAddresses.length > 0 && (
+                          <Select
+                            value={selectedAddressId || ''}
+                            onValueChange={(value) => {
+                              const address = savedAddresses.find((a) => a.id === value);
+                              if (address) applySavedAddress(address);
+                            }}
+                          >
+                            <SelectTrigger className="h-9 text-xs px-3">
+                              <SelectValue placeholder="Usar endereço salvo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {savedAddresses.map((address) => (
+                                <SelectItem key={address.id} value={address.id} className="text-xs">
+                                  {address.label} — {address.street}, {address.number}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <div className="grid grid-cols-3 gap-2">
+                          <Input
+                            placeholder="Rua"
+                            value={shippingAddress.street}
+                            onChange={(e) => setShippingAddress((p) => ({ ...p, street: e.target.value }))}
+                            className="h-9 text-xs px-3 col-span-2"
+                          />
+                          <Input
+                            placeholder="Número"
+                            value={shippingAddress.number}
+                            onChange={(e) => setShippingAddress((p) => ({ ...p, number: e.target.value }))}
+                            className="h-9 text-xs px-3"
+                          />
+                        </div>
+                        <Input
+                          placeholder="Complemento (opcional)"
+                          value={shippingAddress.complement}
+                          onChange={(e) => setShippingAddress((p) => ({ ...p, complement: e.target.value }))}
+                          className="h-9 text-xs px-3"
+                        />
+                        <Input
+                          placeholder="Bairro (opcional)"
+                          value={shippingAddress.neighborhood}
+                          onChange={(e) => setShippingAddress((p) => ({ ...p, neighborhood: e.target.value }))}
+                          className="h-9 text-xs px-3"
+                        />
+                        <div className="grid grid-cols-3 gap-2">
+                          <Input
+                            placeholder="Cidade"
+                            value={shippingAddress.city}
+                            onChange={(e) => setShippingAddress((p) => ({ ...p, city: e.target.value }))}
+                            className="h-9 text-xs px-3 col-span-2"
+                          />
+                          <Input
+                            placeholder="UF"
+                            maxLength={2}
+                            value={shippingAddress.state}
+                            onChange={(e) => setShippingAddress((p) => ({ ...p, state: e.target.value.toUpperCase() }))}
+                            className="h-9 text-xs px-3"
+                          />
+                        </div>
+                        <Input
+                          placeholder="CEP"
+                          value={shippingAddress.zipCode}
+                          onChange={(e) => setShippingAddress((p) => ({ ...p, zipCode: e.target.value }))}
+                          className="h-9 text-xs px-3"
+                        />
+                      </div>
+
+                      {!buyerAccount && <BuyerAuthInline onSuccess={() => {}} storeSlug={corretor.slug} />}
+                    </div>
+                  )}
+
                   {/* Invoice-style Order Summary */}
                   <div className="border rounded-lg overflow-hidden">
                     <div className="bg-muted/40 px-3 py-2">
@@ -1114,21 +1367,32 @@ export default function CartModal({
                   <Button
                     variant="outline"
                     onClick={() => setStep('cart')}
-                    disabled={sendingOrder}
+                    disabled={sendingOrder || placingEcommerceOrder}
                     size="sm"
                     className="flex-1 h-10"
                   >
                     <ArrowLeft className="h-4 w-4 mr-1.5" />
                     Voltar
                   </Button>
-                  <Button
-                    onClick={handleSendOrder}
-                    disabled={sendingOrder}
-                    size="sm"
-                    className="flex-1 h-10"
-                  >
-                    {sendingOrder ? 'Enviando...' : 'Confirmar'}
-                  </Button>
+                  {orderMode === 'ecommerce' ? (
+                    <Button
+                      onClick={handlePayOnline}
+                      disabled={placingEcommerceOrder || !buyerAccount}
+                      size="sm"
+                      className="flex-1 h-10"
+                    >
+                      {placingEcommerceOrder ? 'Processando...' : 'Pagar Agora'}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSendOrder}
+                      disabled={sendingOrder}
+                      size="sm"
+                      className="flex-1 h-10"
+                    >
+                      {sendingOrder ? 'Enviando...' : 'Confirmar'}
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

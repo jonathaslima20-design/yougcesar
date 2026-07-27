@@ -24,6 +24,7 @@ const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   requireDeliveryOption: true,
   cartEnabled: true,
   minimumPurchase: DEFAULT_MINIMUM_PURCHASE,
+  checkoutMode: 'whatsapp',
 };
 
 interface UseCheckoutSettingsReturn {
@@ -63,6 +64,7 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
             requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
             cartEnabled: data.settings.checkout.cartEnabled ?? true,
             minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
+            checkoutMode: data.settings.checkout.checkoutMode ?? 'whatsapp',
           });
         }
       }
@@ -143,6 +145,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
           minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
+          checkoutMode: data.settings.checkout.checkoutMode ?? 'whatsapp',
         });
       }
       setLoading(false);

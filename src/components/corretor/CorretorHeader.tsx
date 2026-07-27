@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { Phone, MapPin, ShoppingCart } from 'lucide-react';
+import { Phone, MapPin, ShoppingCart, UserRound } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -9,6 +10,7 @@ import type { User } from '@/types';
 import { trackWhatsAppClick, STOREFRONT_UUID } from '@/lib/tracking';
 import { useTranslation, generateWhatsAppMessage, type SupportedLanguage } from '@/lib/i18n';
 import { useCart } from '@/contexts/CartContext';
+import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useState } from 'react';
 import CartModal from './CartModal';
 import type { SupportedCurrency } from '@/types';
@@ -19,12 +21,25 @@ interface CorretorHeaderProps {
   language?: SupportedLanguage;
   currency?: SupportedCurrency;
   cartEnabled?: boolean;
+  onlineSalesEnabled?: boolean;
 }
 
-export default function CorretorHeader({ corretor, language = 'pt-BR', currency = 'BRL', cartEnabled = true }: CorretorHeaderProps) {
+export default function CorretorHeader({
+  corretor,
+  language = 'pt-BR',
+  currency = 'BRL',
+  cartEnabled = true,
+  onlineSalesEnabled = false,
+}: CorretorHeaderProps) {
   const { t } = useTranslation(language);
   const { cart } = useCart();
+  const { customer } = useBuyerAuth();
+  const location = useLocation();
   const [showCart, setShowCart] = useState(false);
+
+  const accountLink = customer
+    ? '/conta/pedidos'
+    : `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent(location.pathname)}`;
 
   const aspectRatio = useResponsiveAspectRatio({
     mobile: 960 / 860,
@@ -54,6 +69,17 @@ export default function CorretorHeader({ corretor, language = 'pt-BR', currency 
 
   return (
     <div className="px-4 pt-4 pb-0">
+      {onlineSalesEnabled && (
+        <div className="container mx-auto flex justify-end mb-2">
+          <Link
+            to={accountLink}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <UserRound className="h-3.5 w-3.5" />
+            {customer ? 'Minha conta' : 'Entrar'}
+          </Link>
+        </div>
+      )}
       <div className="container mx-auto">
         <div className={`w-full overflow-hidden rounded-[52px] ${aspectRatioClass} will-change-auto`}>
           <img

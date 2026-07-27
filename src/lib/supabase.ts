@@ -75,7 +75,12 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 
   if (event === 'SIGNED_OUT') {
-    localStorage.clear(); // Clear all stored data on sign out
+    // Only clear this app's own merchant-session keys — a blanket
+    // localStorage.clear() would also wipe the independent buyer session
+    // (see src/lib/supabaseBuyer.ts), which lives in the same browser storage.
+    ['vitrineturbo_credentials', 'vitrineturbo_user', 'vitrineturbo_session', 'vitrineturbo_auth_state'].forEach(
+      (key) => localStorage.removeItem(key)
+    );
   }
 });
 

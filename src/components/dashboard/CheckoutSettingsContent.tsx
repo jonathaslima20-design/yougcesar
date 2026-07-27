@@ -10,12 +10,17 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
-import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, PaymentMethodDiscountType } from '@/types';
+import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, PaymentMethodDiscountType, ShippingCalculationType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
+
+const BR_STATES = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+];
 
 export default function CheckoutSettingsContent() {
   const { settings, loading, saving, updateSettings } = useCheckoutSettings();
@@ -94,6 +99,20 @@ export default function CheckoutSettingsContent() {
   const updateDeliveryFreeAbove = (id: string, freeAbove: number | null) => {
     const updated = settings.deliveryOptions.map(d =>
       d.id === id ? { ...d, freeAbove } : d
+    );
+    save({ ...settings, deliveryOptions: updated });
+  };
+
+  const updateDeliveryCalculationType = (id: string, calculationType: ShippingCalculationType) => {
+    const updated = settings.deliveryOptions.map(d =>
+      d.id === id ? { ...d, calculationType } : d
+    );
+    save({ ...settings, deliveryOptions: updated });
+  };
+
+  const updateDeliveryRegions = (id: string, regions: string[]) => {
+    const updated = settings.deliveryOptions.map(d =>
+      d.id === id ? { ...d, regions } : d
     );
     save({ ...settings, deliveryOptions: updated });
   };
@@ -397,6 +416,8 @@ export default function CheckoutSettingsContent() {
                   onToggle={(enabled) => toggleDeliveryOption(option.id, enabled)}
                   onUpdateFee={(fee) => updateDeliveryFee(option.id, fee)}
                   onUpdateFreeAbove={(val) => updateDeliveryFreeAbove(option.id, val)}
+                  onUpdateCalculationType={(type) => updateDeliveryCalculationType(option.id, type)}
+                  onUpdateRegions={(regions) => updateDeliveryRegions(option.id, regions)}
                   onRemove={() => removeDeliveryOption(option.id)}
                 />
               ))}
@@ -577,14 +598,26 @@ interface DeliveryOptionRowProps {
   onToggle: (enabled: boolean) => void;
   onUpdateFee: (fee: number) => void;
   onUpdateFreeAbove: (val: number | null) => void;
+  onUpdateCalculationType: (type: ShippingCalculationType) => void;
+  onUpdateRegions: (regions: string[]) => void;
   onRemove: () => void;
 }
 
-function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFreeAbove, onRemove }: DeliveryOptionRowProps) {
+function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFreeAbove, onUpdateCalculationType, onUpdateRegions, onRemove }: DeliveryOptionRowProps) {
   const [editingFee, setEditingFee] = useState(false);
   const [feeValue, setFeeValue] = useState(option.fee);
   const [editingFreeAbove, setEditingFreeAbove] = useState(false);
   const [freeAboveValue, setFreeAboveValue] = useState(option.freeAbove || 0);
+  const calculationType = option.calculationType || 'flat';
+  const selectedRegions = option.regions || [];
+
+  const toggleRegion = (uf: string) => {
+    if (selectedRegions.includes(uf)) {
+      onUpdateRegions(selectedRegions.filter((r) => r !== uf));
+    } else {
+      onUpdateRegions([...selectedRegions, uf]);
+    }
+  };
 
   const handleSaveFee = () => {
     onUpdateFee(feeValue);
@@ -694,6 +727,50 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFree
           <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingFreeAbove(false)}>
             Cancelar
           </Button>
+        </div>
+      )}
+
+      {option.enabled && (
+        <div className="space-y-2 pt-1">
+          <Label className="text-xs">Como calcular o frete</Label>
+          <Select value={calculationType} onValueChange={(v) => onUpdateCalculationType(v as ShippingCalculationType)}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="flat">Frete fixo</SelectItem>
+              <SelectItem value="free_above">Grátis acima de valor</SelectItem>
+              <SelectItem value="region">Por região</SelectItem>
+              <SelectItem value="carrier" disabled>
+                Cálculo automático por transportadora (em breve)
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {calculationType === 'region' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Estados atendidos por esta opção</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {BR_STATES.map((uf) => (
+                  <button
+                    key={uf}
+                    type="button"
+                    onClick={() => toggleRegion(uf)}
+                    className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+                      selectedRegions.includes(uf)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-muted-foreground border-border hover:border-primary/50'
+                    }`}
+                  >
+                    {uf}
+                  </button>
+                ))}
+              </div>
+              {selectedRegions.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum estado selecionado ainda</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -525,6 +525,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
         language={language}
         currency={currency}
         cartEnabled={cartEnabled}
+        onlineSalesEnabled={(checkoutSettings.checkoutMode || 'whatsapp') !== 'whatsapp'}
       />
 
       <div className="mt-6 mb-8">

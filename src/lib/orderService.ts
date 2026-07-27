@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Order, OrderStatus } from '@/types';
+import type { Order, OrderStatus, OrderPaymentStatus } from '@/types';
 import { deductStockForOrder } from '@/lib/stockUtils';
 
 interface CreateOrderData {
@@ -20,6 +20,15 @@ interface CreateOrderData {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
+  buyer_id?: string | null;
+  payment_status?: string;
+  shipping_street?: string | null;
+  shipping_number?: string | null;
+  shipping_complement?: string | null;
+  shipping_neighborhood?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_zip_code?: string | null;
 }
 
 interface CreateOrderItemData {
@@ -79,6 +88,15 @@ export async function createOrder(
     p_delivery_fee: orderData.delivery_fee || 0,
     p_delivery_option: orderData.delivery_option || null,
     p_items: orderItems,
+    p_buyer_id: orderData.buyer_id || null,
+    p_payment_status: orderData.payment_status || 'not_applicable',
+    p_shipping_street: orderData.shipping_street || null,
+    p_shipping_number: orderData.shipping_number || null,
+    p_shipping_complement: orderData.shipping_complement || null,
+    p_shipping_neighborhood: orderData.shipping_neighborhood || null,
+    p_shipping_city: orderData.shipping_city || null,
+    p_shipping_state: orderData.shipping_state || null,
+    p_shipping_zip_code: orderData.shipping_zip_code || null,
   });
 
   if (rpcError || !data?.success) {
@@ -120,6 +138,8 @@ export async function createOrder(
 interface FetchOrdersFilters {
   status?: OrderStatus;
   search?: string;
+  orderType?: 'whatsapp' | 'ecommerce';
+  paymentStatus?: OrderPaymentStatus;
 }
 
 export async function fetchOrders(
@@ -141,6 +161,14 @@ export async function fetchOrders(
 
   if (filters?.search) {
     query = query.ilike('customer_name', `%${filters.search}%`);
+  }
+
+  if (filters?.orderType) {
+    query = query.eq('order_type', filters.orderType);
+  }
+
+  if (filters?.paymentStatus) {
+    query = query.eq('payment_status', filters.paymentStatus);
   }
 
   const { data, count, error } = await query;
@@ -194,6 +222,8 @@ interface OrderStats {
   delivered: number;
   cancelled: number;
   totalRevenue: number;
+  ecommerceCount: number;
+  awaitingPayment: number;
 }
 
 export async function getOrderStats(storeOwnerId: string): Promise<OrderStats> {
@@ -202,13 +232,13 @@ export async function getOrderStats(storeOwnerId: string): Promise<OrderStats> {
 
   const { data, error } = await supabase
     .from('orders')
-    .select('status, total')
+    .select('status, total, order_type, payment_status')
     .eq('store_owner_id', storeOwnerId)
     .gte('created_at', thirtyDaysAgo.toISOString());
 
   if (error || !data) {
     console.error('Error fetching order stats:', error);
-    return { total: 0, pending: 0, confirmed: 0, preparing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0 };
+    return { total: 0, pending: 0, confirmed: 0, preparing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0, ecommerceCount: 0, awaitingPayment: 0 };
   }
 
   const stats: OrderStats = {
@@ -220,14 +250,26 @@ export async function getOrderStats(storeOwnerId: string): Promise<OrderStats> {
     delivered: 0,
     cancelled: 0,
     totalRevenue: 0,
+    ecommerceCount: 0,
+    awaitingPayment: 0,
   };
 
   for (const order of data) {
     const status = order.status as OrderStatus;
     if (status in stats) {
-      stats[status as keyof Omit<OrderStats, 'total' | 'totalRevenue'>]++;
+      stats[status as keyof Omit<OrderStats, 'total' | 'totalRevenue' | 'ecommerceCount' | 'awaitingPayment'>]++;
     }
-    if (status !== 'cancelled') {
+
+    const isEcommerce = order.order_type === 'ecommerce';
+    if (isEcommerce) {
+      stats.ecommerceCount++;
+      if (order.payment_status === 'pending') {
+        stats.awaitingPayment++;
+      }
+    }
+
+    const unpaidEcommerce = isEcommerce && order.payment_status !== 'approved';
+    if (status !== 'cancelled' && !unpaidEcommerce) {
       stats.totalRevenue += Number(order.total) || 0;
     }
   }
