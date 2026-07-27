@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useCart } from '@/contexts/CartContext';
 import { formatCurrencyI18n, generateWhatsAppMessage, useTranslation, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
-import { generateWhatsAppUrl } from '@/lib/utils';
+import { getWhatsAppContactUrl } from '@/lib/utils';
 import { trackWhatsAppClick } from '@/lib/tracking';
 import type { User as UserType, PriceTier } from '@/types';
 import { generateCartOrderMessage } from '@/lib/cartUtils';
@@ -420,7 +420,7 @@ export default function CartModal({
       const countryCode = customerCountryCode.replace('+', '');
       const customer = { name: customerName.trim(), whatsapp: cleanPhone, countryCode };
       const orderMessage = generateOrderMessage(customer);
-      const whatsappUrl = generateWhatsAppUrl(corretor.whatsapp || '', orderMessage, corretor.country_code || '55');
+      const whatsappUrl = getWhatsAppContactUrl(corretor, corretor.whatsapp_mode === 'link' ? '' : orderMessage);
 
       // Open WhatsApp immediately while still in the synchronous user-gesture context.
       // Mobile browsers (iOS Safari, Android Chrome) block window.open() if called

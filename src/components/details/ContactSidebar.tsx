@@ -2,7 +2,7 @@ import { Phone, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { formatPhone, generateWhatsAppUrl, getInitials } from '@/lib/utils';
+import { formatPhone, getWhatsAppContactUrl, getInitials } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { User } from '@/types';
 import { trackWhatsAppClick } from '@/lib/tracking';
@@ -33,17 +33,11 @@ export default function ContactSidebar({
   const handleWhatsAppClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    const message = generateWhatsAppMessage(
-      language,
-      corretor.name,
-      itemTitle,
-      itemId,
-      window.location.href
-    );
+    const message = corretor.whatsapp_mode === 'link'
+      ? ''
+      : generateWhatsAppMessage(language, corretor.name, itemTitle, itemId, window.location.href);
 
-    const whatsappUrl = corretor.whatsapp
-      ? generateWhatsAppUrl(corretor.whatsapp, message, countryCode)
-      : '';
+    const whatsappUrl = getWhatsAppContactUrl(corretor, message);
 
     await trackWhatsAppClick(itemId, 'product', 'contact_sidebar');
 
@@ -126,7 +120,7 @@ export default function ContactSidebar({
             </Button>
           )}
 
-          {corretor.whatsapp && (
+          {(corretor.whatsapp_mode === 'link' ? corretor.whatsapp_link : corretor.whatsapp) && corretor.whatsapp_button_enabled !== false && (
             <Button
               className="w-full"
               variant="outline"

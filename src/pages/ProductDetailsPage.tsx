@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, ArrowLeft, Loader, Package, ShoppingCart, MessageCircle, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, getColorValue } from '@/lib/utils';
+import { formatCurrency, getColorValue, getWhatsAppContactUrl } from '@/lib/utils';
 import { loadTrackingSettings, injectMetaPixel, injectGoogleAnalytics, trackView } from '@/lib/tracking';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
@@ -118,7 +118,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         // avoid leaking email, referral_code, subscription/billing fields, custom_domain, etc.)
         const { data: corretorData, error: corretorError } = await supabase
           .from('users')
-          .select('id, name, slug, avatar_url, whatsapp, country_code, phone, bio, instagram, location_url, theme, currency, language, plan_status')
+          .select('id, name, slug, avatar_url, whatsapp, whatsapp_button_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, location_url, theme, currency, language, plan_status')
           .eq('id', productData.user_id)
           .single();
 
@@ -699,7 +699,12 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                     asChild
                   >
                     <a
-                      href={`https://wa.me/${corretor.country_code || '55'}${corretor.whatsapp}?text=${encodeURIComponent(`Olá, gostaria de saber sobre a disponibilidade do produto: ${product.title}`)}`}
+                      href={getWhatsAppContactUrl(
+                        corretor,
+                        corretor.whatsapp_mode === 'link'
+                          ? ''
+                          : `Olá, gostaria de saber sobre a disponibilidade do produto: ${product.title}`
+                      )}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

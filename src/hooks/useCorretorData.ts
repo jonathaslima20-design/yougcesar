@@ -97,6 +97,8 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
             role,
             phone,
             whatsapp,
+            whatsapp_mode,
+            whatsapp_link,
             country_code,
             avatar_url,
             cover_url_desktop,

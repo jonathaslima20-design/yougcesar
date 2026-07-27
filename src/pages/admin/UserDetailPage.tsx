@@ -4,10 +4,11 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award, MessageCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditImageLimitDialog } from '@/components/admin/EditImageLimitDialog';
@@ -282,6 +283,22 @@ export default function UserDetailPage() {
       toast.error(error.message || 'Erro ao impersonar usuário');
     } finally {
       setImpersonating(false);
+    }
+  };
+
+  const handleToggleWhatsappButton = async (enabled: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ whatsapp_button_enabled: enabled })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, whatsapp_button_enabled: enabled });
+      toast.success(enabled ? 'Botão de WhatsApp habilitado' : 'Botão de WhatsApp desabilitado');
+    } catch (error) {
+      console.error('Error toggling WhatsApp button:', error);
+      toast.error('Erro ao atualizar botão de WhatsApp');
     }
   };
 
@@ -590,6 +607,28 @@ export default function UserDetailPage() {
                   </Button>
                 )}
               </div>
+
+              {!isPartnerAccount && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Vitrine</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MessageCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">Botão "Falar no WhatsApp"</span>
+                      </div>
+                      <Switch
+                        checked={user.whatsapp_button_enabled !== false}
+                        onCheckedChange={handleToggleWhatsappButton}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Quando desabilitado, o botão de contato via WhatsApp some da página de produto desse usuário.
+                    </p>
+                  </div>
+                </>
+              )}
 
               <Separator />
 

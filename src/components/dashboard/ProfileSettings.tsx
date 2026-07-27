@@ -48,10 +48,20 @@ const formSchema = z.object({
   phone: z.string().optional(),
   bio: z.string().optional(),
   whatsapp: z.string().optional(),
+  whatsapp_mode: z.enum(['phone', 'link']).default('phone'),
+  whatsapp_link: z.string().trim().url('Link inválido').optional().or(z.literal('')),
   instagram: z.string().optional(),
   location_url: z.string().url('URL inválida').optional().or(z.literal('')),
   slug: z.string().min(2, 'Link muito curto').max(50, 'Link muito longo')
     .regex(/^[a-z0-9-]+$/, 'Use apenas letras minúsculas, números e hífens'),
+}).superRefine((values, ctx) => {
+  if (values.whatsapp_mode === 'link' && !values.whatsapp_link) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Informe o link do WhatsApp',
+      path: ['whatsapp_link'],
+    });
+  }
 });
 
 export function ProfileSettings() {
@@ -84,11 +94,15 @@ export function ProfileSettings() {
       phone: '',
       bio: '',
       whatsapp: '',
+      whatsapp_mode: 'phone',
+      whatsapp_link: '',
       instagram: '',
       location_url: '',
       slug: '',
     },
   });
+
+  const whatsappMode = form.watch('whatsapp_mode');
 
   useEffect(() => {
     if (user) {
@@ -114,6 +128,8 @@ export function ProfileSettings() {
         phone: user.phone ? user.phone.replace(/\D/g, '') : '', // Store only digits for editing
         bio: user.bio || '',
         whatsapp: user.whatsapp ? user.whatsapp.replace(/\D/g, '') : '', // Store only digits for editing
+        whatsapp_mode: user.whatsapp_mode === 'link' ? 'link' : 'phone',
+        whatsapp_link: user.whatsapp_link || '',
         instagram: user.instagram || '',
         location_url: user.location_url || '',
         slug: user.slug || '',
@@ -158,16 +174,13 @@ export function ProfileSettings() {
         }
       }
 
-      // Clean and validate WhatsApp number
+      // Clean and validate WhatsApp number (only relevant in 'phone' mode)
       let cleanedWhatsApp = null;
-      if (values.whatsapp) {
+      if (values.whatsapp_mode === 'phone' && values.whatsapp) {
         // Store WhatsApp number as clean digits without automatic 9 addition
         cleanedWhatsApp = values.whatsapp.replace(/\D/g, '');
-        console.log('WhatsApp processing:', {
-          input: values.whatsapp,
-          cleaned: cleanedWhatsApp
-        });
       }
+      const whatsappLink = values.whatsapp_mode === 'link' ? (values.whatsapp_link || null) : null;
 
       // Format Instagram handle
       let formattedInstagram = null;
@@ -219,6 +232,8 @@ export function ProfileSettings() {
         phone: formattedPhone,
         bio: values.bio,
         whatsapp: cleanedWhatsApp,
+        whatsapp_mode: values.whatsapp_mode,
+        whatsapp_link: whatsappLink,
         instagram: formattedInstagram,
         location_url: values.location_url || null,
         slug: values.slug,
@@ -428,24 +443,71 @@ export function ProfileSettings() {
 
             <FormField
               control={form.control}
-              name="whatsapp"
+              name="whatsapp_mode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>WhatsApp</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="(00) 0000-0000"
-                      maxLength={15}
-                    />
-                  </FormControl>
+                  <FormLabel>Contato via WhatsApp</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="phone">Número de WhatsApp</SelectItem>
+                      <SelectItem value="link">Link direto do WhatsApp</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground">
-                    Aceita números fixos (10 dígitos) e móveis (11 dígitos)
+                    Com "Link direto", o botão de WhatsApp da vitrine abre exatamente esse link, sem número e sem mensagem pré-definida
                   </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {whatsappMode === 'link' ? (
+              <FormField
+                control={form.control}
+                name="whatsapp_link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link do WhatsApp</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="https://wa.me/message/XXXXXXXXXXXXX"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Cole aqui o link de contato do WhatsApp (ex: link de mensagem ou wa.me/numero)
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="whatsapp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="(00) 0000-0000"
+                        maxLength={15}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Aceita números fixos (10 dígitos) e móveis (11 dígitos)
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

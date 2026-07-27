@@ -40,6 +40,9 @@ export interface User {
   updated_at?: string;
   bio?: string;
   whatsapp?: string;
+  whatsapp_button_enabled?: boolean;
+  whatsapp_mode?: 'phone' | 'link';
+  whatsapp_link?: string;
   instagram?: string;
   location_url?: string;
   created_by?: string;

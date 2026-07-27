@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials, generateWhatsAppUrl, formatWhatsAppForDisplay } from '@/lib/utils';
+import { getInitials, getWhatsAppContactUrl, formatWhatsAppForDisplay } from '@/lib/utils';
 import type { User } from '@/types';
 import { trackWhatsAppClick, STOREFRONT_UUID } from '@/lib/tracking';
 import { useTranslation, generateWhatsAppMessage, type SupportedLanguage } from '@/lib/i18n';
@@ -48,15 +48,11 @@ export default function CorretorHeader({
 
   const aspectRatioClass = aspectRatio === 960 / 860 ? 'aspect-[960/860]' : 'aspect-[1530/465]';
 
-  // Generate WhatsApp URL using the centralized function
-  const whatsappMessage = generateWhatsAppMessage(language, corretor.name);
-  const countryCode = corretor.country_code || '55';
-  const whatsappUrl = corretor.whatsapp ? generateWhatsAppUrl(corretor.whatsapp, whatsappMessage, countryCode) : '';
-
-  console.log('CorretorHeader - corretor.whatsapp:', corretor.whatsapp);
-  console.log('CorretorHeader - generated URL:', whatsappUrl);
-  console.log('CorretorHeader - language:', language);
-  console.log('CorretorHeader - whatsapp message:', whatsappMessage);
+  // Generate WhatsApp URL using the centralized function — link mode never gets a message
+  const isWhatsAppLinkMode = corretor.whatsapp_mode === 'link';
+  const whatsappMessage = isWhatsAppLinkMode ? '' : generateWhatsAppMessage(language, corretor.name);
+  const whatsappContactValue = isWhatsAppLinkMode ? corretor.whatsapp_link : corretor.whatsapp;
+  const whatsappUrl = whatsappContactValue ? getWhatsAppContactUrl(corretor, whatsappMessage) : '';
 
   const handleWhatsAppClick = async () => {
     // Track the WhatsApp click as a lead for the general storefront
@@ -157,7 +153,7 @@ export default function CorretorHeader({
               </Button>
             )}
             
-            {corretor.whatsapp && whatsappUrl !== '#' && (
+            {whatsappContactValue && whatsappUrl !== '#' && (
               <Button 
                 size="icon" 
                 variant="outline"

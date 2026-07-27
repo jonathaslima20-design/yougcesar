@@ -248,6 +248,18 @@ export function generateWhatsAppUrl(phone: string, message: string = '', country
   return url;
 }
 
+// Resolve a seller's WhatsApp contact URL, honoring their phone-vs-link mode.
+// In 'link' mode the stored link is opened as-is — no message is ever appended.
+export function getWhatsAppContactUrl(
+  corretor: { whatsapp?: string; whatsapp_mode?: string; whatsapp_link?: string; country_code?: string },
+  message: string = ''
+): string {
+  if (corretor.whatsapp_mode === 'link') {
+    return corretor.whatsapp_link?.trim() || '#';
+  }
+  return generateWhatsAppUrl(corretor.whatsapp || '', message, corretor.country_code || '55');
+}
+
 // Format WhatsApp number for display with country code support
 export function formatWhatsAppForDisplay(phone: string, countryCode: string = '55'): string {
   if (!phone) return '';
