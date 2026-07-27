@@ -1,15 +1,25 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { ProfileSettings } from '@/components/dashboard/ProfileSettings';
 import { StorefrontSettings } from '@/components/dashboard/StorefrontSettings';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import TrackingSettingsContent from '@/components/dashboard/TrackingSettingsContent';
 import CheckoutSettingsContent from '@/components/dashboard/CheckoutSettingsContent';
+import PaymentSettingsContent from '@/components/dashboard/PaymentSettingsContent';
+import InventorySettingsContent from '@/components/dashboard/InventorySettingsContent';
+import IntegrationsSettingsContent from '@/components/dashboard/IntegrationsSettingsContent';
 import { CustomDomainSettings } from '@/components/dashboard/CustomDomainSettings';
 import { cn } from '@/lib/utils';
 
+const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('profile');
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && (SETTINGS_TABS as readonly string[]).includes(tabFromUrl) ? tabFromUrl : 'profile'
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,22 +38,25 @@ export default function SettingsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 sm:gap-4 border-b mb-6 sm:mb-8 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
-              {(['profile', 'appearance', 'storefront', 'checkout', 'tracking', 'domain'] as const).map((tab) => {
+            <div className="flex flex-wrap gap-1 sm:gap-4 border-b mb-6 sm:mb-8">
+              {SETTINGS_TABS.map((tab) => {
                 const labels: Record<string, string> = {
                   profile: 'Perfil',
                   appearance: 'Aparência',
                   storefront: 'Vitrine',
-                  checkout: 'Checkout',
+                  checkout: 'Regras de Pedido',
+                  payment: 'Pagamento',
+                  inventory: 'Estoque',
                   tracking: 'Rastreamento',
                   domain: 'Domínio',
+                  integrations: 'Integrações',
                 };
                 return (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      'flex-1 sm:flex-none px-3 sm:px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap',
+                      'px-3 sm:px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap',
                       activeTab === tab
                         ? 'text-foreground'
                         : 'text-muted-foreground hover:text-foreground'
@@ -64,8 +77,11 @@ export default function SettingsPage() {
               {activeTab === 'appearance' && <AppearanceSettings />}
               {activeTab === 'storefront' && <StorefrontSettings />}
               {activeTab === 'checkout' && <CheckoutSettingsContent />}
+              {activeTab === 'payment' && <PaymentSettingsContent />}
+              {activeTab === 'inventory' && <InventorySettingsContent />}
               {activeTab === 'tracking' && <TrackingSettingsContent />}
               {activeTab === 'domain' && <CustomDomainSettings />}
+              {activeTab === 'integrations' && <IntegrationsSettingsContent />}
             </div>
           </div>
         </Card>

@@ -1,10 +1,17 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StorefrontFiltersManager from '@/components/dashboard/StorefrontFiltersManager';
 import CategoryDisplaySettings from '@/components/dashboard/CategoryDisplaySettings';
 
+const SUB_TABS = ['filters', 'organization'] as const;
+
 export function StorefrontSettings() {
-  const [activeTab, setActiveTab] = useState('filters');
+  const [searchParams] = useSearchParams();
+  const subtabFromUrl = searchParams.get('subtab');
+  const [activeTab, setActiveTab] = useState(
+    subtabFromUrl && (SUB_TABS as readonly string[]).includes(subtabFromUrl) ? subtabFromUrl : 'filters'
+  );
 
   return (
     <div className="space-y-6">

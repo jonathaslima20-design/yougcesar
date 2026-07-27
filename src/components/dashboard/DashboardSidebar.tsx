@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, LogOut, Menu, X, Settings, Settings2, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, CreditCard, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, Plug, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Menu, X, Settings, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, TriangleAlert as AlertTriangle, LineChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -81,13 +81,11 @@ export default function DashboardSidebar() {
   const stockSubItems = [
     { name: 'Visão Geral', href: '/dashboard/inventory', icon: BarChart3 },
     { name: 'Movimentações', href: '/dashboard/stock-movements', icon: ArrowLeftRight },
-    { name: 'Configurações', href: '/dashboard/inventory/settings', icon: Settings2 },
   ];
 
   const salesSubItems = [
     { name: 'Pedidos', href: '/dashboard/orders', icon: ClipboardList, badge: pendingOrders },
     { name: 'Cupons', href: '/dashboard/coupons', icon: Ticket },
-    { name: 'Vendas Online', href: '/dashboard/sales', icon: CreditCard },
   ];
 
   const toggleMobileSidebar = () => setMobileOpen(!mobileOpen);
@@ -114,6 +112,14 @@ export default function DashboardSidebar() {
               name="Dashboard"
               href="/dashboard"
               icon={LayoutDashboard}
+              end
+              isExpanded
+              onClick={() => isMobile && toggleMobileSidebar()}
+            />
+            <InkNavItem
+              name="Relatórios"
+              href="/dashboard/reports"
+              icon={LineChart}
               end
               isExpanded
               onClick={() => isMobile && toggleMobileSidebar()}
@@ -149,17 +155,6 @@ export default function DashboardSidebar() {
               onItemClick={() => isMobile && toggleMobileSidebar()}
               badge={pendingOrders}
             />
-            {user?.billing_cycle === 'annually' && user?.plan_status === 'active' && (
-              <InkNavItem
-                name="Integrações"
-                href="/dashboard/integrations"
-                icon={Plug}
-                end
-                isExpanded
-                onClick={() => isMobile && toggleMobileSidebar()}
-              />
-            )}
-
             <div className="h-px bg-foreground/[0.06] my-3 mx-2" />
 
             <InkNavItem

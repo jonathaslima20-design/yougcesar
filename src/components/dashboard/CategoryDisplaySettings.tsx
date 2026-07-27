@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Loader2, GripVertical, Eye, EyeOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, GripVertical, Eye, EyeOff, FolderTree } from 'lucide-react';
 import { toast } from 'sonner';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
@@ -11,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import type { CategoryDisplaySetting } from '@/types';
-import { normalizeCategoryNameForComparison } from '@/lib/categoryUtils';
 
 export default function CategoryDisplaySettings() {
   const [categorySettings, setCategorySettings] = useState<CategoryDisplaySetting[]>([]);
@@ -90,42 +90,7 @@ export default function CategoryDisplaySettings() {
       // Sort by order to ensure correct display
       mergedSettings.sort((a, b) => a.order - b.order);
 
-      console.log('Loaded category settings:', mergedSettings);
       setCategorySettings(mergedSettings);
-      
-      // DIAGNÓSTICO ESPECÍFICO PARA NIKE
-      const nikeCategory = mergedSettings.find(setting => 
-        setting.category.toLowerCase() === 'nike'
-      );
-      
-      if (nikeCategory) {
-        console.log('🏷️ NIKE CATEGORY CONFIG:', {
-          category: nikeCategory.category,
-          enabled: nikeCategory.enabled,
-          order: nikeCategory.order,
-          allCategories: mergedSettings.map(s => s.category)
-        });
-      } else {
-        console.log('⚠️ NIKE CATEGORY NOT FOUND in settings', {
-          availableCategories: categoriesList,
-          settingsCategories: mergedSettings.map(s => s.category),
-          searchTerm: 'nike'
-        });
-        
-        // Auto-add Nike category if products exist but setting is missing
-        const hasNikeProducts = categoriesList.some(cat => 
-          normalizeCategoryNameForComparison(cat) === 'nike'
-        );
-        if (hasNikeProducts) {
-          console.log('🔧 AUTO-ADDING Nike category to settings');
-          mergedSettings.push({
-            category: 'Nike',
-            order: mergedSettings.length,
-            enabled: true
-          });
-          setCategorySettings(mergedSettings);
-        }
-      }
     } catch (error) {
       console.error('Error loading category settings:', error);
       toast.error('Erro ao carregar configurações de categoria');
@@ -147,7 +112,6 @@ export default function CategoryDisplaySettings() {
       order: index
     }));
 
-    console.log('New order after drag:', updatedItems);
     setCategorySettings(updatedItems);
   };
 
@@ -166,8 +130,6 @@ export default function CategoryDisplaySettings() {
         ...setting,
         order: index
       }));
-
-      console.log('Saving category settings with order:', orderedSettings);
 
       // Get current settings
       const { data: currentSettings } = await supabase
@@ -233,6 +195,13 @@ export default function CategoryDisplaySettings() {
           <p className="text-sm text-muted-foreground mt-1">
             Configure a ordem das categorias na sua vitrine
           </p>
+          <Link
+            to="/dashboard/categories"
+            className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1.5"
+          >
+            <FolderTree className="h-3 w-3" />
+            Precisa criar ou renomear uma categoria? Acesse Catálogo → Categorias
+          </Link>
         </div>
         <Button 
           onClick={saveSettings} 

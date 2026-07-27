@@ -1,7 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { BuyerAuthProvider } from '@/contexts/BuyerAuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { SubscriptionModalProvider } from '@/contexts/SubscriptionModalContext';
 import { CorretorPageStateProvider } from '@/contexts/CorretorPageStateContext';
@@ -48,26 +49,31 @@ import CookiesPolicyPage from '@/pages/CookiesPolicyPage.tsx';
 import TermsOfUsePage from '@/pages/TermsOfUsePage.tsx';
 import DataDeletionPage from '@/pages/DataDeletionPage.tsx';
 import ReferralTermsPage from '@/pages/ReferralTermsPage.tsx';
+import BuyerLoginPage from '@/pages/buyer/BuyerLoginPage.tsx';
+import BuyerRegisterPage from '@/pages/buyer/BuyerRegisterPage.tsx';
+import BuyerOrdersPage from '@/pages/buyer/BuyerOrdersPage.tsx';
+import BuyerAuthCallbackPage from '@/pages/buyer/BuyerAuthCallbackPage.tsx';
+import BuyerProfilePage from '@/pages/buyer/BuyerProfilePage.tsx';
+import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
+import BuyerOrderDetailPage from '@/pages/buyer/BuyerOrderDetailPage.tsx';
+import OrderPaymentPage from '@/pages/storefront/OrderPaymentPage.tsx';
 
 // Dashboard Pages
 import DashboardPage from '@/pages/dashboard/DashboardPage.tsx';
+import ReportsPage from '@/pages/dashboard/ReportsPage.tsx';
 import SettingsPage from '@/pages/dashboard/SettingsPage.tsx';
 import ListingsPage from '@/pages/dashboard/ListingsPage.tsx';
 import CreateProductPage from '@/pages/dashboard/CreateProductPage.tsx';
 import EditProductPage from '@/pages/dashboard/EditProductPage.tsx';
-import TrackingSettingsPage from '@/pages/dashboard/TrackingSettingsPage.tsx';
 import CategoriesPage from '@/pages/dashboard/CategoriesPage.tsx';
 import ReferralPage from '@/pages/dashboard/ReferralPage.tsx';
 import NotificationsPage from '@/pages/dashboard/NotificationsPage.tsx';
 import OrdersPage from '@/pages/dashboard/OrdersPage.tsx';
-import SalesPage from '@/pages/dashboard/SalesPage.tsx';
 import StockMovementsPage from '@/pages/dashboard/StockMovementsPage.tsx';
 import InventoryOverviewPage from '@/pages/dashboard/InventoryOverviewPage.tsx';
-import InventorySettingsPage from '@/pages/dashboard/InventorySettingsPage.tsx';
 import CheckoutPage from '@/pages/dashboard/CheckoutPage.tsx';
 import AccountPage from '@/pages/dashboard/AccountPage.tsx';
 import CouponsPage from '@/pages/dashboard/CouponsPage.tsx';
-import IntegrationsPage from '@/pages/dashboard/IntegrationsPage.tsx';
 
 // Admin Pages
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage.tsx';
@@ -239,6 +245,15 @@ function AppContent() {
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/completar-cadastro" element={<CompleteProfilePage />} />
 
+          {/* Buyer Account Routes (customer login, separate from merchant auth) */}
+          <Route path="/conta/entrar" element={<BuyerLoginPage />} />
+          <Route path="/conta/cadastro" element={<BuyerRegisterPage />} />
+          <Route path="/conta/auth/callback" element={<BuyerAuthCallbackPage />} />
+          <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
+          <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
+          <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
+          <Route path="/conta/perfil" element={<BuyerProfilePage />} />
+
           {/* Blog Routes */}
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/categoria/:categorySlug" element={<BlogCategoryPage />} />
@@ -267,6 +282,7 @@ function AppContent() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard/reports" element={<ReportsPage />} />
             <Route path="/dashboard/settings" element={<SettingsPage />} />
             <Route path="/dashboard/listings" element={<ListingsPage />} />
             <Route path="/dashboard/products/new" element={<CreateProductPage />} />
@@ -275,14 +291,14 @@ function AppContent() {
             <Route path="/dashboard/referral" element={<ReferralPage />} />
             <Route path="/dashboard/orders" element={<OrdersPage />} />
             <Route path="/dashboard/coupons" element={<CouponsPage />} />
-            <Route path="/dashboard/sales" element={<SalesPage />} />
+            <Route path="/dashboard/sales" element={<Navigate to="/dashboard/orders" replace />} />
             <Route path="/dashboard/inventory" element={<InventoryOverviewPage />} />
-            <Route path="/dashboard/inventory/settings" element={<InventorySettingsPage />} />
+            <Route path="/dashboard/inventory/settings" element={<Navigate to="/dashboard/settings?tab=inventory" replace />} />
             <Route path="/dashboard/stock-movements" element={<StockMovementsPage />} />
             <Route path="/dashboard/checkout" element={<CheckoutPage />} />
             <Route path="/dashboard/account" element={<AccountPage />} />
             <Route path="/dashboard/notifications" element={<NotificationsPage />} />
-            <Route path="/dashboard/integrations" element={<IntegrationsPage />} />
+            <Route path="/dashboard/integrations" element={<Navigate to="/dashboard/settings?tab=integrations" replace />} />
           </Route>
         </Route>
 
@@ -334,6 +350,7 @@ function AppContent() {
         <Route element={<PublicLayout />}>
           <Route path="/:slug" element={<CorretorPage />} />
           <Route path="/:slug/produtos/:productId" element={<ProductDetailsPage />} />
+          <Route path="/:slug/pedido/:orderId/pagamento" element={<OrderPaymentPage />} />
         </Route>
       </Routes>
     </Suspense>
@@ -345,21 +362,23 @@ export default function App() {
     <Router>
       <ThemeProvider>
         <AuthProvider>
-          <NotificationProvider>
-            <SubscriptionModalProvider>
-              <PromotionalOffersProvider>
-                <CartProvider>
-                  <CorretorPageStateProvider>
-                    <AppContent />
-                    <OfferDisplayManager />
-                    <Toaster />
-                    <FloatingWhatsAppButton />
-                    <CookieConsentBanner />
-                  </CorretorPageStateProvider>
-                </CartProvider>
-              </PromotionalOffersProvider>
-            </SubscriptionModalProvider>
-          </NotificationProvider>
+          <BuyerAuthProvider>
+            <NotificationProvider>
+              <SubscriptionModalProvider>
+                <PromotionalOffersProvider>
+                  <CartProvider>
+                    <CorretorPageStateProvider>
+                      <AppContent />
+                      <OfferDisplayManager />
+                      <Toaster />
+                      <FloatingWhatsAppButton />
+                      <CookieConsentBanner />
+                    </CorretorPageStateProvider>
+                  </CartProvider>
+                </PromotionalOffersProvider>
+              </SubscriptionModalProvider>
+            </NotificationProvider>
+          </BuyerAuthProvider>
         </AuthProvider>
       </ThemeProvider>
     </Router>
