@@ -4,42 +4,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, TrendingUp, Users, DollarSign, Loader as Loader2, ExternalLink, ShoppingBag, TriangleAlert as AlertTriangle, Copy, Check } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
+import { useDashboardPeriod } from '@/hooks/useDashboardPeriod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ViewsAndLeadsChart } from '@/components/dashboard/ViewsAndLeadsChart';
 import { RevenueCard } from '@/components/dashboard/RevenueCard';
-import { RevenueChart } from '@/components/dashboard/RevenueChart';
-import { TopProductsList } from '@/components/dashboard/TopProductsList';
-import { SalesFunnel } from '@/components/dashboard/SalesFunnel';
 import { RecentActivityFeed } from '@/components/dashboard/RecentActivityFeed';
-import { DashboardPeriodFilter, PeriodOption } from '@/components/dashboard/DashboardPeriodFilter';
+import { DashboardPeriodFilter } from '@/components/dashboard/DashboardPeriodFilter';
 import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const PERIOD_STORAGE_KEY = 'vitrineturbo_dashboard_period';
 
-function getStoredPeriod(): PeriodOption {
-  const stored = localStorage.getItem(PERIOD_STORAGE_KEY);
-  if (stored && [7, 15, 30, 90].includes(Number(stored))) {
-    return Number(stored) as PeriodOption;
-  }
-  return 30;
-}
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [periodDays, setPeriodDays] = useState<PeriodOption>(getStoredPeriod);
+  const [periodDays, handlePeriodChange] = useDashboardPeriod(PERIOD_STORAGE_KEY);
   const [copiedLink, setCopiedLink] = useState(false);
   const { totalProducts, totalViews, uniqueVisitors, totalLeads, totalOrders, lowStockCount, outOfStockCount, loading, error } = useDashboardStats(periodDays);
   const { inventoryEnabled } = useInventoryEnabled();
-
-  const handlePeriodChange = (period: PeriodOption) => {
-    setPeriodDays(period);
-    localStorage.setItem(PERIOD_STORAGE_KEY, String(period));
-  };
 
   const getMissingProfileFields = () => {
     const missing: string[] = [];
@@ -272,20 +256,8 @@ export default function DashboardPage() {
       {/* Revenue Cards */}
       <RevenueCard periodDays={periodDays} />
 
-      {/* Charts Row: Revenue Chart + Sales Funnel */}
-      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <RevenueChart periodDays={periodDays} />
-        <SalesFunnel periodDays={periodDays} />
-      </div>
-
-      {/* Views & Leads Chart */}
-      <ViewsAndLeadsChart days={periodDays} />
-
-      {/* Top Products + Recent Activity */}
-      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <TopProductsList periodDays={periodDays} />
-        <RecentActivityFeed />
-      </div>
+      {/* Recent Activity */}
+      <RecentActivityFeed />
 
     </div>
   );
