@@ -12,6 +12,7 @@
       page (/conta/pedidos/:orderId) to show line items.
 */
 
+DROP POLICY IF EXISTS "Buyers can view own order items" ON order_items;
 CREATE POLICY "Buyers can view own order items"
   ON order_items FOR SELECT
   TO authenticated

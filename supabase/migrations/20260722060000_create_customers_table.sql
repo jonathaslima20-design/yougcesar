@@ -36,17 +36,20 @@ CREATE TABLE IF NOT EXISTS customers (
 
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Customers can view own profile" ON customers;
 CREATE POLICY "Customers can view own profile"
   ON customers FOR SELECT
   TO authenticated
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Customers can update own profile" ON customers;
 CREATE POLICY "Customers can update own profile"
   ON customers FOR UPDATE
   TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Customers can insert own profile" ON customers;
 CREATE POLICY "Customers can insert own profile"
   ON customers FOR INSERT
   TO authenticated

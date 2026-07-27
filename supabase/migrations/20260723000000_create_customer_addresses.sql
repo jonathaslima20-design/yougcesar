@@ -41,22 +41,26 @@ CREATE INDEX IF NOT EXISTS idx_customer_addresses_customer_id ON customer_addres
 
 ALTER TABLE customer_addresses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Buyers can view own addresses" ON customer_addresses;
 CREATE POLICY "Buyers can view own addresses"
   ON customer_addresses FOR SELECT
   TO authenticated
   USING (auth.uid() = customer_id);
 
+DROP POLICY IF EXISTS "Buyers can insert own addresses" ON customer_addresses;
 CREATE POLICY "Buyers can insert own addresses"
   ON customer_addresses FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = customer_id);
 
+DROP POLICY IF EXISTS "Buyers can update own addresses" ON customer_addresses;
 CREATE POLICY "Buyers can update own addresses"
   ON customer_addresses FOR UPDATE
   TO authenticated
   USING (auth.uid() = customer_id)
   WITH CHECK (auth.uid() = customer_id);
 
+DROP POLICY IF EXISTS "Buyers can delete own addresses" ON customer_addresses;
 CREATE POLICY "Buyers can delete own addresses"
   ON customer_addresses FOR DELETE
   TO authenticated
