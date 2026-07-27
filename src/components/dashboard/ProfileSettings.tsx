@@ -383,23 +383,6 @@ export function ProfileSettings() {
 
             <FormField
               control={form.control}
-              name="language"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Idioma</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled placeholder="Português (Brasil)" />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Idioma da sua vitrine pública
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="currency"
               render={({ field }) => (
                 <FormItem>

@@ -26,7 +26,6 @@ export function RichTextEditor({
   className,
 }: RichTextEditorProps) {
   const handleChange = useCallback((content: string) => {
-    console.log('Rich text editor content change:', content.length, 'characters');
     onChange(content);
   }, [onChange]);
 
@@ -64,17 +63,10 @@ export function RichTextEditor({
     return null;
   }
 
-  const handleButtonClick = (e: React.MouseEvent, action: () => void, name: string) => {
+  const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log(`Clicking ${name} button`);
-    const result = action();
-    console.log(`${name} action result:`, result);
-    console.log(`Editor state after ${name}:`, {
-      bold: editor?.isActive('bold'),
-      italic: editor?.isActive('italic'),
-      underline: editor?.isActive('underline'),
-    });
+    action();
   };
 
   return (
@@ -83,7 +75,7 @@ export function RichTextEditor({
         <div className="items-center justify-center flex flex-wrap gap-1">
           <button
             type="button"
-            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBold().run(), 'bold')}
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBold().run())}
             className={cn(
               "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
               "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
@@ -97,7 +89,7 @@ export function RichTextEditor({
 
           <button
             type="button"
-            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleItalic().run(), 'italic')}
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleItalic().run())}
             className={cn(
               "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
               "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
@@ -111,7 +103,7 @@ export function RichTextEditor({
 
           <button
             type="button"
-            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleUnderline().run(), 'underline')}
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleUnderline().run())}
             className={cn(
               "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
               "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
@@ -125,7 +117,7 @@ export function RichTextEditor({
 
           <button
             type="button"
-            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleHeading({ level: 2 }).run(), 'heading')}
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
             className={cn(
               "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
               "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
@@ -139,7 +131,7 @@ export function RichTextEditor({
 
           <button
             type="button"
-            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBulletList().run(), 'bulletList')}
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBulletList().run())}
             className={cn(
               "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
               "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
@@ -153,7 +145,7 @@ export function RichTextEditor({
 
           <button
             type="button"
-            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleOrderedList().run(), 'orderedList')}
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleOrderedList().run())}
             className={cn(
               "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
               "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",

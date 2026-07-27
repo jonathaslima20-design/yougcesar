@@ -59,6 +59,16 @@ export default function VariantStockGrid({
       const key = '--';
       const qty = stockMap.get(key) ?? 0;
       newCells.push({ key, color: null, size: null, flavor: null, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
+    } else if (hasColors && hasSizes && hasFlavors) {
+      for (const color of colors) {
+        for (const size of sizes) {
+          for (const flavor of flavors) {
+            const key = `${color}-${size}-${flavor}`;
+            const qty = stockMap.get(key) ?? 0;
+            newCells.push({ key, color, size, flavor, quantity: qty, original: qty, dirty: false, hasRow: stockMap.has(key) });
+          }
+        }
+      }
     } else if (hasColors && hasSizes) {
       for (const color of colors) {
         for (const size of sizes) {
@@ -180,7 +190,7 @@ export default function VariantStockGrid({
 
   const totalStock = cells.reduce((sum, c) => sum + c.quantity, 0);
 
-  if (hasColors && hasSizes) {
+  if (hasColors && hasSizes && !hasFlavors) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -240,8 +250,13 @@ export default function VariantStockGrid({
     );
   }
 
-  const listItems = hasColors ? colors : hasSizes ? sizes : flavors;
-  const listLabel = hasColors ? 'Cor' : hasSizes ? 'Tamanho' : 'Sabor';
+  // Generic fallback for every other combination (single dimension, or any
+  // pairing/triple that isn't the pure color×size case above) — driven
+  // directly by `cells`, which already holds the correct combo per variant,
+  // instead of reconstructing keys from a single dimension's list.
+  const listLabel = [hasColors && 'Cor', hasSizes && 'Tamanho', hasFlavors && 'Sabor']
+    .filter(Boolean)
+    .join(' / ');
 
   return (
     <div className="space-y-3">
@@ -261,16 +276,15 @@ export default function VariantStockGrid({
       </div>
 
       <div className="space-y-2">
-        {listItems.map((item) => {
-          const key = hasColors ? `${item}--` : hasSizes ? `-${item}-` : `--${item}`;
-          const cell = cells.find((c) => c.key === key);
-          const status = cell ? getVariantStockStatus({ quantity: cell.quantity, reserved_quantity: 0 }, lowStockThreshold) : 'out_of_stock';
+        {cells.map((cell) => {
+          const label = [cell.color, cell.size, cell.flavor].filter(Boolean).join(' / ');
+          const status = getVariantStockStatus({ quantity: cell.quantity, reserved_quantity: 0 }, lowStockThreshold);
 
           return (
-            <div key={key} className="flex items-center justify-between rounded-lg border p-3">
-              <span className="text-sm font-medium">{item}</span>
+            <div key={cell.key} className="flex items-center justify-between rounded-lg border p-3">
+              <span className="text-sm font-medium">{label}</span>
               <div className="flex items-center gap-2">
-                {status === 'out_of_stock' && cell && cell.quantity <= 0 && (
+                {status === 'out_of_stock' && cell.quantity <= 0 && (
                   <Badge className="bg-red-500/10 text-red-600 border-transparent text-[10px]">Esgotado</Badge>
                 )}
                 {status === 'low_stock' && (
@@ -279,9 +293,9 @@ export default function VariantStockGrid({
                 <Input
                   type="number"
                   min={0}
-                  value={cell?.quantity ?? 0}
-                  onChange={(e) => handleQuantityChange(key, e.target.value)}
-                  className={`h-8 w-20 text-center text-sm ${cell?.dirty ? 'border-blue-400 ring-1 ring-blue-200' : ''}`}
+                  value={cell.quantity}
+                  onChange={(e) => handleQuantityChange(cell.key, e.target.value)}
+                  className={`h-8 w-20 text-center text-sm ${cell.dirty ? 'border-blue-400 ring-1 ring-blue-200' : ''}`}
                 />
               </div>
             </div>

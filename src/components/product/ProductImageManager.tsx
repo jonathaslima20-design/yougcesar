@@ -136,12 +136,6 @@ export function ProductImageManager({
           registerBlobUrl(blobUrl, fileHash, visualFingerprint);
         }
 
-        console.log('✅ Image validated and registered:', {
-          id: uniqueId,
-          hash: fileHash.substring(0, 12) + '...',
-          hasVisualFingerprint: !!visualFingerprint,
-        });
-
         return {
           id: uniqueId,
           url: url,
@@ -273,11 +267,6 @@ export function ProductImageManager({
     if (imageToRemove?.blobUrl) {
       revokeBlobUrl(imageToRemove.blobUrl);
     }
-
-    console.log('🗑️ Image removed:', {
-      id: imageId,
-      hash: imageToRemove?.fileHash?.substring(0, 12),
-    });
 
     onChange(remainingImages);
   };

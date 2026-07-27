@@ -143,6 +143,17 @@ export default function EditProductPage() {
   });
 
   useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (form.formState.isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [form.formState.isDirty]);
+
+  useEffect(() => {
     const fetchProduct = async () => {
       if (!id || !user?.id) return;
 
@@ -265,7 +276,6 @@ export default function EditProductPage() {
   }, [id, user?.id, navigate, form]);
 
   const onSubmit = async (data: ProductFormData) => {
-    console.log('onSubmit called with data:', data);
     if (!user?.id || !id) {
       console.error('Missing user ID or product ID');
       return;
@@ -490,15 +500,12 @@ export default function EditProductPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={(e) => {
-          console.log('Form submit event triggered');
-          console.log('Current form values:', form.getValues());
-          console.log('Form errors:', form.formState.errors);
-          form.handleSubmit(onSubmit, (errors) => {
-            console.error('Form validation errors:', errors);
+        <form
+          onSubmit={form.handleSubmit(onSubmit, () => {
             toast.error('Por favor, corrija os erros no formulário');
-          })(e);
-        }} className="space-y-6">
+          })}
+          className="space-y-6"
+        >
           <Card>
             <CardHeader>
               <CardTitle>Informações Básicas</CardTitle>
@@ -954,13 +961,7 @@ export default function EditProductPage() {
           </Card>
 
           <div className="flex gap-2">
-            <Button
-              type="submit"
-              disabled={loading || uploadingImages}
-              onClick={(e) => {
-                console.log('Button clicked', { loading, formValid: form.formState.isValid });
-              }}
-            >
+            <Button type="submit" disabled={loading || uploadingImages}>
               {loading || uploadingImages ? 'Salvando e atualizando imagens...' : 'Salvar Alterações'}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>
