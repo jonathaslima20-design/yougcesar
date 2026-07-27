@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ExternalLink } from 'lucide-react';
+import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ExternalLink, ChevronDown, ChevronUp, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import OrderStatusBadge from './OrderStatusBadge';
+import PaymentStatusBadge from './PaymentStatusBadge';
 import InventoryDeductionDialog from './InventoryDeductionDialog';
 import type { InventoryItemInfo } from './InventoryDeductionDialog';
 import { updateOrderStatus, fetchOrderInventoryInfo } from '@/lib/orderService';
@@ -23,6 +24,16 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Order, OrderStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+
+interface OrderPaymentRow {
+  id: string;
+  payment_method: string;
+  status: string;
+  status_detail: string;
+  amount_cents: number;
+  card_last4: string;
+  created_at: string;
+}
 
 interface OrderDetailsPanelProps {
   order: Order | null;
@@ -68,6 +79,33 @@ export default function OrderDetailsPanel({
   const [inventoryItems, setInventoryItems] = useState<InventoryItemInfo[]>([]);
   const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
   const [colorImageMap, setColorImageMap] = useState<Record<string, string>>({});
+  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState<OrderPaymentRow[] | null>(null);
+  const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    setPaymentHistoryOpen(false);
+    setPaymentHistory(null);
+  }, [order?.id]);
+
+  const togglePaymentHistory = async () => {
+    if (!order) return;
+    if (paymentHistoryOpen) {
+      setPaymentHistoryOpen(false);
+      return;
+    }
+    setPaymentHistoryOpen(true);
+    if (paymentHistory === null) {
+      setPaymentHistoryLoading(true);
+      const { data } = await supabase
+        .from('order_payments')
+        .select('id, payment_method, status, status_detail, amount_cents, card_last4, created_at')
+        .eq('order_id', order.id)
+        .order('created_at', { ascending: false });
+      setPaymentHistory(data || []);
+      setPaymentHistoryLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!order) return;
@@ -220,6 +258,10 @@ export default function OrderDetailsPanel({
       )
     : '';
 
+  const isEcommerce = order.order_type === 'ecommerce';
+  const hasShippingAddress = !!(order.shipping_street || order.shipping_city);
+  const paymentNeedsAttention = isEcommerce && (order.payment_status === 'pending' || order.payment_status === 'rejected');
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -230,6 +272,7 @@ export default function OrderDetailsPanel({
             </div>
             <div className="flex items-center gap-2 mt-1">
               <OrderStatusBadge status={order.status} />
+              {isEcommerce && <PaymentStatusBadge status={order.payment_status} />}
               <Badge variant="outline" className="text-xs">
                 {order.source === 'cart' ? 'Carrinho' : 'Pagina do Produto'}
               </Badge>
@@ -429,11 +472,85 @@ export default function OrderDetailsPanel({
               </div>
             </div>
 
+            {hasShippingAddress && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    Endereço de entrega
+                  </h4>
+                  <div className="bg-muted/30 rounded-lg p-4 text-sm space-y-0.5">
+                    <p>
+                      {order.shipping_street}
+                      {order.shipping_number ? `, ${order.shipping_number}` : ''}
+                      {order.shipping_complement ? ` - ${order.shipping_complement}` : ''}
+                    </p>
+                    <p>
+                      {order.shipping_neighborhood ? `${order.shipping_neighborhood}, ` : ''}
+                      {order.shipping_city} - {order.shipping_state}
+                    </p>
+                    {order.shipping_zip_code && <p>CEP {order.shipping_zip_code}</p>}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {isEcommerce && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={togglePaymentHistory}
+                    className="flex items-center justify-between w-full text-left"
+                  >
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      Histórico de pagamento
+                    </h4>
+                    {paymentHistoryOpen ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+                  {paymentHistoryOpen && (
+                    <div className="space-y-2">
+                      {paymentHistoryLoading ? (
+                        <p className="text-xs text-muted-foreground">Carregando...</p>
+                      ) : (paymentHistory || []).length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhuma tentativa de pagamento registrada.</p>
+                      ) : (
+                        (paymentHistory || []).map((payment) => (
+                          <div key={payment.id} className="flex items-center justify-between text-xs bg-muted/30 rounded-lg p-3">
+                            <span>
+                              {payment.payment_method === 'pix' ? 'Pix' : `Cartão ****${payment.card_last4}`}
+                              {' — '}
+                              {new Date(payment.created_at).toLocaleString('pt-BR')}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {payment.status}
+                            </Badge>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
             <Separator />
 
             {/* Status Actions */}
             {transitions.length > 0 && (
               <div className="space-y-2">
+                {paymentNeedsAttention && (
+                  <div className="flex items-start gap-1.5 text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>Pagamento pendente — confirme o recebimento antes de enviar.</span>
+                  </div>
+                )}
                 {transitions.map((t) => (
                   <Button
                     key={t.next}

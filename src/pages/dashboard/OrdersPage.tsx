@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Package, Search, Filter, Loader as Loader2, ShoppingBag, Clock, CircleCheck as CheckCircle, DollarSign, MessageCircle, Ticket, Wallet, Truck } from 'lucide-react';
+import { Package, Search, Filter, Loader as Loader2, ShoppingBag, Clock, CircleCheck as CheckCircle, DollarSign, MessageCircle, Ticket, Wallet, Truck, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOrders, getOrderStats, type OrderStats } from '@/lib/orderService';
+import { getMerchantPaymentConfig } from '@/lib/merchantPayments';
+import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
+import PaymentStatusBadge, { PAYMENT_STATUS_CONFIG } from '@/components/orders/PaymentStatusBadge';
 import OrderDetailsPanel from '@/components/orders/OrderDetailsPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,10 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { generateWhatsAppUrl } from '@/lib/utils';
+import { generateWhatsAppUrl, cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Order, OrderStatus } from '@/types';
+import type { Order, OrderStatus, OrderPaymentStatus } from '@/types';
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Todos os status' },
@@ -30,34 +33,59 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'cancelled', label: 'Cancelados' },
 ];
 
+const ORDER_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'all', label: 'Todos os tipos' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'ecommerce', label: 'Pagamento Online' },
+];
+
+const PAYMENT_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'all', label: 'Todos os pagamentos' },
+  ...(['pending', 'approved', 'rejected', 'refunded', 'cancelled'] as OrderPaymentStatus[]).map((value) => ({
+    value,
+    label: PAYMENT_STATUS_CONFIG[value].label,
+  })),
+];
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
 export default function OrdersPage() {
   const { user } = useAuth();
+  const { settings: checkoutSettings } = useCheckoutSettings();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<ReturnType<typeof getOrderStats> extends Promise<infer T> ? T : never | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [hadPaymentsEverActive, setHadPaymentsEverActive] = useState(false);
   const LIMIT = 20;
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const showPaymentUI =
+    checkoutSettings.checkoutMode !== 'whatsapp' ||
+    (stats?.ecommerceCount ?? 0) > 0 ||
+    hadPaymentsEverActive;
 
   const loadOrders = useCallback(
     async (pageNum: number, replace = false) => {
       if (!user?.id) return;
       setLoading(true);
       try {
-        const filters: { status?: OrderStatus; search?: string } = {};
+        const filters: { status?: OrderStatus; search?: string; orderType?: 'whatsapp' | 'ecommerce'; paymentStatus?: OrderPaymentStatus } = {};
         if (statusFilter !== 'all') filters.status = statusFilter as OrderStatus;
         if (searchQuery.trim()) filters.search = searchQuery.trim();
+        if (orderTypeFilter !== 'all') filters.orderType = orderTypeFilter as 'whatsapp' | 'ecommerce';
+        if (paymentStatusFilter !== 'all') filters.paymentStatus = paymentStatusFilter as OrderPaymentStatus;
 
         const { data, count } = await fetchOrders(user.id, LIMIT, pageNum * LIMIT, filters);
         setOrders((prev) => (replace ? data : [...prev, ...data]));
@@ -69,7 +97,7 @@ export default function OrdersPage() {
         setLoading(false);
       }
     },
-    [user?.id, statusFilter, searchQuery]
+    [user?.id, statusFilter, searchQuery, orderTypeFilter, paymentStatusFilter]
   );
 
   const loadStats = useCallback(async () => {
@@ -86,6 +114,13 @@ export default function OrdersPage() {
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getMerchantPaymentConfig()
+      .then((res) => setHadPaymentsEverActive(!!res?.config))
+      .catch(() => setHadPaymentsEverActive(false));
+  }, [user?.id]);
 
   const handleLoadMore = () => {
     const next = page + 1;
@@ -113,13 +148,15 @@ export default function OrdersPage() {
       <div>
         <h1 className="text-2xl md:text-3xl page-title">Pedidos</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Gerencie os pedidos recebidos via WhatsApp
+          {showPaymentUI
+            ? 'Gerencie os pedidos recebidos via WhatsApp e pagamento online'
+            : 'Gerencie os pedidos recebidos via WhatsApp'}
         </p>
       </div>
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className={cn('grid grid-cols-2 gap-3 md:gap-4', showPaymentUI ? 'md:grid-cols-5' : 'md:grid-cols-4')}>
           <Card>
             <CardContent className="pt-4 pb-3 px-4">
               <div className="flex items-center gap-3">
@@ -162,6 +199,22 @@ export default function OrdersPage() {
             </CardContent>
           </Card>
 
+          {showPaymentUI && (
+            <Card>
+              <CardContent className="pt-4 pb-3 px-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <CreditCard className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{stats.awaitingPayment}</p>
+                    <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="pt-4 pb-3 px-4">
               <div className="flex items-center gap-3">
@@ -202,6 +255,34 @@ export default function OrdersPage() {
             ))}
           </SelectContent>
         </Select>
+        {showPaymentUI && (
+          <>
+            <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
+              <SelectTrigger className="sm:w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ORDER_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+              <SelectTrigger className="sm:w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
       </div>
 
       {/* Orders List */}
@@ -217,9 +298,9 @@ export default function OrdersPage() {
             </div>
             <p className="font-medium text-muted-foreground">Nenhum pedido encontrado</p>
             <p className="text-sm text-muted-foreground/70 mt-1 max-w-xs">
-              {statusFilter !== 'all' || searchQuery
+              {statusFilter !== 'all' || orderTypeFilter !== 'all' || paymentStatusFilter !== 'all' || searchQuery
                 ? 'Tente alterar os filtros para ver mais pedidos.'
-                : 'Os pedidos feitos pelos seus clientes via WhatsApp aparecerão aqui.'}
+                : 'Os pedidos feitos pelos seus clientes aparecerão aqui.'}
             </p>
           </CardContent>
         </Card>
@@ -250,6 +331,9 @@ export default function OrdersPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium truncate">{order.customer_name}</p>
                         <OrderStatusBadge status={order.status} />
+                        {order.order_type === 'ecommerce' && (
+                          <PaymentStatusBadge status={order.payment_status} />
+                        )}
                         <Badge variant="outline" className="text-xs">
                           {order.source === 'cart' ? 'Carrinho' : 'Produto'}
                         </Badge>
