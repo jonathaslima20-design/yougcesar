@@ -141,6 +141,18 @@ Deno.serve(async (req: Request) => {
         const storeCurrency = (merchant.currency || "BRL").toUpperCase();
 
         if (is_active) {
+          const { data: platformSettings } = await admin
+            .from("platform_payment_settings")
+            .select("online_payments_enabled")
+            .maybeSingle();
+
+          if (!platformSettings?.online_payments_enabled) {
+            return new Response(
+              JSON.stringify({ error: "Pagamento online está temporariamente indisponível na plataforma." }),
+              { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
           if (!finalAccessToken || !finalPublicKey) {
             return new Response(
               JSON.stringify({ error: "Configure a Public Key e o Access Token antes de ativar." }),

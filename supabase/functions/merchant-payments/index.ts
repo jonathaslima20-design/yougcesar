@@ -68,6 +68,18 @@ Deno.serve(async (req: Request) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const admin = createClient(supabaseUrl, supabaseServiceKey);
 
+    const { data: platformSettings } = await admin
+      .from("platform_payment_settings")
+      .select("online_payments_enabled")
+      .maybeSingle();
+
+    if (!platformSettings?.online_payments_enabled) {
+      return new Response(
+        JSON.stringify({ error: "Pagamento online está temporariamente indisponível." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { action, payload } = await req.json();
     const authHeader = req.headers.get("Authorization");
 

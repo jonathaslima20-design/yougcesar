@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader as Loader2, Copy, CheckCircle2, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Loader as Loader2, Copy, CheckCircle2, ArrowLeft, ChevronRight, TriangleAlert as AlertTriangle } from 'lucide-react';
 
 import {
   Card,
@@ -35,6 +35,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
+import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
 import type { CheckoutMode } from '@/types';
 import {
   getMerchantPaymentConfig,
@@ -63,6 +64,7 @@ export default function PaymentSettingsContent() {
   const [copied, setCopied] = useState(false);
   const [mpAccountEmail, setMpAccountEmail] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<'mercadopago' | null>(null);
+  const { enabled: platformPaymentsEnabled } = usePlatformPaymentsEnabled();
 
   const isBRL = (user?.currency || 'BRL').toUpperCase() === 'BRL';
 
@@ -214,6 +216,17 @@ export default function PaymentSettingsContent() {
         Voltar
       </Button>
 
+      {!platformPaymentsEnabled && (
+        <div className="flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-sm text-amber-700">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>
+            Pagamentos online estão temporariamente desativados para todas as lojas enquanto a
+            VitrineTurbo finaliza os testes dessa funcionalidade. Você pode configurar suas credenciais
+            normalmente, mas a ativação e o modo de checkout ficam bloqueados até isso ser liberado.
+          </span>
+        </div>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card>
@@ -332,7 +345,11 @@ export default function PaymentSettingsContent() {
                       </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!isBRL} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!isBRL || !platformPaymentsEnabled}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -353,7 +370,7 @@ export default function PaymentSettingsContent() {
                 name="checkoutMode"
                 render={({ field }) => (
                   <FormItem>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!platformPaymentsEnabled}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue />

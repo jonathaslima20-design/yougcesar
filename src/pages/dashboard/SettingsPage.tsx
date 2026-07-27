@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { ProfileSettings } from '@/components/dashboard/ProfileSettings';
@@ -10,6 +10,7 @@ import PaymentSettingsContent from '@/components/dashboard/PaymentSettingsConten
 import InventorySettingsContent from '@/components/dashboard/InventorySettingsContent';
 import IntegrationsSettingsContent from '@/components/dashboard/IntegrationsSettingsContent';
 import { CustomDomainSettings } from '@/components/dashboard/CustomDomainSettings';
+import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
 import { cn } from '@/lib/utils';
 
 const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
@@ -17,9 +18,19 @@ const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'payme
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
+  const { enabled: paymentsEnabled, loading: paymentsLoading } = usePlatformPaymentsEnabled();
   const [activeTab, setActiveTab] = useState(
     tabFromUrl && (SETTINGS_TABS as readonly string[]).includes(tabFromUrl) ? tabFromUrl : 'profile'
   );
+  const visibleTabs = SETTINGS_TABS.filter(
+    (tab) => tab !== 'payment' || (!paymentsLoading && paymentsEnabled)
+  );
+
+  useEffect(() => {
+    if (!paymentsLoading && activeTab === 'payment' && !paymentsEnabled) {
+      setActiveTab('profile');
+    }
+  }, [paymentsLoading, paymentsEnabled, activeTab]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,7 +50,7 @@ export default function SettingsPage() {
 
             {/* Tabs */}
             <div className="flex flex-wrap gap-1 sm:gap-4 border-b mb-6 sm:mb-8">
-              {SETTINGS_TABS.map((tab) => {
+              {visibleTabs.map((tab) => {
                 const labels: Record<string, string> = {
                   profile: 'Perfil',
                   appearance: 'Aparência',

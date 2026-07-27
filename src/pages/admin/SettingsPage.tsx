@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Save, Code as Code2, ChartBar as BarChart3, Loader as Loader2, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Eye, EyeOff, ExternalLink, Server, Globe, FlaskConical } from 'lucide-react';
+import { Save, Code as Code2, ChartBar as BarChart3, Loader as Loader2, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Eye, EyeOff, ExternalLink, Server, Globe, FlaskConical, CreditCard, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,85 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+
+function PaymentsKillSwitchCard() {
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('platform_payment_settings')
+        .select('online_payments_enabled')
+        .maybeSingle();
+      setEnabled(data?.online_payments_enabled ?? false);
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleToggle = async (checked: boolean) => {
+    setSaving(true);
+    const { error } = await supabase
+      .from('platform_payment_settings')
+      .upsert({ id: 1, online_payments_enabled: checked, updated_at: new Date().toISOString() });
+
+    if (error) {
+      toast.error('Erro ao salvar: ' + error.message);
+    } else {
+      setEnabled(checked);
+      toast.success(checked ? 'Pagamentos online ativados na plataforma' : 'Pagamentos online desativados na plataforma');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
+            <CreditCard className="h-4 w-4 text-amber-600" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Pagamentos Online (Mercado Pago)</CardTitle>
+            <CardDescription className="text-sm mt-0.5">
+              Interruptor geral do checkout com pagamento online, para todas as lojas
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center gap-2 py-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Carregando...</span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5 pr-4">
+                <Label className="text-sm font-medium">Ativar pagamentos online na plataforma</Label>
+                <p className="text-xs text-muted-foreground">
+                  Quando desligado, nenhuma loja consegue oferecer "Pagar Agora" na vitrine, mesmo que o
+                  lojista tenha configurado isso em Configurações → Pagamento. Todos os pedidos voltam a ir
+                  só para o WhatsApp, como antes desse recurso existir.
+                </p>
+              </div>
+              <Switch checked={enabled} onCheckedChange={handleToggle} disabled={saving} />
+            </div>
+            {!enabled && (
+              <div className="flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 text-sm text-amber-700">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>Desativado agora — recomendado enquanto a integração com o Mercado Pago ainda está em teste.</span>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 interface TrackingConfig {
   meta_pixel_id: string;
@@ -107,6 +186,8 @@ export default function SettingsPage() {
         <h1 className="text-2xl md:text-3xl page-title">Configurações do Sistema</h1>
         <p className="text-muted-foreground">Gerencie as configurações globais da plataforma</p>
       </div>
+
+      <PaymentsKillSwitchCard />
 
       <Card>
         <CardHeader className="pb-4">

@@ -131,13 +131,25 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
     }
 
     const fetchSettings = async () => {
-      const { data, error } = await supabase
-        .from('user_storefront_settings')
-        .select('settings')
-        .eq('user_id', storeOwnerId)
-        .maybeSingle();
+      const [{ data, error }, { data: platformSettings }] = await Promise.all([
+        supabase
+          .from('user_storefront_settings')
+          .select('settings')
+          .eq('user_id', storeOwnerId)
+          .maybeSingle(),
+        supabase
+          .from('platform_payment_settings')
+          .select('online_payments_enabled')
+          .maybeSingle(),
+      ]);
+
+      // Platform-wide kill switch: if online payments are disabled for the
+      // whole app, every store falls back to WhatsApp-only checkout
+      // regardless of what that merchant configured for themselves.
+      const paymentsEnabledPlatformWide = platformSettings?.online_payments_enabled ?? false;
 
       if (!error && data?.settings?.checkout) {
+        const storeCheckoutMode = data.settings.checkout.checkoutMode ?? 'whatsapp';
         setSettings({
           paymentMethods: data.settings.checkout.paymentMethods ?? DEFAULT_PAYMENT_METHODS,
           deliveryOptions: data.settings.checkout.deliveryOptions ?? [],
@@ -145,7 +157,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
           minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
-          checkoutMode: data.settings.checkout.checkoutMode ?? 'whatsapp',
+          checkoutMode: paymentsEnabledPlatformWide ? storeCheckoutMode : 'whatsapp',
         });
       }
       setLoading(false);
