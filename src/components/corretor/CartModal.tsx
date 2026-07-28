@@ -220,8 +220,16 @@ export default function CartModal({
     if (!couponCode.trim()) return;
     const cleanPhone = customerPhone.replace(/\D/g, '');
     const fullPhone = customerCountryCode.replace('+', '') + cleanPhone;
-    const productIds = cart.items.map(item => item.id);
-    const result = await validateCoupon(corretor.id, couponCode, fullPhone, cart.total, productIds);
+    const cartItemsForCoupon = cart.items.map((item) => {
+      const tierInfo = productTiers.get(item.id);
+      const hasTieredPricing = item.has_tiered_pricing || tierInfo?.hasTieredPricing || false;
+      const tiers = tierInfo?.tiers || [];
+      const subtotal = hasTieredPricing && tiers.length > 0
+        ? calculateApplicablePrice(item.quantity, tiers, item.price, item.discounted_price).totalPrice
+        : (item.applied_tier_price || item.discounted_price || item.price) * item.quantity;
+      return { product_id: item.id, subtotal };
+    });
+    const result = await validateCoupon(corretor.id, couponCode, fullPhone, cart.total, cartItemsForCoupon);
     if (result) {
       setAppliedCoupon(result);
     }

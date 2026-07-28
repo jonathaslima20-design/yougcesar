@@ -12,7 +12,7 @@ export function useCouponValidation() {
     code: string,
     customerWhatsapp: string,
     cartTotal: number,
-    productIds: string[]
+    cartItems: { product_id: string; subtotal: number }[]
   ): Promise<AppliedCoupon | null> => {
     if (!code.trim()) {
       setError('Informe o codigo do cupom');
@@ -28,7 +28,8 @@ export function useCouponValidation() {
         p_code: code.trim(),
         p_customer_whatsapp: customerWhatsapp || '',
         p_cart_total: cartTotal,
-        p_product_ids: productIds,
+        p_product_ids: cartItems.map((item) => item.product_id),
+        p_cart_items: cartItems,
       });
 
       if (rpcError) throw rpcError;
