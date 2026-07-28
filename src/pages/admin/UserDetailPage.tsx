@@ -286,19 +286,19 @@ export default function UserDetailPage() {
     }
   };
 
-  const handleToggleWhatsappButton = async (enabled: boolean) => {
+  const handleToggleWhatsappMessage = async (enabled: boolean) => {
     if (!user) return;
     try {
       const { error } = await supabase
         .from('users')
-        .update({ whatsapp_button_enabled: enabled })
+        .update({ whatsapp_message_enabled: enabled })
         .eq('id', user.id);
       if (error) throw error;
-      setUser({ ...user, whatsapp_button_enabled: enabled });
-      toast.success(enabled ? 'Botão de WhatsApp habilitado' : 'Botão de WhatsApp desabilitado');
+      setUser({ ...user, whatsapp_message_enabled: enabled });
+      toast.success(enabled ? 'Mensagem pré-definida ativada' : 'Mensagem pré-definida desativada');
     } catch (error) {
-      console.error('Error toggling WhatsApp button:', error);
-      toast.error('Erro ao atualizar botão de WhatsApp');
+      console.error('Error toggling WhatsApp message:', error);
+      toast.error('Erro ao atualizar mensagem pré-definida do WhatsApp');
     }
   };
 
@@ -616,15 +616,18 @@ export default function UserDetailPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <MessageCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-sm truncate">Botão "Falar no WhatsApp"</span>
+                        <span className="text-sm truncate">Mensagem pré-definida no WhatsApp</span>
                       </div>
                       <Switch
-                        checked={user.whatsapp_button_enabled !== false}
-                        onCheckedChange={handleToggleWhatsappButton}
+                        checked={user.whatsapp_message_enabled !== false}
+                        onCheckedChange={handleToggleWhatsappMessage}
+                        disabled={user.whatsapp_mode === 'link'}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Quando desabilitado, o botão de contato via WhatsApp some da página de produto desse usuário.
+                      {user.whatsapp_mode === 'link'
+                        ? 'Sem efeito: esse usuário está no modo "link direto", que nunca envia mensagem pré-definida.'
+                        : 'Quando desabilitado, o botão "Falar no WhatsApp" da página de produto abre uma conversa direta, sem mencionar o produto.'}
                     </p>
                   </div>
                 </>

@@ -33,7 +33,7 @@ export default function ContactSidebar({
   const handleWhatsAppClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    const message = corretor.whatsapp_mode === 'link'
+    const message = corretor.whatsapp_mode === 'link' || corretor.whatsapp_message_enabled === false
       ? ''
       : generateWhatsAppMessage(language, corretor.name, itemTitle, itemId, window.location.href);
 
@@ -120,7 +120,7 @@ export default function ContactSidebar({
             </Button>
           )}
 
-          {(corretor.whatsapp_mode === 'link' ? corretor.whatsapp_link : corretor.whatsapp) && corretor.whatsapp_button_enabled !== false && (
+          {(corretor.whatsapp_mode === 'link' ? corretor.whatsapp_link : corretor.whatsapp) && (
             <Button
               className="w-full"
               variant="outline"
