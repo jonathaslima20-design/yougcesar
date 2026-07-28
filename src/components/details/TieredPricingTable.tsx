@@ -29,7 +29,7 @@ export default function TieredPricingTable({
   };
 
   return (
-    <Card>
+    <Card className="text-foreground">
       <CardHeader>
         <div className="flex items-center gap-2">
           <TrendingDown className="h-5 w-5 text-blue-600" />
