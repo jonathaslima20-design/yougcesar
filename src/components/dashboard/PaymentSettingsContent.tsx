@@ -64,7 +64,7 @@ export default function PaymentSettingsContent() {
   const [copied, setCopied] = useState(false);
   const [mpAccountEmail, setMpAccountEmail] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<'mercadopago' | null>(null);
-  const { enabled: platformPaymentsEnabled } = usePlatformPaymentsEnabled();
+  const { enabled: platformPaymentsEnabled } = usePlatformPaymentsEnabled(user?.id);
 
   const isBRL = (user?.currency || 'BRL').toUpperCase() === 'BRL';
 

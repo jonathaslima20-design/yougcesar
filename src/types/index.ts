@@ -66,6 +66,7 @@ export interface User {
   gclid?: string;
   fbclid?: string;
   max_images_per_product?: number;
+  payments_test_override?: boolean;
   last_login_at?: string;
   login_count?: number;
   onboarding_completed_steps?: string[];

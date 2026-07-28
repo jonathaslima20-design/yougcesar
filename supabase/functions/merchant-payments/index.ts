@@ -57,6 +57,20 @@ async function getActiveCredentials(
   return data;
 }
 
+// Platform-wide kill switch, checked per store: a merchant with an
+// admin-granted test override (users.payments_test_override) can process
+// online payments even while the switch stays off for every other store.
+async function isPaymentsEnabledForStore(
+  admin: ReturnType<typeof createClient>,
+  storeOwnerId: string
+): Promise<boolean> {
+  const [{ data: platformSettings }, { data: storeOwner }] = await Promise.all([
+    admin.from("platform_payment_settings").select("online_payments_enabled").maybeSingle(),
+    admin.from("users").select("payments_test_override").eq("id", storeOwnerId).maybeSingle(),
+  ]);
+  return !!platformSettings?.online_payments_enabled || !!storeOwner?.payments_test_override;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -68,24 +82,20 @@ Deno.serve(async (req: Request) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const admin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: platformSettings } = await admin
-      .from("platform_payment_settings")
-      .select("online_payments_enabled")
-      .maybeSingle();
-
-    if (!platformSettings?.online_payments_enabled) {
-      return new Response(
-        JSON.stringify({ error: "Pagamento online está temporariamente indisponível." }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const { action, payload } = await req.json();
     const authHeader = req.headers.get("Authorization");
 
     switch (action) {
       case "getSellerPublicKey": {
         const { store_owner_id } = payload as { store_owner_id: string };
+
+        if (!(await isPaymentsEnabledForStore(admin, store_owner_id))) {
+          return new Response(
+            JSON.stringify({ error: "Pagamento online está temporariamente indisponível." }),
+            { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         const credentials = await getActiveCredentials(admin, store_owner_id);
 
         if (!credentials) {
@@ -137,6 +147,13 @@ Deno.serve(async (req: Request) => {
           return new Response(
             JSON.stringify({ error: "Este pedido já foi pago" }),
             { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!(await isPaymentsEnabledForStore(admin, order.store_owner_id))) {
+          return new Response(
+            JSON.stringify({ error: "Pagamento online está temporariamente indisponível." }),
+            { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 

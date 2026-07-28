@@ -131,7 +131,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
     }
 
     const fetchSettings = async () => {
-      const [{ data, error }, { data: platformSettings }] = await Promise.all([
+      const [{ data, error }, { data: platformSettings }, { data: storeOwner }] = await Promise.all([
         supabase
           .from('user_storefront_settings')
           .select('settings')
@@ -141,12 +141,20 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           .from('platform_payment_settings')
           .select('online_payments_enabled')
           .maybeSingle(),
+        supabase
+          .from('users')
+          .select('payments_test_override')
+          .eq('id', storeOwnerId)
+          .maybeSingle(),
       ]);
 
       // Platform-wide kill switch: if online payments are disabled for the
       // whole app, every store falls back to WhatsApp-only checkout
-      // regardless of what that merchant configured for themselves.
-      const paymentsEnabledPlatformWide = platformSettings?.online_payments_enabled ?? false;
+      // regardless of what that merchant configured for themselves — unless
+      // this specific merchant has an admin-granted test override, used to
+      // finish and validate the feature on one real account at a time.
+      const paymentsEnabledForStore =
+        (platformSettings?.online_payments_enabled ?? false) || !!storeOwner?.payments_test_override;
 
       if (!error && data?.settings?.checkout) {
         const storeCheckoutMode = data.settings.checkout.checkoutMode ?? 'whatsapp';
@@ -157,7 +165,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
           minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
-          checkoutMode: paymentsEnabledPlatformWide ? storeCheckoutMode : 'whatsapp',
+          checkoutMode: paymentsEnabledForStore ? storeCheckoutMode : 'whatsapp',
         });
       }
       setLoading(false);

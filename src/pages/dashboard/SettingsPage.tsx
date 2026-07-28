@@ -11,6 +11,7 @@ import InventorySettingsContent from '@/components/dashboard/InventorySettingsCo
 import IntegrationsSettingsContent from '@/components/dashboard/IntegrationsSettingsContent';
 import { CustomDomainSettings } from '@/components/dashboard/CustomDomainSettings';
 import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
@@ -18,7 +19,8 @@ const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'payme
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
-  const { enabled: paymentsEnabled, loading: paymentsLoading } = usePlatformPaymentsEnabled();
+  const { user } = useAuth();
+  const { enabled: paymentsEnabled, loading: paymentsLoading } = usePlatformPaymentsEnabled(user?.id);
   const [activeTab, setActiveTab] = useState(
     tabFromUrl && (SETTINGS_TABS as readonly string[]).includes(tabFromUrl) ? tabFromUrl : 'profile'
   );

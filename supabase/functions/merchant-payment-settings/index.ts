@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: merchant } = await admin
       .from("users")
-      .select("id, currency, plan_status")
+      .select("id, currency, plan_status, payments_test_override")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -146,7 +146,7 @@ Deno.serve(async (req: Request) => {
             .select("online_payments_enabled")
             .maybeSingle();
 
-          if (!platformSettings?.online_payments_enabled) {
+          if (!platformSettings?.online_payments_enabled && !merchant.payments_test_override) {
             return new Response(
               JSON.stringify({ error: "Pagamento online está temporariamente indisponível na plataforma." }),
               { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }

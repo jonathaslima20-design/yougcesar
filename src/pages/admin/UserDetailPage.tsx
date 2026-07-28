@@ -302,6 +302,22 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleTogglePaymentsTestOverride = async (enabled: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ payments_test_override: enabled })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, payments_test_override: enabled });
+      toast.success(enabled ? 'Pagamento online liberado para este usuário' : 'Pagamento online (teste) desativado');
+    } catch (error) {
+      console.error('Error toggling payments test override:', error);
+      toast.error('Erro ao atualizar liberação de pagamento online');
+    }
+  };
+
   const handleImageLimitUpdate = async (maxImages: number) => {
     if (!user) return;
     try {
@@ -628,6 +644,23 @@ export default function UserDetailPage() {
                       {user.whatsapp_mode === 'link'
                         ? 'Sem efeito: esse usuário está no modo "link direto", que nunca envia mensagem pré-definida.'
                         : 'Quando desabilitado, o botão "Falar no WhatsApp" da página de produto abre uma conversa direta, sem mencionar o produto.'}
+                    </p>
+                  </div>
+
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Wallet className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">Pagamento online (teste)</span>
+                      </div>
+                      <Switch
+                        checked={!!user.payments_test_override}
+                        onCheckedChange={handleTogglePaymentsTestOverride}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Libera pagamento online (aba Pagamento, ativação de credenciais e checkout na vitrine) só para esse usuário, mesmo com a chave geral da plataforma desligada. Use para finalizar e testar a funcionalidade em uma conta real.
                     </p>
                   </div>
                 </>
