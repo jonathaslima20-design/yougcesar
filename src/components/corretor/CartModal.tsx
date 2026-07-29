@@ -924,7 +924,7 @@ export default function CartModal({
                       <button
                         type="button"
                         onClick={() => setOrderMode('whatsapp')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'whatsapp' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'whatsapp' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
                       >
                         <MessageCircle className="h-3.5 w-3.5" />
                         Finalizar por WhatsApp
@@ -932,7 +932,7 @@ export default function CartModal({
                       <button
                         type="button"
                         onClick={() => setOrderMode('ecommerce')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'ecommerce' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'ecommerce' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
                       >
                         <CreditCard className="h-3.5 w-3.5" />
                         Pagar Agora

@@ -2,7 +2,11 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Logo from '@/components/Logo';
 
-export default function Footer() {
+interface FooterProps {
+  hideLogo?: boolean;
+}
+
+export default function Footer({ hideLogo = false }: FooterProps) {
   const [bgColor, setBgColor] = useState<string | undefined>(undefined);
   const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
   const [footerLogoMode, setFooterLogoMode] = useState<string>('default');
@@ -39,7 +43,7 @@ export default function Footer() {
   const logoHeight = footerLogoFormat === 'square' ? '96px' : '72px';
 
   const renderLogo = () => {
-    if (footerLogoMode === 'hidden') return null;
+    if (hideLogo || footerLogoMode === 'hidden') return null;
 
     if (footerLogoMode === 'custom' && customLogoUrl) {
       return (
@@ -84,7 +88,7 @@ export default function Footer() {
     <footer className="mt-auto py-6 border-t border-border/50">
       <div className="container mx-auto px-4 flex flex-col items-center">
         {renderLogo()}
-        <div className={`flex items-center gap-4 text-xs text-muted-foreground/70 ${footerLogoMode === 'hidden' ? '' : 'mt-2'}`}>
+        <div className={`flex items-center gap-4 text-xs text-muted-foreground/70 ${hideLogo || footerLogoMode === 'hidden' ? '' : 'mt-2'}`}>
           <Link to="/blog" className="hover:text-muted-foreground transition-colors">
             Blog
           </Link>
