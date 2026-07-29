@@ -46,83 +46,22 @@ export async function deductStockForOrder(
   storeOwnerId: string,
   items: DeductionItem[]
 ): Promise<DeductionResult> {
-  const notifications: DeductionResult['notifications'] = [];
+  // Runs as a SECURITY DEFINER RPC because this is called from the buyer's
+  // session at checkout: product_variant_stock/products/stock_movements are
+  // only writable by the product owner via RLS, so a direct client-side
+  // write here would silently no-op (or fail) for anyone but the seller.
+  const { error } = await supabase.rpc('deduct_stock_for_order', {
+    p_order_id: orderId,
+    p_store_owner_id: storeOwnerId,
+    p_items: items,
+  });
 
-  for (const item of items) {
-    const { data: product, error: fetchError } = await supabase
-      .from('products')
-      .select('id, title, track_inventory, stock_quantity, low_stock_threshold')
-      .eq('id', item.product_id)
-      .maybeSingle();
-
-    if (fetchError || !product || !product.track_inventory) continue;
-
-    const variantStock = await findVariantStock(item.product_id, item.selected_color, item.selected_size, item.selected_flavor);
-
-    if (variantStock) {
-      const prevQty = variantStock.quantity;
-      const newQty = prevQty - item.quantity;
-
-      await supabase
-        .from('product_variant_stock')
-        .update({ quantity: newQty, updated_at: new Date().toISOString() })
-        .eq('id', variantStock.id);
-
-      await recordStockMovement({
-        product_id: item.product_id,
-        variant_stock_id: variantStock.id,
-        movement_type: 'saida',
-        quantity: -item.quantity,
-        previous_quantity: prevQty,
-        new_quantity: newQty,
-        reference_type: 'order',
-        reference_id: orderId,
-        performed_by: storeOwnerId,
-      });
-
-      await syncProductAggregateStock(item.product_id);
-    } else {
-      const prevQty = product.stock_quantity ?? 0;
-      const newQty = prevQty - item.quantity;
-
-      await supabase
-        .from('products')
-        .update({ stock_quantity: newQty })
-        .eq('id', item.product_id)
-        .eq('track_inventory', true);
-
-      await recordStockMovement({
-        product_id: item.product_id,
-        movement_type: 'saida',
-        quantity: -item.quantity,
-        previous_quantity: prevQty,
-        new_quantity: newQty,
-        reference_type: 'order',
-        reference_id: orderId,
-        performed_by: storeOwnerId,
-      });
-    }
-
-    const currentStock = await getProductTotalStock(item.product_id);
-    const threshold = product.low_stock_threshold ?? 5;
-
-    if (currentStock <= 0) {
-      notifications.push({ productId: product.id, productTitle: product.title, type: 'out_of_stock' });
-    } else if (currentStock <= threshold) {
-      notifications.push({ productId: product.id, productTitle: product.title, type: 'low_stock' });
-    }
+  if (error) {
+    console.error('Error deducting stock for order:', error);
+    return { success: false, notifications: [] };
   }
 
-  await supabase
-    .from('orders')
-    .update({ inventory_deducted: true })
-    .eq('id', orderId);
-
-  for (const n of notifications) {
-    await createStockNotification(storeOwnerId, n.productId, n.productTitle, n.type);
-  }
-
-  return { success: true, notifications };
+  return { success: true, notifications: [] };
 }
 
 export async function restoreStockForOrder(
@@ -190,27 +129,6 @@ export async function restoreStockForOrder(
   return true;
 }
 
-export async function createStockNotification(
-  userId: string,
-  productId: string,
-  productTitle: string,
-  type: 'low_stock' | 'out_of_stock'
-): Promise<void> {
-  const title = type === 'low_stock' ? 'Estoque baixo' : 'Produto esgotado';
-  const message = type === 'low_stock'
-    ? `O produto "${productTitle}" está com estoque baixo.`
-    : `O produto "${productTitle}" está esgotado.`;
-
-  await supabase.from('notifications').insert({
-    user_id: userId,
-    type,
-    title,
-    message,
-    related_entity_id: productId,
-    related_entity_type: 'product',
-  });
-}
-
 export async function updateProductStock(
   productId: string,
   newQuantity: number,
@@ -275,16 +193,6 @@ export async function findVariantStock(
 
   const { data } = await query.maybeSingle();
   return data as ProductVariantStock | null;
-}
-
-async function getProductTotalStock(productId: string): Promise<number> {
-  const { data } = await supabase
-    .from('products')
-    .select('stock_quantity')
-    .eq('id', productId)
-    .maybeSingle();
-
-  return data?.stock_quantity ?? 0;
 }
 
 export async function fetchVariantStockForProduct(productId: string): Promise<ProductVariantStock[]> {
