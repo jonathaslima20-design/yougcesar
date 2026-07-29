@@ -41,8 +41,6 @@ import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
-import BuyerAuthInline from '@/components/corretor/BuyerAuthInline';
-import { fetchCustomerAddresses, type CustomerAddress } from '@/lib/customerAddressService';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 
@@ -88,63 +86,17 @@ export default function CartModal({
   const [orderMode, setOrderMode] = useState<'whatsapp' | 'ecommerce'>(
     checkoutMode === 'ecommerce_only' ? 'ecommerce' : 'whatsapp'
   );
-  const [shippingAddress, setShippingAddress] = useState({
-    street: '',
-    number: '',
-    complement: '',
-    neighborhood: '',
-    city: '',
-    state: '',
-    zipCode: '',
-  });
-  const [placingEcommerceOrder, setPlacingEcommerceOrder] = useState(false);
-  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   useEffect(() => {
     if (checkoutMode === 'ecommerce_only') setOrderMode('ecommerce');
     else if (checkoutMode === 'whatsapp') setOrderMode('whatsapp');
   }, [checkoutMode]);
 
-  useEffect(() => {
-    if (!buyerAccount) {
-      setSavedAddresses([]);
-      return;
-    }
-    fetchCustomerAddresses(buyerAccount.id)
-      .then((addresses) => {
-        setSavedAddresses(addresses);
-        const defaultAddress = addresses.find((a) => a.is_default) || addresses[0];
-        if (defaultAddress) applySavedAddress(defaultAddress);
-      })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyerAccount]);
-
-  const applySavedAddress = (address: CustomerAddress) => {
-    setSelectedAddressId(address.id);
-    setShippingAddress({
-      street: address.street,
-      number: address.number,
-      complement: address.complement || '',
-      neighborhood: address.neighborhood,
-      city: address.city,
-      state: address.state,
-      zipCode: address.zip_code,
-    });
-  };
-
   const enabledPaymentMethods = checkoutSettings.paymentMethods.filter(m => m.enabled);
-  const enabledDeliveryOptions = checkoutSettings.deliveryOptions.filter((d) => {
-    if (!d.enabled) return false;
-    // Once the customer has typed their state, hide region-restricted options
-    // that don't cover it. Before that (or outside ecommerce mode, where no
-    // address is ever collected), region options remain visible like any other.
-    if (d.calculationType === 'region' && shippingAddress.state) {
-      return (d.regions || []).includes(shippingAddress.state);
-    }
-    return true;
-  });
+  // No shipping address is collected in this modal anymore (the ecommerce
+  // path redirects to its own dedicated address step), so region-restricted
+  // delivery options always show here — same as before an address was typed.
+  const enabledDeliveryOptions = checkoutSettings.deliveryOptions.filter((d) => d.enabled);
 
   const selectedPaymentConfig = enabledPaymentMethods.find(m => m.id === selectedPaymentMethod);
   const selectedDeliveryConfig = enabledDeliveryOptions.find(d => d.id === selectedDeliveryOption);
@@ -264,6 +216,10 @@ export default function CartModal({
       }
       return;
     }
+    if (checkoutMode === 'ecommerce_only') {
+      goToOnlineCheckout();
+      return;
+    }
     setStep('checkout');
   };
 
@@ -297,20 +253,6 @@ export default function CartModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const validateShippingAddress = (): boolean => {
-    if (
-      !shippingAddress.street.trim() ||
-      !shippingAddress.number.trim() ||
-      !shippingAddress.city.trim() ||
-      !shippingAddress.state.trim() ||
-      !shippingAddress.zipCode.trim()
-    ) {
-      toast.error('Preencha o endereço de entrega completo');
-      return false;
-    }
-    return true;
-  };
-
   const buildOrderItems = () => [
     ...cart.distributions.flatMap((dist) =>
       dist.items.map((distItem) => ({
@@ -339,73 +281,16 @@ export default function CartModal({
     })),
   ];
 
-  const handlePayOnline = async () => {
-    if (!validateCustomerInfo()) return;
-    if (!validateShippingAddress()) return;
-    if (cart.items.length === 0 && cart.distributions.length === 0) return;
+  // Online payment no longer collects address/payment method inside this
+  // modal — it hands off to a dedicated checkout step (auth gate already
+  // enforced there) so returning buyers can reuse a saved address instead of
+  // re-typing everything on top of a giant single-screen form.
+  const goToOnlineCheckout = () => {
+    onOpenChange(false);
     if (!buyerAccount) {
-      toast.error('Entre ou crie uma conta para continuar');
-      return;
-    }
-    if (minPurchaseActive && !minPurchaseMet) {
-      toast.error(
-        minPurchase!.type === 'value'
-          ? `O valor mínimo para compra é ${formatCurrencyI18n(minPurchase!.value, currency, language)}.`
-          : `A quantidade mínima é ${minPurchase!.value} ${minPurchase!.value === 1 ? 'item' : 'itens'}.`
-      );
-      return;
-    }
-
-    setPlacingEcommerceOrder(true);
-    try {
-      const cleanPhone = customerPhone.replace(/\D/g, '');
-      const countryCode = customerCountryCode.replace('+', '');
-      const orderItems = buildOrderItems();
-
-      const order = await createOrder(
-        {
-          store_owner_id: corretor.id,
-          customer_name: customerName.trim(),
-          customer_whatsapp: cleanPhone,
-          customer_country_code: countryCode,
-          order_type: 'ecommerce',
-          subtotal: cart.total,
-          total: finalTotal,
-          source: 'cart',
-          coupon_id: appliedCoupon?.couponId || null,
-          coupon_code: appliedCoupon?.code || null,
-          discount_amount: discountAmount,
-          delivery_fee: deliveryFee,
-          delivery_option: selectedDeliveryConfig?.name || null,
-          buyer_id: buyerAccount.id,
-          payment_status: 'pending',
-          shipping_street: shippingAddress.street.trim(),
-          shipping_number: shippingAddress.number.trim(),
-          shipping_complement: shippingAddress.complement.trim() || null,
-          shipping_neighborhood: shippingAddress.neighborhood.trim() || null,
-          shipping_city: shippingAddress.city.trim(),
-          shipping_state: shippingAddress.state.trim(),
-          shipping_zip_code: shippingAddress.zipCode.trim(),
-        },
-        orderItems,
-        inventoryEnabled && autoDeductStock ? { enabled: true, storeOwnerId: corretor.id } : undefined
-      );
-
-      if (!order?.id) {
-        toast.error('Não foi possível criar o pedido. Tente novamente.');
-        return;
-      }
-
-      clearCart();
-      clearCoupon();
-      setCouponCode('');
-      onOpenChange(false);
-      navigate(`/${corretor.slug}/pedido/${order.id}/pagamento`);
-    } catch (error) {
-      console.error('Error creating ecommerce order:', error);
-      toast.error('Não foi possível criar o pedido. Tente novamente.');
-    } finally {
-      setPlacingEcommerceOrder(false);
+      navigate('/conta/entrar', { state: { from: `/${corretor.slug}/pedido/endereco` } });
+    } else {
+      navigate(`/${corretor.slug}/pedido/endereco`);
     }
   };
 
@@ -1055,267 +940,200 @@ export default function CartModal({
                     </div>
                   )}
 
-                  {/* Customer Info */}
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="checkout-name" className="text-xs text-muted-foreground">
-                        Nome
-                      </Label>
-                      <Input
-                        id="checkout-name"
-                        placeholder="Seu nome"
-                        value={customerName}
-                        onChange={(e) => {
-                          setCustomerName(e.target.value);
-                          if (formErrors.name) setFormErrors((p) => ({ ...p, name: undefined }));
-                        }}
-                        className="h-9 text-xs px-3"
-                        autoFocus
-                      />
-                      {formErrors.name && (
-                        <p className="text-xs text-destructive">{formErrors.name}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">
-                        WhatsApp
-                      </Label>
-                      <PhoneInputWithCountry
-                        value={customerPhone}
-                        defaultCountry={COUNTRIES.find(c => c.ddi === `+${corretor.country_code || '55'}`)?.code || 'BR'}
-                        onChange={(data) => {
-                          setCustomerPhone(data.phone);
-                          setCustomerCountryCode(data.ddi.replace('+', ''));
-                          if (formErrors.phone) setFormErrors((p) => ({ ...p, phone: undefined }));
-                        }}
-                      />
-                      {formErrors.phone && (
-                        <p className="text-xs text-destructive">{formErrors.phone}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Coupon Section */}
-                  <div className="space-y-1.5">
-                    {appliedCoupon ? (
-                      <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
-                        <Ticket className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                        <span className="text-xs font-medium text-green-700 dark:text-green-300 flex-1 truncate">
-                          {appliedCoupon.code}
-                          <span className="font-normal ml-1.5">
-                            -{formatCurrencyI18n(appliedCoupon.calculatedDiscount, currency, language)}
-                            {appliedCoupon.discountType === 'percentage' && ` (${appliedCoupon.discountValue}%)`}
-                          </span>
-                        </span>
-                        <button
-                          type="button"
-                          className="text-green-600 hover:text-red-500 dark:text-green-400 transition-colors p-0.5"
-                          onClick={handleRemoveCoupon}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  {orderMode === 'whatsapp' && (
+                    <>
+                      {/* Customer Info */}
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="checkout-name" className="text-xs text-muted-foreground">
+                            Nome
+                          </Label>
                           <Input
-                            placeholder="Codigo do cupom"
-                            value={couponCode}
+                            id="checkout-name"
+                            placeholder="Seu nome"
+                            value={customerName}
                             onChange={(e) => {
-                              setCouponCode(e.target.value.toUpperCase());
-                              if (couponError) setCouponError(null);
+                              setCustomerName(e.target.value);
+                              if (formErrors.name) setFormErrors((p) => ({ ...p, name: undefined }));
                             }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleApplyCoupon();
-                              }
-                            }}
-                            className="h-9 pl-9 pr-3 uppercase text-xs"
-                            disabled={couponLoading}
+                            className="h-9 text-xs px-3"
+                            autoFocus
                           />
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleApplyCoupon}
-                          disabled={couponLoading || !couponCode.trim()}
-                          className="h-9 px-3 shrink-0 text-xs"
-                        >
-                          {couponLoading ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            'Aplicar'
+                          {formErrors.name && (
+                            <p className="text-xs text-destructive">{formErrors.name}</p>
                           )}
-                        </Button>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">
+                            WhatsApp
+                          </Label>
+                          <PhoneInputWithCountry
+                            value={customerPhone}
+                            defaultCountry={COUNTRIES.find(c => c.ddi === `+${corretor.country_code || '55'}`)?.code || 'BR'}
+                            onChange={(data) => {
+                              setCustomerPhone(data.phone);
+                              setCustomerCountryCode(data.ddi.replace('+', ''));
+                              if (formErrors.phone) setFormErrors((p) => ({ ...p, phone: undefined }));
+                            }}
+                          />
+                          {formErrors.phone && (
+                            <p className="text-xs text-destructive">{formErrors.phone}</p>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    {couponError && !appliedCoupon && (
-                      <p className="text-xs text-destructive">{couponError}</p>
-                    )}
-                  </div>
 
-                  {/* Payment & Delivery Row */}
-                  {(enabledPaymentMethods.length > 0 || enabledDeliveryOptions.length > 0) && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {enabledPaymentMethods.length > 0 && (
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">
-                            Pagamento {checkoutSettings.requirePaymentMethod && <span className="text-destructive">*</span>}
-                          </Label>
-                          <Select
-                            value={selectedPaymentMethod || ''}
-                            onValueChange={(value) => {
-                              setSelectedPaymentMethod(value || null);
-                              if (formErrors.payment) setFormErrors(p => ({ ...p, payment: undefined }));
-                            }}
-                          >
-                            <SelectTrigger className="h-9 text-xs px-3">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {enabledPaymentMethods.map((method) => {
-                                const hasDiscount = method.discountValue && method.discountValue > 0;
-                                return (
-                                  <SelectItem key={method.id} value={method.id} className="text-xs">
-                                    <div className="flex items-center gap-1.5">
-                                      <span>{method.name}</span>
-                                      {hasDiscount && (
-                                        <span className="text-xs text-green-600 dark:text-green-400">
-                                          {method.discountType === 'percentage'
-                                            ? `-${method.discountValue}%`
-                                            : `-${formatCurrencyI18n(method.discountValue!, currency, language)}`
-                                          }
-                                        </span>
-                                      )}
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                          {formErrors.payment && (
-                            <p className="text-xs text-destructive">{formErrors.payment}</p>
+                      {/* Coupon Section */}
+                      <div className="space-y-1.5">
+                        {appliedCoupon ? (
+                          <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+                            <Ticket className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                            <span className="text-xs font-medium text-green-700 dark:text-green-300 flex-1 truncate">
+                              {appliedCoupon.code}
+                              <span className="font-normal ml-1.5">
+                                -{formatCurrencyI18n(appliedCoupon.calculatedDiscount, currency, language)}
+                                {appliedCoupon.discountType === 'percentage' && ` (${appliedCoupon.discountValue}%)`}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              className="text-green-600 hover:text-red-500 dark:text-green-400 transition-colors p-0.5"
+                              onClick={handleRemoveCoupon}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                              <Input
+                                placeholder="Codigo do cupom"
+                                value={couponCode}
+                                onChange={(e) => {
+                                  setCouponCode(e.target.value.toUpperCase());
+                                  if (couponError) setCouponError(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleApplyCoupon();
+                                  }
+                                }}
+                                className="h-9 pl-9 pr-3 uppercase text-xs"
+                                disabled={couponLoading}
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleApplyCoupon}
+                              disabled={couponLoading || !couponCode.trim()}
+                              className="h-9 px-3 shrink-0 text-xs"
+                            >
+                              {couponLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                'Aplicar'
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                        {couponError && !appliedCoupon && (
+                          <p className="text-xs text-destructive">{couponError}</p>
+                        )}
+                      </div>
+
+                      {/* Payment & Delivery Row */}
+                      {(enabledPaymentMethods.length > 0 || enabledDeliveryOptions.length > 0) && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {enabledPaymentMethods.length > 0 && (
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                Pagamento {checkoutSettings.requirePaymentMethod && <span className="text-destructive">*</span>}
+                              </Label>
+                              <Select
+                                value={selectedPaymentMethod || ''}
+                                onValueChange={(value) => {
+                                  setSelectedPaymentMethod(value || null);
+                                  if (formErrors.payment) setFormErrors(p => ({ ...p, payment: undefined }));
+                                }}
+                              >
+                                <SelectTrigger className="h-9 text-xs px-3">
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {enabledPaymentMethods.map((method) => {
+                                    const hasDiscount = method.discountValue && method.discountValue > 0;
+                                    return (
+                                      <SelectItem key={method.id} value={method.id} className="text-xs">
+                                        <div className="flex items-center gap-1.5">
+                                          <span>{method.name}</span>
+                                          {hasDiscount && (
+                                            <span className="text-xs text-green-600 dark:text-green-400">
+                                              {method.discountType === 'percentage'
+                                                ? `-${method.discountValue}%`
+                                                : `-${formatCurrencyI18n(method.discountValue!, currency, language)}`
+                                              }
+                                            </span>
+                                          )}
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                              {formErrors.payment && (
+                                <p className="text-xs text-destructive">{formErrors.payment}</p>
+                              )}
+                            </div>
+                          )}
+
+                          {enabledDeliveryOptions.length > 0 && (
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                Entrega {checkoutSettings.requireDeliveryOption && <span className="text-destructive">*</span>}
+                              </Label>
+                              <Select
+                                value={selectedDeliveryOption || ''}
+                                onValueChange={(value) => {
+                                  setSelectedDeliveryOption(value || null);
+                                  if (formErrors.delivery) setFormErrors(p => ({ ...p, delivery: undefined }));
+                                }}
+                              >
+                                <SelectTrigger className="h-9 text-xs px-3">
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {enabledDeliveryOptions.map((option) => {
+                                    const subtotalForFreeCheck = Math.max(0, cart.total - discountAmount - paymentMethodDiscount);
+                                    const isFreeDelivery = option.freeAbove && subtotalForFreeCheck >= option.freeAbove;
+                                    const displayFee = isFreeDelivery ? 0 : option.fee;
+                                    return (
+                                      <SelectItem key={option.id} value={option.id} className="text-xs">
+                                        <div className="flex items-center gap-1.5">
+                                          <span>{option.name}</span>
+                                          <span className={displayFee === 0 ? 'text-xs text-green-600 dark:text-green-400' : 'text-xs text-muted-foreground'}>
+                                            {displayFee === 0 ? 'Gratis' : `+${formatCurrencyI18n(displayFee, currency, language)}`}
+                                          </span>
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                              {formErrors.delivery && (
+                                <p className="text-xs text-destructive">{formErrors.delivery}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
-
-                      {enabledDeliveryOptions.length > 0 && (
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">
-                            Entrega {checkoutSettings.requireDeliveryOption && <span className="text-destructive">*</span>}
-                          </Label>
-                          <Select
-                            value={selectedDeliveryOption || ''}
-                            onValueChange={(value) => {
-                              setSelectedDeliveryOption(value || null);
-                              if (formErrors.delivery) setFormErrors(p => ({ ...p, delivery: undefined }));
-                            }}
-                          >
-                            <SelectTrigger className="h-9 text-xs px-3">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {enabledDeliveryOptions.map((option) => {
-                                const subtotalForFreeCheck = Math.max(0, cart.total - discountAmount - paymentMethodDiscount);
-                                const isFreeDelivery = option.freeAbove && subtotalForFreeCheck >= option.freeAbove;
-                                const displayFee = isFreeDelivery ? 0 : option.fee;
-                                return (
-                                  <SelectItem key={option.id} value={option.id} className="text-xs">
-                                    <div className="flex items-center gap-1.5">
-                                      <span>{option.name}</span>
-                                      <span className={displayFee === 0 ? 'text-xs text-green-600 dark:text-green-400' : 'text-xs text-muted-foreground'}>
-                                        {displayFee === 0 ? 'Gratis' : `+${formatCurrencyI18n(displayFee, currency, language)}`}
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                          {formErrors.delivery && (
-                            <p className="text-xs text-destructive">{formErrors.delivery}</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    </>
                   )}
 
                   {orderMode === 'ecommerce' && (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Endereço de entrega</Label>
-                        {buyerAccount && savedAddresses.length > 0 && (
-                          <Select
-                            value={selectedAddressId || ''}
-                            onValueChange={(value) => {
-                              const address = savedAddresses.find((a) => a.id === value);
-                              if (address) applySavedAddress(address);
-                            }}
-                          >
-                            <SelectTrigger className="h-9 text-xs px-3">
-                              <SelectValue placeholder="Usar endereço salvo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {savedAddresses.map((address) => (
-                                <SelectItem key={address.id} value={address.id} className="text-xs">
-                                  {address.label} — {address.street}, {address.number}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                        <div className="grid grid-cols-3 gap-2">
-                          <Input
-                            placeholder="Rua"
-                            value={shippingAddress.street}
-                            onChange={(e) => setShippingAddress((p) => ({ ...p, street: e.target.value }))}
-                            className="h-9 text-xs px-3 col-span-2"
-                          />
-                          <Input
-                            placeholder="Número"
-                            value={shippingAddress.number}
-                            onChange={(e) => setShippingAddress((p) => ({ ...p, number: e.target.value }))}
-                            className="h-9 text-xs px-3"
-                          />
-                        </div>
-                        <Input
-                          placeholder="Complemento (opcional)"
-                          value={shippingAddress.complement}
-                          onChange={(e) => setShippingAddress((p) => ({ ...p, complement: e.target.value }))}
-                          className="h-9 text-xs px-3"
-                        />
-                        <Input
-                          placeholder="Bairro (opcional)"
-                          value={shippingAddress.neighborhood}
-                          onChange={(e) => setShippingAddress((p) => ({ ...p, neighborhood: e.target.value }))}
-                          className="h-9 text-xs px-3"
-                        />
-                        <div className="grid grid-cols-3 gap-2">
-                          <Input
-                            placeholder="Cidade"
-                            value={shippingAddress.city}
-                            onChange={(e) => setShippingAddress((p) => ({ ...p, city: e.target.value }))}
-                            className="h-9 text-xs px-3 col-span-2"
-                          />
-                          <Input
-                            placeholder="UF"
-                            maxLength={2}
-                            value={shippingAddress.state}
-                            onChange={(e) => setShippingAddress((p) => ({ ...p, state: e.target.value.toUpperCase() }))}
-                            className="h-9 text-xs px-3"
-                          />
-                        </div>
-                        <Input
-                          placeholder="CEP"
-                          value={shippingAddress.zipCode}
-                          onChange={(e) => setShippingAddress((p) => ({ ...p, zipCode: e.target.value }))}
-                          className="h-9 text-xs px-3"
-                        />
-                      </div>
-
-                      {!buyerAccount && <BuyerAuthInline onSuccess={() => {}} storeSlug={corretor.slug} />}
+                    <div className="rounded-lg border p-3 text-xs text-muted-foreground">
+                      Na próxima etapa você escolhe endereço, frete e paga com Pix ou cartão.
                     </div>
                   )}
 
@@ -1377,7 +1195,7 @@ export default function CartModal({
                   <Button
                     variant="outline"
                     onClick={() => setStep('cart')}
-                    disabled={sendingOrder || placingEcommerceOrder}
+                    disabled={sendingOrder}
                     size="sm"
                     className="flex-1 h-10"
                   >
@@ -1386,12 +1204,11 @@ export default function CartModal({
                   </Button>
                   {orderMode === 'ecommerce' ? (
                     <Button
-                      onClick={handlePayOnline}
-                      disabled={placingEcommerceOrder || !buyerAccount}
+                      onClick={goToOnlineCheckout}
                       size="sm"
                       className="flex-1 h-10"
                     >
-                      {placingEcommerceOrder ? 'Processando...' : 'Pagar Agora'}
+                      Continuar para pagamento
                     </Button>
                   ) : (
                     <Button

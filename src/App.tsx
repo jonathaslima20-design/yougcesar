@@ -57,6 +57,7 @@ import BuyerProfilePage from '@/pages/buyer/BuyerProfilePage.tsx';
 import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
 import BuyerOrderDetailPage from '@/pages/buyer/BuyerOrderDetailPage.tsx';
 import OrderPaymentPage from '@/pages/storefront/OrderPaymentPage.tsx';
+import CheckoutAddressPage from '@/pages/storefront/CheckoutAddressPage.tsx';
 
 // Dashboard Pages
 import DashboardPage from '@/pages/dashboard/DashboardPage.tsx';
@@ -350,6 +351,7 @@ function AppContent() {
         <Route element={<PublicLayout />}>
           <Route path="/:slug" element={<CorretorPage />} />
           <Route path="/:slug/produtos/:productId" element={<ProductDetailsPage />} />
+          <Route path="/:slug/pedido/endereco" element={<CheckoutAddressPage />} />
           <Route path="/:slug/pedido/:orderId/pagamento" element={<OrderPaymentPage />} />
         </Route>
       </Routes>
