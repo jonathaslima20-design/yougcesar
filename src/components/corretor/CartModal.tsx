@@ -434,10 +434,6 @@ export default function CartModal({
       // Mobile browsers (iOS Safari, Android Chrome) block window.open() if called
       // after any await, because the user-gesture context is lost across async boundaries.
       const popup = window.open(whatsappUrl, '_blank');
-      if (!popup) {
-        // Popup blocked — fall back to navigation in the same tab
-        window.location.href = whatsappUrl;
-      }
 
       toast.success('Pedido enviado! Abrindo WhatsApp...');
 
@@ -473,6 +469,12 @@ export default function CartModal({
       }
 
       await trackWhatsAppClick('storefront', 'product', 'cart_checkout');
+
+      if (!popup) {
+        // Popup was blocked — only now fall back to navigating the same tab,
+        // after the order/stock-deduction writes above had a chance to complete.
+        window.location.href = whatsappUrl;
+      }
 
       clearCart();
       clearCoupon();
