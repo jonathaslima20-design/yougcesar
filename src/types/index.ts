@@ -550,6 +550,7 @@ export type NotificationType =
   | 'referral_upgrade'
   | 'promotional_offer'
   | 'novidades'
+  | 'order_status_change'
   | 'system';
 
 export interface AppNotification {

@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useParams, Link } from 'react-router-dom';
-import { Loader, Check, ArrowLeft } from 'lucide-react';
+import { Navigate, useParams, useNavigate, Link } from 'react-router-dom';
+import { Loader, Check, ArrowLeft, RotateCcw, MessageCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
+import { reorderItems } from '@/lib/buyerReorder';
+import { getWhatsAppContactUrl } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +37,7 @@ interface OrderDetailRow {
 
 interface OrderItemRow {
   id: string;
+  product_id: string;
   product_title: string;
   product_image_url: string | null;
   quantity: number;
@@ -47,6 +52,10 @@ interface OrderItemRow {
 interface StoreInfo {
   name: string;
   slug: string;
+  whatsapp?: string;
+  whatsapp_mode?: string;
+  whatsapp_link?: string;
+  country_code?: string;
 }
 
 const STEPS: { status: OrderStatus; label: string }[] = [
@@ -72,12 +81,15 @@ function formatMoney(value: number) {
 
 export default function BuyerOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
+  const navigate = useNavigate();
   const { customer, loading: authLoading } = useBuyerAuth();
+  const { addToCart, clearCart } = useCart();
   const [order, setOrder] = useState<OrderDetailRow | null>(null);
   const [items, setItems] = useState<OrderItemRow[]>([]);
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
     if (!customer || !orderId) return;
@@ -104,10 +116,14 @@ export default function BuyerOrderDetailPage() {
         supabaseBuyer
           .from('order_items')
           .select(
-            'id, product_title, product_image_url, quantity, unit_price, selected_color, selected_size, selected_flavor, selected_variant_label, subtotal'
+            'id, product_id, product_title, product_image_url, quantity, unit_price, selected_color, selected_size, selected_flavor, selected_variant_label, subtotal'
           )
           .eq('order_id', orderId),
-        supabaseBuyer.from('users').select('name, slug').eq('id', orderRow.store_owner_id).maybeSingle(),
+        supabaseBuyer
+          .from('users')
+          .select('name, slug, whatsapp, whatsapp_mode, whatsapp_link, country_code')
+          .eq('id', orderRow.store_owner_id)
+          .maybeSingle(),
       ]);
 
       setItems(itemRows || []);
@@ -119,6 +135,34 @@ export default function BuyerOrderDetailPage() {
   if (!authLoading && !customer) {
     return <Navigate to="/conta/entrar" state={{ from: `/conta/pedidos/${orderId}` }} replace />;
   }
+
+  const handleReorder = async () => {
+    if (!store?.slug || items.length === 0) return;
+    setReordering(true);
+    try {
+      clearCart();
+      const result = await reorderItems(items, addToCart);
+      if (result.addedCount > 0) {
+        toast.success(
+          result.skipped.length > 0
+            ? `${result.addedCount} ${result.addedCount === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho. ${result.skipped.length} não ${result.skipped.length === 1 ? 'está' : 'estão'} mais disponível.`
+            : 'Itens adicionados ao carrinho!'
+        );
+        navigate(`/${store.slug}`);
+      } else {
+        toast.error('Nenhum item deste pedido está disponível no momento.');
+      }
+    } finally {
+      setReordering(false);
+    }
+  };
+
+  const whatsappUrl = store?.whatsapp || store?.whatsapp_link
+    ? getWhatsAppContactUrl(
+        store,
+        `Olá! Gostaria de falar sobre meu pedido #${(orderId || '').slice(0, 8)}.`
+      )
+    : null;
 
   const currentStepIndex = order ? STEPS.findIndex((s) => s.status === order.status) : -1;
   const hasAddress = order && (order.shipping_street || order.shipping_city);
@@ -272,6 +316,27 @@ export default function BuyerOrderDetailPage() {
                 <Link to={`/${store.slug}/pedido/${order.id}/pagamento`}>Continuar pagamento</Link>
               </Button>
             )}
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              {whatsappUrl && (
+                <Button variant="outline" asChild className="flex-1">
+                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Falar com o vendedor
+                  </a>
+                </Button>
+              )}
+              {store?.slug && (
+                <Button variant="outline" onClick={handleReorder} disabled={reordering} className="flex-1">
+                  {reordering ? (
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                  )}
+                  Repetir pedido
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>

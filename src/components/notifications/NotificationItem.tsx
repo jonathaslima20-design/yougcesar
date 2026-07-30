@@ -19,6 +19,7 @@ const ICON_MAP: Record<NotificationType, React.ElementType> = {
   referral_upgrade: Gift,
   promotional_offer: Tag,
   novidades: Sparkles,
+  order_status_change: ShoppingBag,
   system: Info,
 };
 
@@ -36,6 +37,7 @@ const COLOR_MAP: Record<NotificationType, string> = {
   referral_upgrade: 'text-emerald-600 bg-emerald-500/10',
   promotional_offer: 'text-pink-500 bg-pink-500/10',
   novidades: 'text-sky-500 bg-sky-500/10',
+  order_status_change: 'text-teal-500 bg-teal-500/10',
   system: 'text-muted-foreground bg-muted',
 };
 

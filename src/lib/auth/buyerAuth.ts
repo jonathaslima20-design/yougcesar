@@ -6,6 +6,7 @@ export interface Customer {
   full_name: string;
   whatsapp: string | null;
   country_code: string;
+  avatar_url?: string | null;
   created_at?: string;
   updated_at?: string;
 }

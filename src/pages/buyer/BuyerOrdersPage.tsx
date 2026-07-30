@@ -1,12 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { Loader, Package } from 'lucide-react';
+import { Loader, Package, RotateCcw, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
+import { reorderItems } from '@/lib/buyerReorder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { BuyerAccountNav } from '@/components/buyer/BuyerAccountNav';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import type { OrderStatus } from '@/types';
@@ -34,12 +46,43 @@ const PAYMENT_STATUS_LABELS: Record<string, { label: string; variant: 'default' 
   cancelled: { label: 'Cancelado', variant: 'destructive' },
 };
 
+const STATUS_OPTIONS: { value: OrderStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'Todos os status' },
+  { value: 'pending', label: 'Recebido' },
+  { value: 'confirmed', label: 'Confirmado' },
+  { value: 'preparing', label: 'Preparando' },
+  { value: 'shipped', label: 'Enviado' },
+  { value: 'delivered', label: 'Entregue' },
+  { value: 'cancelled', label: 'Cancelado' },
+];
+
+function OrdersSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-center justify-between border border-border rounded-lg p-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-5 w-40" />
+          </div>
+          <Skeleton className="h-5 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function BuyerOrdersPage() {
   const { customer, loading: authLoading } = useBuyerAuth();
+  const { addToCart, clearCart } = useCart();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<BuyerOrderRow[]>([]);
   const [stores, setStores] = useState<Record<string, StoreInfo>>({});
   const [loading, setLoading] = useState(true);
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
 
   useEffect(() => {
     if (!customer) return;
@@ -72,6 +115,49 @@ export default function BuyerOrdersPage() {
     return <Navigate to="/conta/entrar" state={{ from: '/conta/pedidos' }} replace />;
   }
 
+  const filteredOrders = orders.filter((order) => {
+    if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+    if (searchQuery.trim()) {
+      const storeName = stores[order.store_owner_id]?.name || '';
+      if (!storeName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  const handleReorder = async (order: BuyerOrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const store = stores[order.store_owner_id];
+    if (!store?.slug) return;
+
+    setReorderingId(order.id);
+    try {
+      const { data: itemRows } = await supabaseBuyer
+        .from('order_items')
+        .select('product_id, product_title, quantity, selected_color, selected_size, selected_flavor, selected_variant_label')
+        .eq('order_id', order.id);
+
+      if (!itemRows || itemRows.length === 0) {
+        toast.error('Não foi possível encontrar os itens deste pedido.');
+        return;
+      }
+
+      clearCart();
+      const result = await reorderItems(itemRows, addToCart);
+      if (result.addedCount > 0) {
+        toast.success(
+          result.skipped.length > 0
+            ? `${result.addedCount} ${result.addedCount === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho. ${result.skipped.length} não ${result.skipped.length === 1 ? 'está' : 'estão'} mais disponível.`
+            : 'Itens adicionados ao carrinho!'
+        );
+        navigate(`/${store.slug}`);
+      } else {
+        toast.error('Nenhum item deste pedido está disponível no momento.');
+      }
+    } finally {
+      setReorderingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="fixed top-4 right-4 z-50">
@@ -86,18 +172,47 @@ export default function BuyerOrdersPage() {
             <CardTitle>Meus Pedidos</CardTitle>
           </CardHeader>
           <CardContent>
-            {authLoading || loading ? (
-              <div className="flex justify-center py-8">
-                <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
+            {!loading && orders.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por loja..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all')}>
+                  <SelectTrigger className="sm:w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            )}
+
+            {authLoading || loading ? (
+              <OrdersSkeleton />
             ) : orders.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>Você ainda não fez nenhum pedido.</p>
               </div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Search className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                <p>Nenhum pedido encontrado com esses filtros.</p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {orders.map((order) => {
+                {filteredOrders.map((order) => {
                   const paymentInfo = PAYMENT_STATUS_LABELS[order.payment_status] || PAYMENT_STATUS_LABELS.not_applicable;
                   const store = stores[order.store_owner_id];
                   return (
@@ -119,7 +234,7 @@ export default function BuyerOrdersPage() {
                           <Badge variant={paymentInfo.variant}>{paymentInfo.label}</Badge>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-1">
                         <p className="font-semibold">
                           {order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </p>
@@ -132,6 +247,22 @@ export default function BuyerOrdersPage() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Link to={`/${store.slug}/pedido/${order.id}/pagamento`}>Continuar pagamento</Link>
+                          </Button>
+                        )}
+                        {store?.slug && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+                            onClick={(e) => handleReorder(order, e)}
+                            disabled={reorderingId === order.id}
+                          >
+                            {reorderingId === order.id ? (
+                              <Loader className="mr-1 h-3 w-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="mr-1 h-3 w-3" />
+                            )}
+                            Repetir pedido
                           </Button>
                         )}
                       </div>

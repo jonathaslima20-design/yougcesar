@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BuyerAuthProvider } from '@/contexts/BuyerAuthContext';
+import { BuyerNotificationProvider } from '@/contexts/BuyerNotificationContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { SubscriptionModalProvider } from '@/contexts/SubscriptionModalContext';
 import { CorretorPageStateProvider } from '@/contexts/CorretorPageStateContext';
@@ -365,21 +366,23 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <BuyerAuthProvider>
-            <NotificationProvider>
-              <SubscriptionModalProvider>
-                <PromotionalOffersProvider>
-                  <CartProvider>
-                    <CorretorPageStateProvider>
-                      <AppContent />
-                      <OfferDisplayManager />
-                      <Toaster />
-                      <FloatingWhatsAppButton />
-                      <CookieConsentBanner />
-                    </CorretorPageStateProvider>
-                  </CartProvider>
-                </PromotionalOffersProvider>
-              </SubscriptionModalProvider>
-            </NotificationProvider>
+            <BuyerNotificationProvider>
+              <NotificationProvider>
+                <SubscriptionModalProvider>
+                  <PromotionalOffersProvider>
+                    <CartProvider>
+                      <CorretorPageStateProvider>
+                        <AppContent />
+                        <OfferDisplayManager />
+                        <Toaster />
+                        <FloatingWhatsAppButton />
+                        <CookieConsentBanner />
+                      </CorretorPageStateProvider>
+                    </CartProvider>
+                  </PromotionalOffersProvider>
+                </SubscriptionModalProvider>
+              </NotificationProvider>
+            </BuyerNotificationProvider>
           </BuyerAuthProvider>
         </AuthProvider>
       </ThemeProvider>

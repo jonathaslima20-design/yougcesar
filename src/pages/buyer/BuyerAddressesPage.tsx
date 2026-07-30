@@ -40,6 +40,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Skeleton } from '@/components/ui/skeleton';
 import { BuyerAccountNav } from '@/components/buyer/BuyerAccountNav';
 
 const BR_STATES = [
@@ -338,8 +339,17 @@ export default function BuyerAddressesPage() {
           </CardHeader>
           <CardContent>
             {authLoading || loading ? (
-              <div className="flex justify-center py-8">
-                <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="space-y-3">
+                {[0, 1].map((i) => (
+                  <div key={i} className="border border-border rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-14 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-full max-w-xs" />
+                    <Skeleton className="h-3 w-2/3 max-w-xs" />
+                  </div>
+                ))}
               </div>
             ) : addresses.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
