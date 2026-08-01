@@ -898,6 +898,18 @@ function SocialProofSection() {
   );
 }
 
+function TopSocialProofSection() {
+  return (
+    <section className="pb-24 lg:pb-32 bg-white" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 260px' }}>
+      <div className="max-w-7xl mx-auto px-6 lg:px-10">
+        <Suspense fallback={<div className="mt-14 min-h-[140px] rounded-2xl border hairline bg-surface animate-pulse" />}>
+          <LandingSocialProof />
+        </Suspense>
+      </div>
+    </section>
+  );
+}
+
 function PricingSection({ refCode }: { refCode: string | null }) {
   const allPaidBenefits = [
     'Produtos ilimitados',
@@ -1200,6 +1212,7 @@ function FooterLanding() {
 const MemoizedBentoGrid = memo(BentoGrid);
 const MemoizedAnalyticsSection = memo(AnalyticsSection);
 const MemoizedSocialProofSection = memo(SocialProofSection);
+const MemoizedTopSocialProofSection = memo(TopSocialProofSection);
 const MemoizedFaqSection = memo(FaqSection);
 const MemoizedFooterLanding = memo(FooterLanding);
 
@@ -1211,6 +1224,7 @@ export default function LandingPage() {
     <div className="vt-root min-h-screen bg-white text-ink-900">
       <Header refCode={refCode} />
       <Hero refCode={refCode} />
+      <MemoizedTopSocialProofSection />
       <MemoizedBentoGrid />
       <ProFeaturesSection refCode={refCode} />
       <DifferentiationSection refCode={refCode} />
