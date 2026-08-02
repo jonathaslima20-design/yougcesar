@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, MinimumPurchaseConfig } from '@/types';
+import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, MinimumPurchaseConfig, ShippingInsuranceConfig } from '@/types';
 
 const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   { id: 'pix', name: 'PIX', enabled: false },
@@ -17,6 +17,11 @@ const DEFAULT_MINIMUM_PURCHASE: MinimumPurchaseConfig = {
   value: 0,
 };
 
+const DEFAULT_SHIPPING_INSURANCE: ShippingInsuranceConfig = {
+  enabled: false,
+  percentageRate: 0,
+};
+
 const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   paymentMethods: DEFAULT_PAYMENT_METHODS,
   deliveryOptions: [],
@@ -25,6 +30,7 @@ const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   cartEnabled: true,
   minimumPurchase: DEFAULT_MINIMUM_PURCHASE,
   checkoutMode: 'whatsapp',
+  shippingInsurance: DEFAULT_SHIPPING_INSURANCE,
 };
 
 interface UseCheckoutSettingsReturn {
@@ -32,6 +38,7 @@ interface UseCheckoutSettingsReturn {
   loading: boolean;
   saving: boolean;
   updateSettings: (settings: CheckoutSettings) => Promise<void>;
+  insuranceGateEnabled: boolean;
 }
 
 export function useCheckoutSettings(): UseCheckoutSettingsReturn {
@@ -65,6 +72,7 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
             cartEnabled: data.settings.checkout.cartEnabled ?? true,
             minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
             checkoutMode: data.settings.checkout.checkoutMode ?? 'whatsapp',
+            shippingInsurance: data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE,
           });
         }
       }
@@ -117,7 +125,7 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
     }
   }, [user?.id, settingsId]);
 
-  return { settings, loading, saving, updateSettings };
+  return { settings, loading, saving, updateSettings, insuranceGateEnabled: !!user?.insurance_enabled };
 }
 
 export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
@@ -143,7 +151,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           .maybeSingle(),
         supabase
           .from('users')
-          .select('payments_test_override')
+          .select('payments_test_override, insurance_enabled')
           .eq('id', storeOwnerId)
           .maybeSingle(),
       ]);
@@ -158,6 +166,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
 
       if (!error && data?.settings?.checkout) {
         const storeCheckoutMode = data.settings.checkout.checkoutMode ?? 'whatsapp';
+        const rawShippingInsurance = data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE;
         setSettings({
           paymentMethods: data.settings.checkout.paymentMethods ?? DEFAULT_PAYMENT_METHODS,
           deliveryOptions: data.settings.checkout.deliveryOptions ?? [],
@@ -166,6 +175,9 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
           minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
           checkoutMode: paymentsEnabledForStore ? storeCheckoutMode : 'whatsapp',
+          // Admin gate: never leak a stale insurance opt-in to buyers if the
+          // merchant's access was revoked after they configured a rate.
+          shippingInsurance: storeOwner?.insurance_enabled ? rawShippingInsurance : DEFAULT_SHIPPING_INSURANCE,
         });
       }
       setLoading(false);

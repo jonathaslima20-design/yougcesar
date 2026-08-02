@@ -20,6 +20,7 @@ interface CreateOrderData {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
+  insurance_fee?: number;
   buyer_id?: string | null;
   payment_status?: string;
   shipping_street?: string | null;
@@ -87,6 +88,7 @@ export async function createOrder(
     p_payment_method_discount: orderData.payment_method_discount || 0,
     p_delivery_fee: orderData.delivery_fee || 0,
     p_delivery_option: orderData.delivery_option || null,
+    p_insurance_fee: orderData.insurance_fee || 0,
     p_items: orderItems,
     p_buyer_id: orderData.buyer_id || null,
     p_payment_status: orderData.payment_status || 'not_applicable',

@@ -30,6 +30,7 @@ interface PaymentDeliveryInfo {
   paymentMethodDiscount?: number;
   deliveryOption?: string | null;
   deliveryFee?: number;
+  insuranceFee?: number;
 }
 
 export function generateCartOrderMessage(
@@ -266,6 +267,15 @@ export function generateCartOrderMessage(
       'es-ES': 'Gratis',
     };
     orderMessage += `*${deliveryLabels[language] || deliveryLabels['pt-BR']}:* ${paymentDelivery.deliveryOption} (${freeLabels[language] || freeLabels['pt-BR']})\n`;
+  }
+
+  if (paymentDelivery?.insuranceFee && paymentDelivery.insuranceFee > 0) {
+    const insuranceLabels = {
+      'pt-BR': 'Seguro de frete',
+      'en-US': 'Shipping insurance',
+      'es-ES': 'Seguro de envío',
+    };
+    orderMessage += `*${insuranceLabels[language] || insuranceLabels['pt-BR']}:* +${formatCurrencyI18n(paymentDelivery.insuranceFee, currency, language)}\n`;
   }
 
   const totalLabels = {

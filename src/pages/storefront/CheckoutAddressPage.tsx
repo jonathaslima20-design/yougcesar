@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check } from 'lucide-react';
+import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -65,6 +66,7 @@ export default function CheckoutAddressPage() {
   const [whatsappFallback, setWhatsappFallback] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string | null>(null);
+  const [insuranceOptIn, setInsuranceOptIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const hasItems = cart.items.length > 0 || cart.distributions.length > 0;
@@ -136,15 +138,22 @@ export default function CheckoutAddressPage() {
   const selectedDeliveryConfig = enabledDeliveryOptions.find((d) => d.id === selectedDeliveryOption);
 
   const discountAmount = appliedCoupon?.calculatedDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, cart.total - discountAmount);
 
   const deliveryFee = (() => {
     if (!selectedDeliveryConfig) return 0;
-    const subtotalAfterDiscount = Math.max(0, cart.total - discountAmount);
     if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscount >= selectedDeliveryConfig.freeAbove) return 0;
     return selectedDeliveryConfig.fee;
   })();
 
-  const finalTotal = Math.max(0, cart.total - discountAmount + deliveryFee);
+  const insuranceRate = checkoutSettings.shippingInsurance?.enabled
+    ? checkoutSettings.shippingInsurance.percentageRate || 0
+    : 0;
+  const insuranceFee = insuranceOptIn && insuranceRate > 0
+    ? Math.round(subtotalAfterDiscount * (insuranceRate / 100) * 100) / 100
+    : 0;
+
+  const finalTotal = Math.max(0, cart.total - discountAmount + deliveryFee + insuranceFee);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || !corretor) return;
@@ -281,6 +290,7 @@ export default function CheckoutAddressPage() {
           discount_amount: discountAmount,
           delivery_fee: deliveryFee,
           delivery_option: selectedDeliveryConfig?.name || null,
+          insurance_fee: insuranceFee,
           buyer_id: buyerAccount.id,
           payment_status: 'pending',
           shipping_street: finalAddress.street.trim(),
@@ -548,6 +558,28 @@ export default function CheckoutAddressPage() {
 
             <Separator />
 
+            {checkoutSettings.shippingInsurance?.enabled && insuranceRate > 0 && (
+              <>
+                <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer">
+                  <Checkbox
+                    checked={insuranceOptIn}
+                    onCheckedChange={(checked) => setInsuranceOptIn(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Contratar seguro de frete
+                    </span>
+                    <span className="text-muted-foreground block">
+                      Proteja sua compra por +{formatCurrencyI18n(subtotalAfterDiscount * (insuranceRate / 100))} ({insuranceRate}%)
+                    </span>
+                  </span>
+                </label>
+                <Separator />
+              </>
+            )}
+
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal ({cart.itemCount} {cart.itemCount === 1 ? 'item' : 'itens'})</span>
@@ -565,6 +597,15 @@ export default function CheckoutAddressPage() {
                   <span className={deliveryFee === 0 ? 'text-green-600 dark:text-green-400' : ''}>
                     {deliveryFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(deliveryFee)}`}
                   </span>
+                </div>
+              )}
+              {insuranceFee > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Seguro de frete
+                  </span>
+                  <span>+{formatCurrencyI18n(insuranceFee)}</span>
                 </div>
               )}
             </div>

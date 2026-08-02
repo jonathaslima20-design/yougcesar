@@ -67,6 +67,7 @@ export interface User {
   fbclid?: string;
   max_images_per_product?: number;
   payments_test_override?: boolean;
+  insurance_enabled?: boolean;
   last_login_at?: string;
   login_count?: number;
   onboarding_completed_steps?: string[];
@@ -461,6 +462,7 @@ export interface Order {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
+  insurance_fee?: number;
   buyer_id?: string | null;
   payment_status?: OrderPaymentStatus;
   shipping_street?: string | null;
@@ -675,6 +677,11 @@ export interface MinimumPurchaseConfig {
   value: number;
 }
 
+export interface ShippingInsuranceConfig {
+  enabled: boolean;       // merchant's own on/off switch (only usable if users.insurance_enabled is true)
+  percentageRate: number; // e.g. 2.5 = 2.5% of subtotal after coupon discount
+}
+
 export type CheckoutMode = 'whatsapp' | 'ecommerce_optional' | 'ecommerce_only';
 
 export interface CheckoutSettings {
@@ -685,4 +692,5 @@ export interface CheckoutSettings {
   cartEnabled?: boolean;
   minimumPurchase?: MinimumPurchaseConfig;
   checkoutMode?: CheckoutMode; // missing = treated as 'whatsapp' (back-compat)
+  shippingInsurance?: ShippingInsuranceConfig;
 }

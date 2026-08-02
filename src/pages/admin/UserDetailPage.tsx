@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award, MessageCircle, ShieldCheck } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditImageLimitDialog } from '@/components/admin/EditImageLimitDialog';
@@ -315,6 +315,22 @@ export default function UserDetailPage() {
     } catch (error) {
       console.error('Error toggling payments test override:', error);
       toast.error('Erro ao atualizar liberação de pagamento online');
+    }
+  };
+
+  const handleToggleInsuranceEnabled = async (enabled: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ insurance_enabled: enabled })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, insurance_enabled: enabled });
+      toast.success(enabled ? 'Seguro de frete liberado para este usuário' : 'Seguro de frete desativado para este usuário');
+    } catch (error) {
+      console.error('Error toggling insurance enabled:', error);
+      toast.error('Erro ao atualizar liberação do seguro de frete');
     }
   };
 
@@ -661,6 +677,23 @@ export default function UserDetailPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Libera pagamento online (aba Pagamento, ativação de credenciais e checkout na vitrine) só para esse usuário, mesmo com a chave geral da plataforma desligada. Use para finalizar e testar a funcionalidade em uma conta real.
+                    </p>
+                  </div>
+
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">Seguro de frete</span>
+                      </div>
+                      <Switch
+                        checked={!!user.insurance_enabled}
+                        onCheckedChange={handleToggleInsuranceEnabled}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Libera a configuração de seguro de frete (aba Checkout) para esse usuário. Quando desativado, o card de seguro fica oculto nas configurações de checkout do vendedor e a opção nunca aparece para os compradores da loja, mesmo que o vendedor já tenha configurado uma taxa antes.
                     </p>
                   </div>
                 </>

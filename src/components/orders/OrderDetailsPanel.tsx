@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ExternalLink, ChevronDown, ChevronUp, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ShieldCheck, ExternalLink, ChevronDown, ChevronUp, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -391,7 +391,7 @@ export default function OrderDetailsPanel({
             <Separator />
 
             {/* Price Breakdown */}
-            {(order.coupon_code || order.payment_method || order.delivery_option) && (
+            {(order.coupon_code || order.payment_method || order.delivery_option || (order.insurance_fee && order.insurance_fee > 0)) && (
               <>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -430,13 +430,24 @@ export default function OrderDetailsPanel({
                       </span>
                     </div>
                   )}
+                  {!!order.insurance_fee && order.insurance_fee > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Seguro de frete
+                      </span>
+                      <span className="text-sm font-medium">
+                        +{formatCurrency(order.insurance_fee)}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <Separator />
               </>
             )}
 
             {/* Payment Method (when no price breakdown section) */}
-            {order.payment_method && !order.coupon_code && !order.delivery_option && !(order.payment_method_discount && order.payment_method_discount > 0) && (
+            {order.payment_method && !order.coupon_code && !order.delivery_option && !(order.insurance_fee && order.insurance_fee > 0) && !(order.payment_method_discount && order.payment_method_discount > 0) && (
               <>
                 <div className="flex items-center gap-1.5 text-sm">
                   <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
@@ -456,7 +467,7 @@ export default function OrderDetailsPanel({
             </div>
 
             {/* Payment Method Label (shown under total when breakdown section already present) */}
-            {order.payment_method && (order.coupon_code || order.delivery_option || (order.payment_method_discount && order.payment_method_discount > 0)) && (
+            {order.payment_method && (order.coupon_code || order.delivery_option || (order.insurance_fee && order.insurance_fee > 0) || (order.payment_method_discount && order.payment_method_discount > 0)) && (
               <div className="flex items-center gap-1.5 text-sm">
                 <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-muted-foreground">Pagamento:</span>

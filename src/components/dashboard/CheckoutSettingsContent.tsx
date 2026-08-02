@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart, Minimize2 } from 'lucide-react';
+import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart, Minimize2, ShieldCheck } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ const BR_STATES = [
 ];
 
 export default function CheckoutSettingsContent() {
-  const { settings, loading, saving, updateSettings } = useCheckoutSettings();
+  const { settings, loading, saving, updateSettings, insuranceGateEnabled } = useCheckoutSettings();
   const [newMethodName, setNewMethodName] = useState('');
   const [newDeliveryName, setNewDeliveryName] = useState('');
   const [newDeliveryFee, setNewDeliveryFee] = useState(0);
@@ -153,6 +153,26 @@ export default function CheckoutSettingsContent() {
 
   const toggleCartEnabled = (checked: boolean) => {
     save({ ...settings, cartEnabled: checked });
+  };
+
+  const toggleShippingInsurance = (enabled: boolean) => {
+    save({
+      ...settings,
+      shippingInsurance: {
+        ...(settings.shippingInsurance ?? { percentageRate: 0 }),
+        enabled,
+      },
+    });
+  };
+
+  const updateShippingInsuranceRate = (percentageRate: number) => {
+    save({
+      ...settings,
+      shippingInsurance: {
+        ...(settings.shippingInsurance ?? { enabled: false }),
+        percentageRate,
+      },
+    });
   };
 
   if (loading) {
@@ -454,6 +474,62 @@ export default function CheckoutSettingsContent() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Shipping Insurance — only visible when admin has granted this merchant access */}
+      {insuranceGateEnabled && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Seguro de Frete</CardTitle>
+            </div>
+            <CardDescription>
+              Ofereça um seguro opcional para o cliente proteger a compra. A taxa é calculada sobre o subtotal do pedido, após o desconto de cupom e sem contar o frete, e só é cobrada se o cliente marcar a opção no checkout.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="shipping-insurance-enabled">Oferecer seguro de frete</Label>
+                <p className="text-xs text-muted-foreground">
+                  Quando ativado, o cliente verá a opção de contratar o seguro na finalização da compra.
+                </p>
+              </div>
+              <Switch
+                id="shipping-insurance-enabled"
+                checked={settings.shippingInsurance?.enabled ?? false}
+                onCheckedChange={toggleShippingInsurance}
+                disabled={saving}
+              />
+            </div>
+
+            {(settings.shippingInsurance?.enabled ?? false) && (
+              <div className="space-y-2">
+                <Label htmlFor="shipping-insurance-rate">Percentual do seguro</Label>
+                <div className="relative w-40">
+                  <Input
+                    id="shipping-insurance-rate"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={settings.shippingInsurance?.percentageRate ?? 0}
+                    onChange={(e) =>
+                      updateShippingInsuranceRate(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
+                    }
+                    className="pr-7"
+                    disabled={saving}
+                  />
+                  <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Calculado sobre o subtotal do pedido após o desconto do cupom (sem o frete).
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

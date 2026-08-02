@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet, Check, Info, CreditCard } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet, Check, Info, CreditCard, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -79,6 +80,7 @@ export default function CartModal({
   const [couponCode, setCouponCode] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string | null>(null);
+  const [insuranceOptIn, setInsuranceOptIn] = useState(false);
 
   const navigate = useNavigate();
   const { customer: buyerAccount } = useBuyerAuth();
@@ -112,14 +114,22 @@ export default function CartModal({
     return Math.min(selectedPaymentConfig.discountValue, subtotalAfterCoupon);
   })();
 
+  const subtotalAfterDiscounts = Math.max(0, cart.total - discountAmount - paymentMethodDiscount);
+
   const deliveryFee = (() => {
     if (!selectedDeliveryConfig) return 0;
-    const subtotalAfterDiscounts = Math.max(0, cart.total - discountAmount - paymentMethodDiscount);
     if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscounts >= selectedDeliveryConfig.freeAbove) return 0;
     return selectedDeliveryConfig.fee;
   })();
 
-  const finalTotal = Math.max(0, cart.total - discountAmount - paymentMethodDiscount + deliveryFee);
+  const insuranceRate = checkoutSettings.shippingInsurance?.enabled
+    ? checkoutSettings.shippingInsurance.percentageRate || 0
+    : 0;
+  const insuranceFee = insuranceOptIn && insuranceRate > 0
+    ? Math.round(subtotalAfterDiscounts * (insuranceRate / 100) * 100) / 100
+    : 0;
+
+  const finalTotal = Math.max(0, cart.total - discountAmount - paymentMethodDiscount + deliveryFee + insuranceFee);
 
   useEffect(() => {
     const loadTieredPricing = async () => {
@@ -164,6 +174,7 @@ export default function CartModal({
         paymentMethodDiscount,
         deliveryOption: selectedDeliveryConfig?.name || null,
         deliveryFee,
+        insuranceFee,
       }
     );
   };
@@ -343,6 +354,7 @@ export default function CartModal({
             payment_method_discount: paymentMethodDiscount,
             delivery_fee: deliveryFee,
             delivery_option: selectedDeliveryConfig?.name || null,
+            insurance_fee: insuranceFee,
           },
           orderItems,
           inventoryEnabled && autoDeductStock
@@ -366,6 +378,7 @@ export default function CartModal({
       setCouponCode('');
       setSelectedPaymentMethod(null);
       setSelectedDeliveryOption(null);
+      setInsuranceOptIn(false);
       setStep('cart');
       setCustomerName('');
       setCustomerPhone('');
@@ -1128,6 +1141,25 @@ export default function CartModal({
                           )}
                         </div>
                       )}
+
+                      {checkoutSettings.shippingInsurance?.enabled && insuranceRate > 0 && (
+                        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer">
+                          <Checkbox
+                            checked={insuranceOptIn}
+                            onCheckedChange={(checked) => setInsuranceOptIn(checked === true)}
+                            className="mt-0.5"
+                          />
+                          <span className="text-xs">
+                            <span className="font-medium flex items-center gap-1.5">
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Contratar seguro de frete
+                            </span>
+                            <span className="text-muted-foreground block">
+                              Proteja sua compra por +{formatCurrencyI18n(subtotalAfterDiscounts * (insuranceRate / 100), currency, language)} ({insuranceRate}%)
+                            </span>
+                          </span>
+                        </label>
+                      )}
                     </>
                   )}
 
@@ -1178,6 +1210,15 @@ export default function CartModal({
                           <span>
                             {deliveryFee === 0 ? 'Gratis' : `+${formatCurrencyI18n(deliveryFee, currency, language)}`}
                           </span>
+                        </div>
+                      )}
+                      {insuranceFee > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground flex items-center gap-1.5">
+                            <ShieldCheck className="h-3 w-3" />
+                            Seguro de frete
+                          </span>
+                          <span>+{formatCurrencyI18n(insuranceFee, currency, language)}</span>
                         </div>
                       )}
                     </div>

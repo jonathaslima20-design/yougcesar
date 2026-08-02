@@ -23,6 +23,7 @@ interface OrderDetailRow {
   order_type: string;
   subtotal: number;
   delivery_fee: number | null;
+  insurance_fee: number | null;
   discount_amount: number | null;
   total: number;
   created_at: string;
@@ -99,7 +100,7 @@ export default function BuyerOrderDetailPage() {
       const { data: orderRow } = await supabaseBuyer
         .from('orders')
         .select(
-          'id, store_owner_id, status, payment_status, order_type, subtotal, delivery_fee, discount_amount, total, created_at, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code'
+          'id, store_owner_id, status, payment_status, order_type, subtotal, delivery_fee, insurance_fee, discount_amount, total, created_at, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code'
         )
         .eq('id', orderId)
         .eq('buyer_id', customer.id)
@@ -277,6 +278,12 @@ export default function BuyerOrderDetailPage() {
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Entrega</span>
                     <span>{formatMoney(order.delivery_fee)}</span>
+                  </div>
+                )}
+                {!!order.insurance_fee && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Seguro de frete</span>
+                    <span>{formatMoney(order.insurance_fee)}</span>
                   </div>
                 )}
                 {!!order.discount_amount && (
