@@ -116,7 +116,8 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
             plan_status,
             billing_cycle,
             subscription_end_date,
-            referral_code
+            referral_code,
+            affiliate_program_enabled
           `)
           .eq('slug', slug)
           .eq('role', 'corretor')

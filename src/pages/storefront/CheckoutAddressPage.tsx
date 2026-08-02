@@ -24,6 +24,7 @@ import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { fetchCustomerAddresses, createCustomerAddress, type CustomerAddress } from '@/lib/customerAddressService';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { createOrder } from '@/lib/orderService';
+import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -274,6 +275,7 @@ export default function CheckoutAddressPage() {
       }
 
       const orderItems = buildOrderItems();
+      const affiliateId = await resolveAttributedAffiliateId(corretor.id);
 
       const order = await createOrder(
         {
@@ -291,6 +293,7 @@ export default function CheckoutAddressPage() {
           delivery_fee: deliveryFee,
           delivery_option: selectedDeliveryConfig?.name || null,
           insurance_fee: insuranceFee,
+          affiliate_id: affiliateId,
           buyer_id: buyerAccount.id,
           payment_status: 'pending',
           shipping_street: finalAddress.street.trim(),

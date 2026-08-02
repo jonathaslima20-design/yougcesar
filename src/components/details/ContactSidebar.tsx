@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { User } from '@/types';
 import { trackWhatsAppClick } from '@/lib/tracking';
 import { useTranslation, generateWhatsAppMessage, type SupportedLanguage } from '@/lib/i18n';
+import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 
 interface ContactSidebarProps {
   corretor: User;
@@ -30,14 +31,17 @@ export default function ContactSidebar({
 
   const countryCode = corretor.country_code || '55';
 
+  const affiliateWhatsAppOverride = useAffiliateWhatsAppOverride(corretor.id);
+  const effectiveWhatsAppContact = affiliateWhatsAppOverride || corretor;
+
   const handleWhatsAppClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    const message = corretor.whatsapp_mode === 'link' || corretor.whatsapp_message_enabled === false
+    const message = effectiveWhatsAppContact.whatsapp_mode === 'link' || corretor.whatsapp_message_enabled === false
       ? ''
       : generateWhatsAppMessage(language, corretor.name, itemTitle, itemId, window.location.href);
 
-    const whatsappUrl = getWhatsAppContactUrl(corretor, message);
+    const whatsappUrl = getWhatsAppContactUrl(effectiveWhatsAppContact, message);
 
     await trackWhatsAppClick(itemId, 'product', 'contact_sidebar');
 
@@ -120,7 +124,7 @@ export default function ContactSidebar({
             </Button>
           )}
 
-          {(corretor.whatsapp_mode === 'link' ? corretor.whatsapp_link : corretor.whatsapp) && (
+          {(effectiveWhatsAppContact.whatsapp_mode === 'link' ? corretor.whatsapp_link : effectiveWhatsAppContact.whatsapp) && (
             <Button
               className="w-full"
               variant="outline"

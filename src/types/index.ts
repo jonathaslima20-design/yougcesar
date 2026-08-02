@@ -68,6 +68,7 @@ export interface User {
   max_images_per_product?: number;
   payments_test_override?: boolean;
   insurance_enabled?: boolean;
+  affiliate_program_enabled?: boolean;
   last_login_at?: string;
   login_count?: number;
   onboarding_completed_steps?: string[];
@@ -463,6 +464,7 @@ export interface Order {
   delivery_fee?: number;
   delivery_option?: string | null;
   insurance_fee?: number;
+  affiliate_id?: string | null;
   buyer_id?: string | null;
   payment_status?: OrderPaymentStatus;
   shipping_street?: string | null;
@@ -553,6 +555,8 @@ export type NotificationType =
   | 'promotional_offer'
   | 'novidades'
   | 'order_status_change'
+  | 'affiliate_commission'
+  | 'affiliate_status_change'
   | 'system';
 
 export interface AppNotification {

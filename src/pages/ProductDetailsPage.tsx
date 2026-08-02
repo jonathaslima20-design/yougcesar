@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, ArrowLeft, Loader, Package, ShoppingCart, MessageCircle, TriangleAlert as AlertTriangle } from 'lucide-react';
@@ -24,6 +24,8 @@ import { getStockStatus } from '@/lib/stockUtils';
 import { getAvailableVariantStock } from '@/lib/stockReservationService';
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
+import { captureAffiliateClick } from '@/lib/affiliateUtils';
+import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
 import type { ProductVariantStock } from '@/types';
 
@@ -34,6 +36,7 @@ interface ProductDetailsPageProps {
 export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsPageProps = {}) {
   const { slug: paramSlug, productId } = useParams();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const preselectedColor = searchParams.get('cor');
   const slug = customDomainSlug || paramSlug;
   const [product, setProduct] = useState<any | null>(null);
@@ -52,6 +55,8 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
   const cartEnabled = checkoutSettings.cartEnabled;
+  const affiliateWhatsAppOverride = useAffiliateWhatsAppOverride(corretor?.id);
+  const effectiveWhatsAppContact = affiliateWhatsAppOverride || corretor;
   const [variantStockData, setVariantStockData] = useState<Array<{ id: string; color: string | null; size: string | null; flavor: string | null; weight_variant_id: string | null; quantity: number; reserved_quantity: number; available: number }>>([]);
 
   const { tiers: priceTiers, loading: loadingTiers } = useTieredPricing(
@@ -118,7 +123,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         // avoid leaking email, referral_code, subscription/billing fields, custom_domain, etc.)
         const { data: corretorData, error: corretorError } = await supabase
           .from('users')
-          .select('id, name, slug, avatar_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, location_url, theme, currency, language, plan_status')
+          .select('id, name, slug, avatar_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, location_url, theme, currency, language, plan_status, affiliate_program_enabled')
           .eq('id', productData.user_id)
           .single();
 
@@ -186,6 +191,13 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
       }
     };
   }, [productId]);
+
+  // Resolve ?aff=CODE against this store's affiliates when the link lands directly on a product.
+  useEffect(() => {
+    if (!corretor?.id || !corretor.affiliate_program_enabled) return;
+    const affCode = searchParams.get('aff');
+    if (affCode) captureAffiliateClick(corretor.id, affCode, location.pathname);
+  }, [corretor?.id, corretor?.affiliate_program_enabled, searchParams, location.pathname]);
 
   const handleShareClick = async () => {
     const shareUrl = window.location.href;
@@ -700,8 +712,8 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                   >
                     <a
                       href={getWhatsAppContactUrl(
-                        corretor,
-                        corretor.whatsapp_mode === 'link'
+                        effectiveWhatsAppContact,
+                        effectiveWhatsAppContact.whatsapp_mode === 'link'
                           ? ''
                           : `Olá, gostaria de saber sobre a disponibilidade do produto: ${product.title}`
                       )}

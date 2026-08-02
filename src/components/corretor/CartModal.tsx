@@ -28,6 +28,8 @@ import { trackWhatsAppClick } from '@/lib/tracking';
 import type { User as UserType, PriceTier } from '@/types';
 import { generateCartOrderMessage } from '@/lib/cartUtils';
 import { createOrder } from '@/lib/orderService';
+import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
+import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 import { fetchProductPriceTiers, calculateApplicablePrice } from '@/lib/tieredPricingUtils';
 import { supabase } from '@/lib/supabase';
 import {
@@ -66,6 +68,10 @@ export default function CartModal({
   const { autoDeductStock, inventoryEnabled } = useInventoryEnabledForStore(corretor?.id);
   const { loading: couponLoading, error: couponError, validateCoupon, clearCoupon, setError: setCouponError } = useCouponValidation();
   const { settings: checkoutSettings, loading: checkoutSettingsLoading } = useCheckoutSettingsForStore(corretor?.id);
+  // Resolved ahead of time (not awaited in handleSendOrder) — window.open()
+  // there must stay synchronous with the click or mobile browsers block the
+  // popup, so this can't be looked up inline at send time.
+  const affiliateWhatsAppOverride = useAffiliateWhatsAppOverride(corretor?.id);
   const [sendingOrder, setSendingOrder] = useState(false);
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingVariant, setEditingVariant] = useState<string | null>(null);
@@ -324,7 +330,8 @@ export default function CartModal({
       const countryCode = customerCountryCode.replace('+', '');
       const customer = { name: customerName.trim(), whatsapp: cleanPhone, countryCode };
       const orderMessage = generateOrderMessage(customer);
-      const whatsappUrl = getWhatsAppContactUrl(corretor, corretor.whatsapp_mode === 'link' ? '' : orderMessage);
+      const effectiveWhatsAppContact = affiliateWhatsAppOverride || corretor;
+      const whatsappUrl = getWhatsAppContactUrl(effectiveWhatsAppContact, effectiveWhatsAppContact.whatsapp_mode === 'link' ? '' : orderMessage);
 
       // Open WhatsApp immediately while still in the synchronous user-gesture context.
       // Mobile browsers (iOS Safari, Android Chrome) block window.open() if called
@@ -334,6 +341,7 @@ export default function CartModal({
       toast.success('Pedido enviado! Abrindo WhatsApp...');
 
       const orderItems = buildOrderItems();
+      const affiliateId = await resolveAttributedAffiliateId(corretor.id);
 
       try {
         await createOrder(
@@ -355,6 +363,7 @@ export default function CartModal({
             delivery_fee: deliveryFee,
             delivery_option: selectedDeliveryConfig?.name || null,
             insurance_fee: insuranceFee,
+            affiliate_id: affiliateId,
           },
           orderItems,
           inventoryEnabled && autoDeductStock

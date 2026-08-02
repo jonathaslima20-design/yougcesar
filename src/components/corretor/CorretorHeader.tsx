@@ -15,6 +15,7 @@ import { useState } from 'react';
 import CartModal from './CartModal';
 import type { SupportedCurrency } from '@/types';
 import { useResponsiveAspectRatio } from '@/hooks/useResponsiveAspectRatio';
+import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 
 interface CorretorHeaderProps {
   corretor: User;
@@ -48,11 +49,16 @@ export default function CorretorHeader({
 
   const aspectRatioClass = aspectRatio === 960 / 860 ? 'aspect-[960/860]' : 'aspect-[1530/465]';
 
+  // If the visitor arrived via an affiliate link and that affiliate opted in
+  // to using their own number, contact them instead of the store's default.
+  const affiliateWhatsAppOverride = useAffiliateWhatsAppOverride(corretor.id);
+  const effectiveWhatsAppContact = affiliateWhatsAppOverride || corretor;
+
   // Generate WhatsApp URL using the centralized function — link mode never gets a message
-  const isWhatsAppLinkMode = corretor.whatsapp_mode === 'link';
+  const isWhatsAppLinkMode = effectiveWhatsAppContact.whatsapp_mode === 'link';
   const whatsappMessage = isWhatsAppLinkMode ? '' : generateWhatsAppMessage(language, corretor.name);
-  const whatsappContactValue = isWhatsAppLinkMode ? corretor.whatsapp_link : corretor.whatsapp;
-  const whatsappUrl = whatsappContactValue ? getWhatsAppContactUrl(corretor, whatsappMessage) : '';
+  const whatsappContactValue = isWhatsAppLinkMode ? corretor.whatsapp_link : effectiveWhatsAppContact.whatsapp;
+  const whatsappUrl = whatsappContactValue ? getWhatsAppContactUrl(effectiveWhatsAppContact, whatsappMessage) : '';
 
   const handleWhatsAppClick = async () => {
     // Track the WhatsApp click as a lead for the general storefront

@@ -3,6 +3,8 @@ import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BuyerAuthProvider } from '@/contexts/BuyerAuthContext';
+import { AffiliateAuthProvider } from '@/contexts/AffiliateAuthContext';
+import { AffiliateNotificationProvider } from '@/contexts/AffiliateNotificationContext';
 import { BuyerNotificationProvider } from '@/contexts/BuyerNotificationContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { SubscriptionModalProvider } from '@/contexts/SubscriptionModalContext';
@@ -51,6 +53,12 @@ import TermsOfUsePage from '@/pages/TermsOfUsePage.tsx';
 import DataDeletionPage from '@/pages/DataDeletionPage.tsx';
 import ReferralTermsPage from '@/pages/ReferralTermsPage.tsx';
 import BuyerLoginPage from '@/pages/buyer/BuyerLoginPage.tsx';
+import AffiliateLoginPage from '@/pages/affiliate/AffiliateLoginPage.tsx';
+import AffiliateLayout from '@/pages/affiliate/AffiliateLayout.tsx';
+import AffiliateDashboardPage from '@/pages/affiliate/AffiliateDashboardPage.tsx';
+import AffiliateReportsPage from '@/pages/affiliate/AffiliateReportsPage.tsx';
+import AffiliateCatalogPage from '@/pages/affiliate/AffiliateCatalogPage.tsx';
+import AffiliateProfilePage from '@/pages/affiliate/AffiliateProfilePage.tsx';
 import BuyerRegisterPage from '@/pages/buyer/BuyerRegisterPage.tsx';
 import BuyerOrdersPage from '@/pages/buyer/BuyerOrdersPage.tsx';
 import BuyerAuthCallbackPage from '@/pages/buyer/BuyerAuthCallbackPage.tsx';
@@ -76,6 +84,7 @@ import InventoryOverviewPage from '@/pages/dashboard/InventoryOverviewPage.tsx';
 import CheckoutPage from '@/pages/dashboard/CheckoutPage.tsx';
 import AccountPage from '@/pages/dashboard/AccountPage.tsx';
 import CouponsPage from '@/pages/dashboard/CouponsPage.tsx';
+import AffiliatesPage from '@/pages/dashboard/AffiliatesPage.tsx';
 
 // Admin Pages
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage.tsx';
@@ -256,6 +265,9 @@ function AppContent() {
           <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
           <Route path="/conta/perfil" element={<BuyerProfilePage />} />
 
+          {/* Affiliate login (separate from merchant and buyer auth) */}
+          <Route path="/afiliado/entrar" element={<AffiliateLoginPage />} />
+
           {/* Blog Routes */}
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/categoria/:categorySlug" element={<BlogCategoryPage />} />
@@ -280,6 +292,14 @@ function AppContent() {
           <Route path="/excluir-minha-conta" element={<DataDeletionPage />} />
         </Route>
 
+        {/* Affiliate Panel Routes (own sidebar layout, own auth guard via AffiliateLayout) */}
+        <Route element={<AffiliateLayout />}>
+          <Route path="/afiliado/painel" element={<AffiliateDashboardPage />} />
+          <Route path="/afiliado/relatorios" element={<AffiliateReportsPage />} />
+          <Route path="/afiliado/catalogo" element={<AffiliateCatalogPage />} />
+          <Route path="/afiliado/perfil" element={<AffiliateProfilePage />} />
+        </Route>
+
         {/* Protected Dashboard Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
@@ -293,6 +313,7 @@ function AppContent() {
             <Route path="/dashboard/referral" element={<ReferralPage />} />
             <Route path="/dashboard/orders" element={<OrdersPage />} />
             <Route path="/dashboard/coupons" element={<CouponsPage />} />
+            <Route path="/dashboard/affiliates" element={<AffiliatesPage />} />
             <Route path="/dashboard/sales" element={<Navigate to="/dashboard/orders" replace />} />
             <Route path="/dashboard/inventory" element={<InventoryOverviewPage />} />
             <Route path="/dashboard/inventory/settings" element={<Navigate to="/dashboard/settings?tab=inventory" replace />} />
@@ -366,23 +387,27 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <BuyerAuthProvider>
-            <BuyerNotificationProvider>
-              <NotificationProvider>
-                <SubscriptionModalProvider>
-                  <PromotionalOffersProvider>
-                    <CartProvider>
-                      <CorretorPageStateProvider>
-                        <AppContent />
-                        <OfferDisplayManager />
-                        <Toaster />
-                        <FloatingWhatsAppButton />
-                        <CookieConsentBanner />
-                      </CorretorPageStateProvider>
-                    </CartProvider>
-                  </PromotionalOffersProvider>
-                </SubscriptionModalProvider>
-              </NotificationProvider>
-            </BuyerNotificationProvider>
+            <AffiliateAuthProvider>
+              <AffiliateNotificationProvider>
+                <BuyerNotificationProvider>
+                  <NotificationProvider>
+                    <SubscriptionModalProvider>
+                      <PromotionalOffersProvider>
+                        <CartProvider>
+                          <CorretorPageStateProvider>
+                            <AppContent />
+                            <OfferDisplayManager />
+                            <Toaster />
+                            <FloatingWhatsAppButton />
+                            <CookieConsentBanner />
+                          </CorretorPageStateProvider>
+                        </CartProvider>
+                      </PromotionalOffersProvider>
+                    </SubscriptionModalProvider>
+                  </NotificationProvider>
+                </BuyerNotificationProvider>
+              </AffiliateNotificationProvider>
+            </AffiliateAuthProvider>
           </BuyerAuthProvider>
         </AuthProvider>
       </ThemeProvider>
