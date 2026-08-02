@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, LogOut, Menu, X, Settings, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, TriangleAlert as AlertTriangle, LineChart } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Menu, X, Settings, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, TriangleAlert as AlertTriangle, LineChart, Handshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -155,6 +155,16 @@ export default function DashboardSidebar() {
               onItemClick={() => isMobile && toggleMobileSidebar()}
               badge={pendingOrders}
             />
+            {user?.affiliate_program_enabled && (
+              <InkNavItem
+                name="Afiliados"
+                href="/dashboard/affiliates"
+                icon={Handshake}
+                end
+                isExpanded
+                onClick={() => isMobile && toggleMobileSidebar()}
+              />
+            )}
             <div className="h-px bg-foreground/[0.06] my-3 mx-2" />
 
             <InkNavItem
