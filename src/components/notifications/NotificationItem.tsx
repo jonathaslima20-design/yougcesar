@@ -1,4 +1,4 @@
-import { MessageSquare, Eye, CreditCard, Phone, Tag, Info, X, ShoppingBag, TriangleAlert as AlertTriangle, PackageX, Gift, UserPlus, Sparkles, ExternalLink } from 'lucide-react';
+import { MessageSquare, Eye, CreditCard, Phone, Tag, Info, X, ShoppingBag, TriangleAlert as AlertTriangle, PackageX, Gift, UserPlus, Sparkles, ExternalLink, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AppNotification, NotificationType } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,6 +20,8 @@ const ICON_MAP: Record<NotificationType, React.ElementType> = {
   promotional_offer: Tag,
   novidades: Sparkles,
   order_status_change: ShoppingBag,
+  affiliate_commission: Handshake,
+  affiliate_status_change: Handshake,
   system: Info,
 };
 
@@ -38,6 +40,8 @@ const COLOR_MAP: Record<NotificationType, string> = {
   promotional_offer: 'text-pink-500 bg-pink-500/10',
   novidades: 'text-sky-500 bg-sky-500/10',
   order_status_change: 'text-teal-500 bg-teal-500/10',
+  affiliate_commission: 'text-emerald-500 bg-emerald-500/10',
+  affiliate_status_change: 'text-amber-500 bg-amber-500/10',
   system: 'text-muted-foreground bg-muted',
 };
 
