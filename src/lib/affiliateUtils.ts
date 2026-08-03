@@ -89,6 +89,22 @@ export async function captureAffiliateClick(storeOwnerId: string, code: string, 
   }
 }
 
+/**
+ * Records a merchant's view of the "Afiliados" teaser modal or click on its
+ * WhatsApp CTA, for the admin monitoring page. Silent on failure, same as
+ * captureAffiliateClick — never blocks the dashboard UI.
+ */
+export async function logAffiliateTeaserEvent(userId: string, eventType: 'view' | 'whatsapp_click'): Promise<void> {
+  try {
+    await supabase.from('affiliate_teaser_events').insert({
+      user_id: userId,
+      event_type: eventType,
+    });
+  } catch {
+    /* silent */
+  }
+}
+
 const DEFAULT_ATTRIBUTION_WINDOW_DAYS = 30;
 
 /**

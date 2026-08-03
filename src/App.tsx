@@ -112,6 +112,7 @@ import OfferEditorPage from '@/pages/admin/OfferEditorPage.tsx';
 import OfferAnalyticsPage from '@/pages/admin/OfferAnalyticsPage.tsx';
 import NotificationSettingsPage from '@/pages/admin/NotificationSettingsPage.tsx';
 import AdminTrackingPage from '@/pages/admin/TrackingPage.tsx';
+import AffiliateTeaserMonitoringPage from '@/pages/admin/AffiliateTeaserMonitoringPage.tsx';
 
 // Partners Pages
 import PartnersDashboardPage from '@/pages/partners/PartnersDashboardPage.tsx';
@@ -339,6 +340,7 @@ function AppContent() {
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
             <Route path="/admin/notifications" element={<NotificationSettingsPage />} />
             <Route path="/admin/tracking" element={<AdminTrackingPage />} />
+            <Route path="/admin/monitoring" element={<AffiliateTeaserMonitoringPage />} />
             <Route path="/admin/netlify" element={<NetlifyIntegrationPage />} />
             <Route path="/admin/help" element={<HelpManagementPage />} />
             <Route path="/admin/blog" element={<BlogManagementPage />} />

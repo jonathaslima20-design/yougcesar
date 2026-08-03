@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,6 +60,7 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
         { name: 'Notificacoes', href: '/admin/notifications', icon: Bell, roles: ['admin'] },
         { name: 'Configuracoes', href: '/admin/settings', icon: Settings, roles: ['admin'] },
         { name: 'Rastreamento', href: '/admin/tracking', icon: Tag, roles: ['admin'] },
+        { name: 'Monitoramento', href: '/admin/monitoring', icon: Eye, roles: ['admin'] },
         { name: 'Integracao Netlify', href: '/admin/netlify', icon: Globe, roles: ['admin'] },
         { name: 'Central de Ajuda', href: '/admin/help', icon: HelpCircle, roles: ['admin'] },
       ],

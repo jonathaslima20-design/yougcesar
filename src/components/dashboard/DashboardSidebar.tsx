@@ -11,6 +11,7 @@ import Logo from '@/components/Logo';
 import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
 import PlanUsageIndicator from '@/components/dashboard/PlanUsageIndicator';
 import { getPendingOrderCount } from '@/lib/orderService';
+import { logAffiliateTeaserEvent } from '@/lib/affiliateUtils';
 
 export default function DashboardSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -287,7 +288,7 @@ export default function DashboardSidebar() {
         {sidebarContent(false)}
       </div>
 
-      <AffiliateTeaserDialog open={showAffiliateTeaser} onOpenChange={setShowAffiliateTeaser} />
+      <AffiliateTeaserDialog open={showAffiliateTeaser} onOpenChange={setShowAffiliateTeaser} userId={user?.id} />
     </>
   );
 }
@@ -313,7 +314,13 @@ function AffiliateTeaserNavItem({ onClick }: { onClick: () => void }) {
   );
 }
 
-function AffiliateTeaserDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function AffiliateTeaserDialog({ open, onOpenChange, userId }: { open: boolean; onOpenChange: (open: boolean) => void; userId?: string }) {
+  useEffect(() => {
+    if (open && userId) {
+      logAffiliateTeaserEvent(userId, 'view');
+    }
+  }, [open, userId]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -348,7 +355,12 @@ function AffiliateTeaserDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <DialogFooter>
           <Button asChild className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-            <a href={AFFILIATE_TEASER_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+            <a
+              href={AFFILIATE_TEASER_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => userId && logAffiliateTeaserEvent(userId, 'whatsapp_click')}
+            >
               <MessageCircle className="h-4 w-4" />
               Tenho interesse em ativar o módulo de afiliados
             </a>
