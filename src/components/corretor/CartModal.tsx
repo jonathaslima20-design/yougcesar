@@ -137,6 +137,16 @@ export default function CartModal({
 
   const finalTotal = Math.max(0, cart.total - discountAmount - paymentMethodDiscount + deliveryFee + insuranceFee);
 
+  // Payment method, delivery, and insurance are only picked in the WhatsApp
+  // tab's own form — the "Pagar Agora" flow re-collects all three itself on
+  // the next screen (its own fresh state, starting from null/unset) and
+  // never reads these. Since the underlying selection state is shared
+  // across both tabs (switching tabs doesn't clear it), the order summary
+  // must not show or total in whatever was picked under the other tab, or
+  // it looks like delivery/payment/insurance got charged twice once the
+  // real freight is calculated on the next step.
+  const ecommerceSubtotal = Math.max(0, cart.total - discountAmount);
+
   useEffect(() => {
     const loadTieredPricing = async () => {
       const tiersMap = new Map<string, { tiers: PriceTier[], hasTieredPricing: boolean }>();
@@ -1201,7 +1211,7 @@ export default function CartModal({
                           <span>-{formatCurrencyI18n(discountAmount, currency, language)}</span>
                         </div>
                       )}
-                      {paymentMethodDiscount > 0 && selectedPaymentConfig && (
+                      {orderMode === 'whatsapp' && paymentMethodDiscount > 0 && selectedPaymentConfig && (
                         <div className="flex justify-between items-center text-green-600 dark:text-green-400">
                           <span className="flex items-center gap-1.5">
                             <Wallet className="h-3 w-3" />
@@ -1210,7 +1220,7 @@ export default function CartModal({
                           <span>-{formatCurrencyI18n(paymentMethodDiscount, currency, language)}</span>
                         </div>
                       )}
-                      {selectedDeliveryConfig && (
+                      {orderMode === 'whatsapp' && selectedDeliveryConfig && (
                         <div className={`flex justify-between items-center ${deliveryFee === 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
                           <span className={`flex items-center gap-1.5 ${deliveryFee > 0 ? 'text-muted-foreground' : ''}`}>
                             <Truck className="h-3 w-3" />
@@ -1221,7 +1231,7 @@ export default function CartModal({
                           </span>
                         </div>
                       )}
-                      {insuranceFee > 0 && (
+                      {orderMode === 'whatsapp' && insuranceFee > 0 && (
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground flex items-center gap-1.5">
                             <ShieldCheck className="h-3 w-3" />
@@ -1231,10 +1241,17 @@ export default function CartModal({
                         </div>
                       )}
                     </div>
-                    <div className="border-t px-3 py-2.5 bg-muted/20 flex justify-between items-center">
-                      <span className="font-semibold">Total</span>
+                    <div className="border-t px-3 py-2.5 bg-muted/20 flex justify-between items-center gap-3">
+                      <span className="font-semibold shrink-0">
+                        {orderMode === 'ecommerce' ? 'Total parcial' : 'Total'}
+                        {orderMode === 'ecommerce' && (
+                          <span className="block text-[11px] font-normal text-muted-foreground">
+                            Frete calculado na próxima etapa
+                          </span>
+                        )}
+                      </span>
                       <span className="text-lg font-bold text-primary">
-                        {formatCurrencyI18n(finalTotal, currency, language)}
+                        {formatCurrencyI18n(orderMode === 'ecommerce' ? ecommerceSubtotal : finalTotal, currency, language)}
                       </span>
                     </div>
                   </div>
