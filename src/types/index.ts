@@ -69,6 +69,7 @@ export interface User {
   payments_test_override?: boolean;
   insurance_enabled?: boolean;
   affiliate_program_enabled?: boolean;
+  affiliate_teaser_hidden?: boolean;
   last_login_at?: string;
   login_count?: number;
   onboarding_completed_steps?: string[];

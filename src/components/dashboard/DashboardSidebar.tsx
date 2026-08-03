@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, LogOut, Menu, X, Settings, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, TriangleAlert as AlertTriangle, LineChart, Handshake } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Menu, X, Settings, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, TriangleAlert as AlertTriangle, LineChart, Handshake, MessageCircle, Users, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn, getInitials } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -16,6 +17,7 @@ export default function DashboardSidebar() {
   const [openGroup, setOpenGroup] = useState<'catalog' | 'stock' | 'sales' | null>(null);
   const [pendingOrders, setPendingOrders] = useState(0);
   const [pendingPayment, setPendingPayment] = useState<{ plan_name: string; payment_due_at: string } | null>(null);
+  const [showAffiliateTeaser, setShowAffiliateTeaser] = useState(false);
   const { signOut, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -155,7 +157,7 @@ export default function DashboardSidebar() {
               onItemClick={() => isMobile && toggleMobileSidebar()}
               badge={pendingOrders}
             />
-            {user?.affiliate_program_enabled && (
+            {user?.affiliate_program_enabled ? (
               <InkNavItem
                 name="Afiliados"
                 href="/dashboard/affiliates"
@@ -164,7 +166,9 @@ export default function DashboardSidebar() {
                 isExpanded
                 onClick={() => isMobile && toggleMobileSidebar()}
               />
-            )}
+            ) : !user?.affiliate_teaser_hidden ? (
+              <AffiliateTeaserNavItem onClick={() => setShowAffiliateTeaser(true)} />
+            ) : null}
             <div className="h-px bg-foreground/[0.06] my-3 mx-2" />
 
             <InkNavItem
@@ -283,7 +287,75 @@ export default function DashboardSidebar() {
         {sidebarContent(false)}
       </div>
 
+      <AffiliateTeaserDialog open={showAffiliateTeaser} onOpenChange={setShowAffiliateTeaser} />
     </>
+  );
+}
+
+const AFFILIATE_TEASER_WHATSAPP_URL = `https://wa.me/5591982465495?text=${encodeURIComponent('Tenho interesse em ativar o módulo de afiliados em meu painel')}`;
+
+function AffiliateTeaserNavItem({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-row items-center gap-3 py-2.5 px-3 text-[15px] tracking-tight transition-colors duration-150 relative w-full text-left text-muted-foreground hover:text-foreground"
+    >
+      <span className="relative shrink-0 flex items-center justify-center">
+        <Handshake className="h-[19px] w-[19px]" />
+        <span className="absolute -top-1 -right-1 flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+        </span>
+      </span>
+      <span className="whitespace-nowrap flex-1">Afiliados</span>
+      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">novo</span>
+    </button>
+  );
+}
+
+function AffiliateTeaserDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            🚀 Afiliados: venda através de outras pessoas
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Cadastre afiliados e vendedores ilimitados, cada um com o próprio catálogo personalizado, e multiplique seus canais de venda sem multiplicar seu trabalho.
+        </p>
+
+        <ul className="space-y-2.5 text-sm">
+          <li className="flex items-start gap-2.5">
+            <Users className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+            <span>Afiliados e vendedores ilimitados</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <LayoutGrid className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+            <span>Catálogo individual e personalizado para cada um</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <LayoutDashboard className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+            <span>Você acompanha tudo direto do seu painel</span>
+          </li>
+        </ul>
+
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Fale conosco e saiba como ativar este recurso em sua conta.
+        </p>
+
+        <DialogFooter>
+          <Button asChild className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+            <a href={AFFILIATE_TEASER_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+              <MessageCircle className="h-4 w-4" />
+              Tenho interesse em ativar o módulo de afiliados
+            </a>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

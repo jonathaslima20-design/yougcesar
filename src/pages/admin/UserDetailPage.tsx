@@ -334,6 +334,22 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleToggleAffiliateTeaserHidden = async (hidden: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ affiliate_teaser_hidden: hidden })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, affiliate_teaser_hidden: hidden });
+      toast.success(hidden ? 'Oferta de afiliados ocultada para este usuário' : 'Oferta de afiliados voltará a aparecer para este usuário');
+    } catch (error) {
+      console.error('Error toggling affiliate teaser hidden:', error);
+      toast.error('Erro ao atualizar visibilidade da oferta de afiliados');
+    }
+  };
+
   const handleToggleInsuranceEnabled = async (enabled: boolean) => {
     if (!user) return;
     try {
@@ -729,6 +745,27 @@ export default function UserDetailPage() {
                       Libera o módulo "Afiliados" no painel desse lojista, permitindo cadastrar afiliados e gerar links de indicação com comissão. Quando desativado, o módulo fica oculto no painel e nenhum pedido novo passa a gerar comissão para esta loja, mesmo que um link de afiliado antigo ainda circule.
                     </p>
                   </div>
+
+                  {!user.affiliate_program_enabled && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Ban className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-sm truncate">Ocultar oferta de afiliados</span>
+                          </div>
+                          <Switch
+                            checked={!!user.affiliate_teaser_hidden}
+                            onCheckedChange={handleToggleAffiliateTeaserHidden}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Impede que o item "Afiliados" com o destaque pulsante e a mensagem promocional (com CTA para o WhatsApp) apareçam no menu desse lojista, mesmo sem o módulo liberado. Use para usuários que já recusaram ou que não devem receber essa oferta.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
