@@ -315,6 +315,15 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
   const hasWeightVariants = !!product.has_weight_variants && (product.min_variant_price ?? 0) > 0;
 
+  const getSizeAvailable = (size: string): number | null => {
+    if (!inventoryEnabled || !product.track_inventory || variantStockData.length === 0) return null;
+
+    const matches = variantStockData.filter((v) => (v.size || null) === size);
+    if (matches.length > 0) return matches.reduce((sum, v) => sum + v.available, 0);
+    if (variantStockData.length === 1 && !variantStockData[0].size) return variantStockData[0].available;
+    return 0;
+  };
+
   const isAvailable = product.status === 'disponivel';
   const hasPrice = (product.price && product.price > 0) || (product.has_tiered_pricing && priceTiers.length > 0) || hasWeightVariants;
 
@@ -609,32 +618,58 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                             {/* Apparel Sizes */}
                             {sortedApparelSizes.length > 0 && (
                               <div className="flex flex-wrap gap-3">
-                                  {sortedApparelSizes.map((size: string) => (
-                                    <div
-                                      key={size}
-                                      className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-border bg-card shadow-sm hover:shadow-md transition-all duration-200 hover:border-border/80"
-                                    >
-                                      <span className="text-sm font-semibold text-foreground">
-                                        {size}
-                                      </span>
-                                    </div>
-                                  ))}
+                                  {sortedApparelSizes.map((size: string) => {
+                                    const sizeAvailable = getSizeAvailable(size);
+                                    const sizeOutOfStock = sizeAvailable !== null && sizeAvailable <= 0;
+                                    return (
+                                      <div
+                                        key={size}
+                                        className={`relative flex items-center justify-center w-12 h-12 rounded-full border-2 shadow-sm transition-all duration-200 ${
+                                          sizeOutOfStock
+                                            ? 'border-border/40 bg-card/50 opacity-50'
+                                            : 'border-border bg-card hover:shadow-md hover:border-border/80'
+                                        }`}
+                                      >
+                                        <span className={`text-sm font-semibold ${sizeOutOfStock ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                                          {size}
+                                        </span>
+                                        {sizeOutOfStock && (
+                                          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-medium leading-none text-white">
+                                            Esgotado
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                             )}
 
                             {/* Shoe Sizes */}
                             {sortedShoeSizes.length > 0 && (
                               <div className="flex flex-wrap gap-3">
-                                  {sortedShoeSizes.map((size: string) => (
-                                    <div
-                                      key={size}
-                                      className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-border bg-card shadow-sm hover:shadow-md transition-all duration-200 hover:border-border/80"
-                                    >
-                                      <span className="text-sm font-semibold text-foreground">
-                                        {size}
-                                      </span>
-                                    </div>
-                                  ))}
+                                  {sortedShoeSizes.map((size: string) => {
+                                    const sizeAvailable = getSizeAvailable(size);
+                                    const sizeOutOfStock = sizeAvailable !== null && sizeAvailable <= 0;
+                                    return (
+                                      <div
+                                        key={size}
+                                        className={`relative flex items-center justify-center w-12 h-12 rounded-full border-2 shadow-sm transition-all duration-200 ${
+                                          sizeOutOfStock
+                                            ? 'border-border/40 bg-card/50 opacity-50'
+                                            : 'border-border bg-card hover:shadow-md hover:border-border/80'
+                                        }`}
+                                      >
+                                        <span className={`text-sm font-semibold ${sizeOutOfStock ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                                          {size}
+                                        </span>
+                                        {sizeOutOfStock && (
+                                          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-medium leading-none text-white">
+                                            Esgotado
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                             )}
                           </div>
