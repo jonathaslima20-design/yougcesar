@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Loader as Loader2, Save } from 'lucide-react';
+import { Loader as Loader2, Save, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +45,17 @@ export default function VariantStockGrid({
   const hasColors = colors.length > 0;
   const hasSizes = sizes.length > 0;
   const hasFlavors = flavors.length > 0;
+
+  // Linhas de estoque de combinacoes que o produto NAO oferece mais (o lojista
+  // tirou a cor ou o tamanho da lista, mas o saldo continuou no banco). Ficam
+  // invisiveis nesta grade e fora do total do produto — o lojista precisa
+  // saber que existem para decidir se reativa a variante ou zera as pecas.
+  const orphanStock = existingStock.filter((s) => {
+    const colorOk = hasColors ? !!s.color && colors.includes(s.color) : s.color === null;
+    const sizeOk = hasSizes ? !!s.size && sizes.includes(s.size) : s.size === null;
+    const flavorOk = hasFlavors ? !!s.flavor && flavors.includes(s.flavor) : s.flavor === null;
+    return !(colorOk && sizeOk && flavorOk) && s.quantity !== 0;
+  });
 
   const buildCells = useCallback((stockData: ProductVariantStock[]) => {
     const newCells: CellState[] = [];
@@ -190,6 +201,27 @@ export default function VariantStockGrid({
 
   const totalStock = cells.reduce((sum, c) => sum + c.quantity, 0);
 
+  const orphanWarning = orphanStock.length > 0 && (
+    <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-1.5">
+      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+        <TriangleAlert className="h-4 w-4 shrink-0" />
+        <p className="text-xs font-semibold">Estoque fora da oferta atual</p>
+      </div>
+      <p className="text-[11px] text-amber-700/90 dark:text-amber-400/90">
+        Estas combinações têm saldo no estoque mas não estão mais na lista de
+        cores/tamanhos deste produto, então não entram no total nem podem ser
+        vendidas. Reative a cor ou o tamanho acima para voltar a usá-las.
+      </p>
+      <ul className="text-[11px] text-amber-800 dark:text-amber-300 space-y-0.5">
+        {orphanStock.map((s) => (
+          <li key={s.id}>
+            • {[s.color, s.size, s.flavor].filter(Boolean).join(' / ') || 'sem variante'}: {s.quantity} un.
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
   if (hasColors && hasSizes && !hasFlavors) {
     return (
       <div className="space-y-3">
@@ -246,6 +278,8 @@ export default function VariantStockGrid({
             </tbody>
           </table>
         </div>
+
+        {orphanWarning}
       </div>
     );
   }
@@ -302,6 +336,8 @@ export default function VariantStockGrid({
           );
         })}
       </div>
+
+      {orphanWarning}
     </div>
   );
 }

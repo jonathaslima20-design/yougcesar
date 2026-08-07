@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Order, OrderStatus, OrderPaymentStatus } from '@/types';
 import { deductStockForOrder } from '@/lib/stockUtils';
+import { pushOlistStockDeduction } from '@/lib/merchantErp';
 
 interface CreateOrderData {
   store_owner_id: string;
@@ -20,6 +21,7 @@ interface CreateOrderData {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
+  delivery_scope?: 'local' | 'national' | null;
   insurance_fee?: number;
   affiliate_id?: string | null;
   buyer_id?: string | null;
@@ -89,6 +91,7 @@ export async function createOrder(
     p_payment_method_discount: orderData.payment_method_discount || 0,
     p_delivery_fee: orderData.delivery_fee || 0,
     p_delivery_option: orderData.delivery_option || null,
+    p_delivery_scope: orderData.delivery_scope || null,
     p_insurance_fee: orderData.insurance_fee || 0,
     p_affiliate_id: orderData.affiliate_id || null,
     p_items: orderItems,
@@ -109,6 +112,7 @@ export async function createOrder(
   }
 
   const orderId = data.order_id;
+  let stockShortfall: Order['stock_shortfall'] = null;
 
   if (autoDeduct?.enabled) {
     const deductionItems = items.map((item) => ({
@@ -119,7 +123,31 @@ export async function createOrder(
       selected_flavor: item.selected_flavor,
       selected_variant_label: item.selected_variant_label,
     }));
-    await deductStockForOrder(orderId, autoDeduct.storeOwnerId, deductionItems);
+    const deduction = await deductStockForOrder(orderId, autoDeduct.storeOwnerId, deductionItems);
+
+    // A RPC ja gravou o mesmo conteudo em orders.stock_shortfall, entao o
+    // pedido aparece sinalizado no painel do lojista mesmo se este retorno
+    // se perder. Aqui so repassamos para quem chamou poder reagir na hora.
+    if (deduction.insufficientItems.length > 0 || deduction.unmatchedItems.length > 0) {
+      stockShortfall = {
+        insufficient_items: deduction.insufficientItems,
+        unmatched_items: deduction.unmatchedItems,
+      };
+      console.warn('Pedido criado com pendencia de estoque:', orderId, stockShortfall);
+    }
+
+    // Best-effort mirror of the same deduction into a connected Olist ERP —
+    // gated on autoDeduct.enabled like the local deduction above, since
+    // pushing a baixa for a store that manages its own stock manually would
+    // be wrong. No-ops silently for the (common) case of no Olist connection.
+    await pushOlistStockDeduction({
+      store_owner_id: autoDeduct.storeOwnerId,
+      items: items.map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+      })),
+    });
   }
 
   if (orderData.coupon_id && orderData.discount_amount) {
@@ -136,7 +164,7 @@ export async function createOrder(
     }
   }
 
-  return { id: orderId } as Order;
+  return { id: orderId, stock_shortfall: stockShortfall } as Order;
 }
 
 interface FetchOrdersFilters {

@@ -155,18 +155,24 @@ export async function registerStockEntry(
   return true;
 }
 
+/**
+ * Recalcula products.stock_quantity a partir das variantes.
+ *
+ * Delega para a RPC `recalc_my_product_aggregate_stock` em vez de somar aqui:
+ * a soma client-side incluia variantes ORFAS (cor/tamanho que o lojista
+ * removeu da oferta mas cuja linha de estoque continua no banco), inflando o
+ * agregado e desfazendo a baixa que a venda tinha acabado de fazer. A funcao
+ * no banco soma apenas as combinacoes que o produto realmente oferece hoje.
+ *
+ * Produtos sem grade de variantes nao sao tocados pela RPC — neles o estoque
+ * e digitado manualmente no proprio agregado.
+ */
 export async function syncProductAggregateStock(productId: string): Promise<void> {
-  const { data: variants } = await supabase
-    .from('product_variant_stock')
-    .select('quantity')
-    .eq('product_id', productId);
+  const { error } = await supabase.rpc('recalc_my_product_aggregate_stock', {
+    p_product_id: productId,
+  });
 
-  if (!variants || variants.length === 0) return;
-
-  const totalStock = variants.reduce((sum, v) => sum + v.quantity, 0);
-
-  await supabase
-    .from('products')
-    .update({ stock_quantity: totalStock })
-    .eq('id', productId);
+  if (error) {
+    console.error('Error recalculating aggregate stock:', error);
+  }
 }

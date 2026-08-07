@@ -45,6 +45,8 @@ export interface User {
   whatsapp_link?: string;
   instagram?: string;
   location_url?: string;
+  city?: string;
+  state?: string;
   created_by?: string;
   managed_by_partner_id?: string | null;
   theme?: 'light' | 'dark';
@@ -196,6 +198,10 @@ export interface Product {
   track_inventory?: boolean;
   stock_quantity?: number | null;
   low_stock_threshold?: number;
+  weight_kg?: number | null;
+  height_cm?: number | null;
+  width_cm?: number | null;
+  length_cm?: number | null;
 }
 
 export interface ProductCategory {
@@ -440,6 +446,27 @@ export type OrderType = 'whatsapp' | 'ecommerce';
 export type OrderSource = 'cart' | 'product_page';
 export type OrderPaymentStatus = 'not_applicable' | 'pending' | 'approved' | 'rejected' | 'refunded' | 'cancelled';
 
+export interface OrderStockShortfallItem {
+  product_id: string;
+  product_title: string;
+  variant_stock_id?: string | null;
+  selected_color?: string | null;
+  selected_size?: string | null;
+  selected_flavor?: string | null;
+  requested: number;
+  deducted?: number;
+  /** null/undefined = a combinacao nao existe na grade de variantes. */
+  available?: number | null;
+}
+
+export interface OrderStockShortfall {
+  /** Saldo insuficiente: a baixa foi parcial ou nula. */
+  insufficient_items: OrderStockShortfallItem[];
+  /** Cor/tamanho do item nao existe na grade de variantes do produto. */
+  unmatched_items: OrderStockShortfallItem[];
+  recorded_at?: string;
+}
+
 export interface Order {
   id: string;
   store_owner_id: string;
@@ -457,6 +484,12 @@ export interface Order {
   updated_at: string;
   order_items?: OrderItem[];
   inventory_deducted?: boolean;
+  /**
+   * Itens que nao puderam ser baixados integralmente do estoque no
+   * fechamento do pedido. Preenchido pela RPC deduct_stock_for_order.
+   * null/undefined = sem pendencia.
+   */
+  stock_shortfall?: OrderStockShortfall | null;
   coupon_id?: string | null;
   coupon_code?: string | null;
   discount_amount?: number;
@@ -464,6 +497,7 @@ export interface Order {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
+  delivery_scope?: 'local' | 'national' | null;
   insurance_fee?: number;
   affiliate_id?: string | null;
   buyer_id?: string | null;
@@ -665,6 +699,8 @@ export interface PaymentMethodConfig {
 
 export type ShippingCalculationType = 'flat' | 'free_above' | 'region' | 'carrier';
 
+export type DeliveryScope = 'local' | 'national';
+
 export interface DeliveryOption {
   id: string;
   name: string;
@@ -673,7 +709,8 @@ export interface DeliveryOption {
   freeAbove?: number | null;
   calculationType?: ShippingCalculationType; // missing = treated as 'flat' (back-compat)
   regions?: string[]; // UF codes, used when calculationType === 'region'
-  carrierProvider?: 'correios' | 'melhor_envio' | null; // reserved for a future phase, always null today
+  carrierProvider?: 'correios' | 'melhor_envio' | 'superfrete' | null; // reserved for a future phase, always null today
+  scope?: DeliveryScope; // missing = treated as 'national' (back-compat) — only an explicit 'local' restricts to same-city buyers
 }
 
 export interface MinimumPurchaseConfig {
@@ -687,6 +724,19 @@ export interface ShippingInsuranceConfig {
   percentageRate: number; // e.g. 2.5 = 2.5% of subtotal after coupon discount
 }
 
+export interface SuperFreteConfig {
+  enabled: boolean;      // merchant's own on/off switch (only takes effect if credentials are validated/active)
+  serviceIds: string[];  // subset of ['1','2','17','3','33','31'] (PAC/SEDEX/Mini Envios/Jadlog/J&T/Loggi)
+}
+
+export interface ShippingQuote {
+  id: string;         // SuperFrete service id, e.g. "1"
+  name: string;       // e.g. "PAC", "SEDEX"
+  price: number;
+  deliveryTimeDays: number | null;
+  companyName?: string;
+}
+
 export type CheckoutMode = 'whatsapp' | 'ecommerce_optional' | 'ecommerce_only';
 
 export interface CheckoutSettings {
@@ -698,4 +748,5 @@ export interface CheckoutSettings {
   minimumPurchase?: MinimumPurchaseConfig;
   checkoutMode?: CheckoutMode; // missing = treated as 'whatsapp' (back-compat)
   shippingInsurance?: ShippingInsuranceConfig;
+  superFrete?: SuperFreteConfig;
 }

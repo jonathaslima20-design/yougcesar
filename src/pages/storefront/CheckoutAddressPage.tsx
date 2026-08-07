@@ -28,6 +28,9 @@ import { findCartStockShortfalls, formatShortfallMessage } from '@/lib/stockAvai
 import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { getShippingQuote } from '@/lib/merchantShipping';
+import { fetchProductShippingDims, buildSuperFreteProducts } from '@/lib/shippingUtils';
+import type { ShippingQuote } from '@/types';
 
 interface ManualAddress {
   street: string;
@@ -49,6 +52,16 @@ const EMPTY_ADDRESS: ManualAddress = {
   zipCode: '',
 };
 
+// Case + diacritic-insensitive comparison ("São Paulo" / "SAO PAULO" / "sao paulo" all match).
+// Typos and alternate city names are an accepted residual risk — no fuzzy matching.
+function normalizeCityName(city: string): string {
+  return city
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase();
+}
+
 export default function CheckoutAddressPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -56,7 +69,10 @@ export default function CheckoutAddressPage() {
   const { cart, clearCart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon } = useCart();
   const { customer: buyerAccount, loading: authLoading } = useBuyerAuth();
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
-  const { inventoryEnabled, autoDeductStock } = useInventoryEnabledForStore(corretor?.id);
+  // autoDeductStock nao e lido aqui: a baixa deste fluxo acontece no webhook
+  // de pagamento, na aprovacao. inventoryEnabled ainda serve para revalidar
+  // a disponibilidade antes de criar o pedido.
+  const { inventoryEnabled } = useInventoryEnabledForStore(corretor?.id);
   const { loading: couponLoading, error: couponError, validateCoupon, clearCoupon, setError: setCouponError } = useCouponValidation();
 
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
@@ -70,6 +86,9 @@ export default function CheckoutAddressPage() {
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string | null>(null);
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [shippingQuotes, setShippingQuotes] = useState<ShippingQuote[]>([]);
+  const [shippingQuotesLoading, setShippingQuotesLoading] = useState(false);
+  const [shippingQuotesError, setShippingQuotesError] = useState(false);
 
   const hasItems = cart.items.length > 0 || cart.distributions.length > 0;
 
@@ -124,20 +143,86 @@ export default function CheckoutAddressPage() {
   const selectedSavedAddress = savedAddresses.find((a) => a.id === selectedAddressId) || null;
 
   const currentState = showManualForm ? manualAddress.state : (selectedSavedAddress?.state || '');
+  const currentCity = showManualForm ? manualAddress.city : (selectedSavedAddress?.city || '');
+  const currentZip = showManualForm ? manualAddress.zipCode : (selectedSavedAddress?.zip_code || '');
+
+  const merchantCity = corretor?.city ? normalizeCityName(corretor.city) : null;
+  const buyerCity = currentCity ? normalizeCityName(currentCity) : null;
 
   const enabledDeliveryOptions = useMemo(
     () =>
       checkoutSettings.deliveryOptions.filter((d) => {
         if (!d.enabled) return false;
+        const scope = d.scope === 'local' ? 'local' : 'national';
+        if (scope === 'local') {
+          return !!merchantCity && !!buyerCity && merchantCity === buyerCity;
+        }
         if (d.calculationType === 'region' && currentState) {
           return (d.regions || []).includes(currentState);
         }
         return true;
       }),
-    [checkoutSettings.deliveryOptions, currentState]
+    [checkoutSettings.deliveryOptions, currentState, merchantCity, buyerCity]
   );
 
-  const selectedDeliveryConfig = enabledDeliveryOptions.find((d) => d.id === selectedDeliveryOption);
+  const hasNoMatchingLocalOption =
+    enabledDeliveryOptions.length === 0 &&
+    !!buyerCity &&
+    checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local');
+
+  const zipDigits = currentZip.replace(/\D/g, '');
+
+  useEffect(() => {
+    if (!corretor?.id || zipDigits.length !== 8) {
+      setShippingQuotes([]);
+      setShippingQuotesError(false);
+      return;
+    }
+    const superFreteEnabled = checkoutSettings.superFrete?.enabled;
+    const serviceIds = checkoutSettings.superFrete?.serviceIds || [];
+    if (!superFreteEnabled || serviceIds.length === 0) {
+      setShippingQuotes([]);
+      setShippingQuotesError(false);
+      return;
+    }
+
+    let cancelled = false;
+    setShippingQuotes([]);
+    setShippingQuotesError(false);
+    setShippingQuotesLoading(true);
+
+    (async () => {
+      try {
+        const productIds = cart.items.map((item) => item.id);
+        const dims = await fetchProductShippingDims(productIds);
+        const products = buildSuperFreteProducts(cart.items, cart.distributions, dims);
+        const { quotes } = await getShippingQuote(corretor.id, zipDigits, products, serviceIds);
+        if (cancelled) return;
+        setShippingQuotes(quotes);
+        setShippingQuotesError(quotes.length === 0);
+      } catch {
+        if (!cancelled) setShippingQuotesError(true);
+      } finally {
+        if (!cancelled) setShippingQuotesLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [corretor?.id, zipDigits, checkoutSettings.superFrete?.enabled, checkoutSettings.superFrete?.serviceIds, cart.items, cart.distributions]);
+
+  const superFreteOptions = shippingQuotes.map((q) => ({
+    id: `superfrete:${q.id}`,
+    name: `${q.name} (SuperFrete)`,
+    fee: q.price,
+    enabled: true,
+    freeAbove: null,
+    calculationType: 'carrier' as const,
+    carrierProvider: 'superfrete' as const,
+    scope: 'national' as const,
+  }));
+  const allDeliveryOptions = [...enabledDeliveryOptions, ...superFreteOptions];
+
+  const selectedDeliveryConfig = allDeliveryOptions.find((d) => d.id === selectedDeliveryOption);
 
   const discountAmount = appliedCoupon?.calculatedDiscount || 0;
   const subtotalAfterDiscount = Math.max(0, cart.total - discountAmount);
@@ -225,7 +310,7 @@ export default function CheckoutAddressPage() {
       return false;
     }
 
-    if (checkoutSettings.requireDeliveryOption && enabledDeliveryOptions.length > 0 && !selectedDeliveryOption) {
+    if (checkoutSettings.requireDeliveryOption && allDeliveryOptions.length > 0 && !selectedDeliveryOption) {
       toast.error('Selecione uma opção de entrega');
       return false;
     }
@@ -312,6 +397,7 @@ export default function CheckoutAddressPage() {
           discount_amount: discountAmount,
           delivery_fee: deliveryFee,
           delivery_option: selectedDeliveryConfig?.name || null,
+          delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope === 'local' ? 'local' : 'national') : null,
           insurance_fee: insuranceFee,
           affiliate_id: affiliateId,
           buyer_id: buyerAccount.id,
@@ -325,7 +411,12 @@ export default function CheckoutAddressPage() {
           shipping_zip_code: finalAddress.zipCode.trim(),
         },
         orderItems,
-        inventoryEnabled && autoDeductStock ? { enabled: true, storeOwnerId: corretor.id } : undefined
+        // Sem baixa de estoque aqui: este pedido nasce com payment_status
+        // 'pending' e o comprador ainda vai para a tela de pagamento. Baixar
+        // agora significava que um PIX abandonado ou um cartao recusado
+        // levavam o estoque embora sem venda e sem nada devolver. A baixa
+        // passou para o webhook do Mercado Pago, na aprovacao do pagamento.
+        undefined
       );
 
       if (!order?.id) {
@@ -502,7 +593,15 @@ export default function CheckoutAddressPage() {
           </CardContent>
         </Card>
 
-        {enabledDeliveryOptions.length > 0 && (
+        {hasNoMatchingLocalOption && (
+          <Card>
+            <CardContent className="pt-6 text-sm text-muted-foreground">
+              Não há opções de entrega disponíveis para {currentCity}. Esta loja entrega localmente apenas em {corretor?.city}.
+            </CardContent>
+          </Card>
+        )}
+
+        {(allDeliveryOptions.length > 0 || shippingQuotesLoading || shippingQuotesError) && (
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -510,32 +609,42 @@ export default function CheckoutAddressPage() {
                 Entrega
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <Select
-                value={selectedDeliveryOption || ''}
-                onValueChange={(value) => setSelectedDeliveryOption(value || null)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a opção de entrega" />
-                </SelectTrigger>
-                <SelectContent>
-                  {enabledDeliveryOptions.map((option) => {
-                    const subtotalForFreeCheck = Math.max(0, cart.total - discountAmount);
-                    const isFreeDelivery = option.freeAbove && subtotalForFreeCheck >= option.freeAbove;
-                    const displayFee = isFreeDelivery ? 0 : option.fee;
-                    return (
-                      <SelectItem key={option.id} value={option.id}>
-                        <div className="flex items-center gap-1.5">
-                          <span>{option.name}</span>
-                          <span className={displayFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
-                            {displayFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(displayFee)}`}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+            <CardContent className="space-y-2">
+              {allDeliveryOptions.length > 0 && (
+                <Select
+                  value={selectedDeliveryOption || ''}
+                  onValueChange={(value) => setSelectedDeliveryOption(value || null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a opção de entrega" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allDeliveryOptions.map((option) => {
+                      const subtotalForFreeCheck = Math.max(0, cart.total - discountAmount);
+                      const isFreeDelivery = option.freeAbove && subtotalForFreeCheck >= option.freeAbove;
+                      const displayFee = isFreeDelivery ? 0 : option.fee;
+                      return (
+                        <SelectItem key={option.id} value={option.id}>
+                          <div className="flex items-center gap-1.5">
+                            <span>{option.name}</span>
+                            <span className={displayFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
+                              {displayFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(displayFee)}`}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+              {shippingQuotesLoading && (
+                <p className="text-xs text-muted-foreground">Calculando frete...</p>
+              )}
+              {shippingQuotesError && !shippingQuotesLoading && (
+                <p className="text-xs text-muted-foreground">
+                  Não foi possível calcular frete automático agora. Use as opções de entrega acima.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}

@@ -26,6 +26,28 @@ export function QuickEditModal({ product, open, onOpenChange, onSaved }: QuickEd
   const [stockQuantity, setStockQuantity] = useState('');
   const [isVisible, setIsVisible] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Produto com grade de variantes tem o estoque total DERIVADO da soma das
+  // variantes ofertadas. Digitar um numero aqui era descartado no recalculo
+  // da venda seguinte, e o lojista via o estoque "voltar sozinho".
+  const [hasVariantStock, setHasVariantStock] = useState(false);
+
+  useEffect(() => {
+    if (!product?.id || !open) {
+      setHasVariantStock(false);
+      return;
+    }
+
+    let cancelled = false;
+    supabase
+      .from('product_variant_stock')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', product.id)
+      .then(({ count }) => {
+        if (!cancelled) setHasVariantStock((count ?? 0) > 0);
+      });
+
+    return () => { cancelled = true; };
+  }, [product?.id, open]);
 
   useEffect(() => {
     if (product) {
@@ -49,7 +71,7 @@ export function QuickEditModal({ product, open, onOpenChange, onSaved }: QuickEd
     const newDiscount = discountedPrice ? parseFloat(discountedPrice) : null;
     if (newDiscount !== (product.discounted_price || null)) updates.discounted_price = newDiscount;
     if (shortDescription !== (product.short_description || '')) updates.short_description = shortDescription;
-    if (product.track_inventory) {
+    if (product.track_inventory && !hasVariantStock) {
       const newStock = stockQuantity ? parseInt(stockQuantity) : null;
       if (newStock !== product.stock_quantity) updates.stock_quantity = newStock;
     }
@@ -149,7 +171,14 @@ export function QuickEditModal({ product, open, onOpenChange, onSaved }: QuickEd
                 value={stockQuantity}
                 onChange={(e) => setStockQuantity(e.target.value)}
                 className="h-9"
+                disabled={hasVariantStock}
               />
+              {hasVariantStock && (
+                <p className="text-[11px] text-muted-foreground">
+                  Este produto tem estoque por variante. O total é a soma das
+                  variantes — edite na grade de variantes, dentro do produto.
+                </p>
+              )}
             </div>
           )}
 

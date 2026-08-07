@@ -223,20 +223,24 @@ export default function OrderDetailsPanel({
           selected_variant_label: i.selected_variant_label,
         }));
 
-      await deductStockForOrder(order.id, user.id, deductionItems);
-    } else {
-      const restoreItems = inventoryItems
-        .filter((i) => i.track_inventory)
-        .map((i) => ({
-          product_id: i.product_id,
-          quantity: i.quantity,
-          selected_color: i.selected_color,
-          selected_size: i.selected_size,
-          selected_flavor: i.selected_flavor,
-          selected_variant_label: i.selected_variant_label,
-        }));
+      const result = await deductStockForOrder(order.id, user.id, deductionItems);
 
-      await restoreStockForOrder(order.id, restoreItems);
+      const pendencias = result.insufficientItems.length + result.unmatchedItems.length;
+      if (!result.success) {
+        toast.error('Nao foi possivel baixar o estoque deste pedido.');
+      } else if (pendencias > 0) {
+        toast.warning(
+          `Baixa parcial: ${pendencias} ${pendencias === 1 ? 'item ficou' : 'itens ficaram'} pendente(s). Confira o aviso no pedido.`
+        );
+      }
+    } else {
+      // A quantidade a estornar vem dos movimentos de saida do proprio pedido
+      // (dentro da RPC), nao dos itens exibidos aqui — baixa parcial estorna
+      // parcial.
+      const restored = await restoreStockForOrder(order.id);
+      if (!restored) {
+        toast.error('Nao foi possivel estornar o estoque deste pedido.');
+      }
     }
 
     await executeStatusChange(pendingStatus);
@@ -257,6 +261,14 @@ export default function OrderDetailsPanel({
         order.customer_country_code || '55'
       )
     : '';
+
+  // Falta de saldo e combinacao inexistente na grade sao a mesma coisa para o
+  // lojista: o pedido entrou mas o estoque nao acompanhou. `available: null`
+  // distingue os dois casos na hora de escrever a linha.
+  const shortfallItems = [
+    ...(order.stock_shortfall?.insufficient_items ?? []),
+    ...(order.stock_shortfall?.unmatched_items ?? []).map((i) => ({ ...i, available: null })),
+  ];
 
   const isEcommerce = order.order_type === 'ecommerce';
   const hasShippingAddress = !!(order.shipping_street || order.shipping_city);
@@ -281,10 +293,46 @@ export default function OrderDetailsPanel({
                   Estoque reduzido
                 </Badge>
               )}
+              {shortfallItems.length > 0 && (
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                  Estoque pendente
+                </Badge>
+              )}
             </div>
           </SheetHeader>
 
           <div className="space-y-6">
+            {shortfallItems.length > 0 && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <p className="text-sm font-semibold">Baixa de estoque incompleta</p>
+                </div>
+                <p className="text-xs text-amber-700/90 dark:text-amber-400/90">
+                  Este pedido foi registrado, mas nem tudo pôde ser retirado do
+                  estoque. Confira antes de separar:
+                </p>
+                <ul className="space-y-1 text-xs text-amber-800 dark:text-amber-300">
+                  {shortfallItems.map((item, idx) => {
+                    const variante = [item.selected_color, item.selected_size, item.selected_flavor]
+                      .filter(Boolean)
+                      .join(' / ');
+                    return (
+                      <li key={`${item.product_id}-${idx}`} className="flex gap-1.5">
+                        <span aria-hidden>•</span>
+                        <span>
+                          <strong>{item.product_title}</strong>
+                          {variante && ` (${variante})`}:{' '}
+                          {item.available == null
+                            ? `combinação não encontrada na grade de variantes — pedido de ${item.requested}`
+                            : `pedido ${item.requested}, baixado ${item.deducted ?? 0} (havia ${item.available})`}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             {/* Customer Info */}
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Cliente</h4>

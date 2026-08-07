@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Package, Search, Filter, Loader as Loader2, ShoppingBag, Clock, CircleCheck as CheckCircle, DollarSign, MessageCircle, Ticket, Wallet, Truck, CreditCard } from 'lucide-react';
+import { Package, Search, Filter, Loader as Loader2, ShoppingBag, Clock, CircleCheck as CheckCircle, DollarSign, MessageCircle, Ticket, Wallet, Truck, CreditCard, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOrders, getOrderStats, type OrderStats } from '@/lib/orderService';
 import { getMerchantPaymentConfig } from '@/lib/merchantPayments';
@@ -343,6 +343,12 @@ export default function OrdersPage() {
                             {order.coupon_code}
                           </Badge>
                         )}
+                        {order.stock_shortfall && (
+                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Estoque pendente
+                          </Badge>
+                        )}
                         {order.payment_method && (
                           <Badge variant="outline" className="text-xs">
                             <Wallet className="h-3 w-3 mr-1" />
@@ -353,6 +359,8 @@ export default function OrdersPage() {
                           <Badge variant="outline" className="text-xs">
                             <Truck className="h-3 w-3 mr-1" />
                             {order.delivery_option}
+                            {order.delivery_scope === 'local' && ' (Local)'}
+                            {order.delivery_scope === 'national' && ' (Nacional)'}
                           </Badge>
                         )}
                       </div>

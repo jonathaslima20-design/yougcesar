@@ -63,6 +63,73 @@ async function verifySignature(
   return timingSafeEqual(hexHash, v1);
 }
 
+/**
+ * Baixa o estoque de um pedido ecommerce recem-aprovado.
+ *
+ * Respeita as mesmas duas chaves do checkout por WhatsApp: a loja precisa ter
+ * o controle de estoque ligado (`enableInventory`) e a baixa automatica
+ * (`autoDeductStock`). Quem faz o trabalho e a RPC `deduct_stock_for_order`,
+ * que ja e idempotente o suficiente para o retry do Mercado Pago: a chave de
+ * idempotencia em order_payment_webhook_events barra o evento repetido antes
+ * de chegar aqui.
+ */
+async function deductStockForApprovedOrder(
+  admin: ReturnType<typeof createClient>,
+  orderId: string
+): Promise<void> {
+  const { data: order, error: orderError } = await admin
+    .from("orders")
+    .select("id, store_owner_id, inventory_deducted")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (orderError || !order) {
+    console.error("Stock deduction skipped, order not found:", orderId, orderError);
+    return;
+  }
+
+  if (order.inventory_deducted) return;
+
+  const { data: settings } = await admin
+    .from("user_storefront_settings")
+    .select("settings")
+    .eq("user_id", order.store_owner_id)
+    .maybeSingle();
+
+  const inventoryEnabled = settings?.settings?.enableInventory ?? false;
+  const autoDeduct = settings?.settings?.autoDeductStock ?? true;
+  if (!inventoryEnabled || !autoDeduct) return;
+
+  const { data: items, error: itemsError } = await admin
+    .from("order_items")
+    .select("product_id, quantity, selected_color, selected_size, selected_flavor, selected_variant_label")
+    .eq("order_id", orderId);
+
+  if (itemsError || !items?.length) {
+    console.error("Stock deduction skipped, no items:", orderId, itemsError);
+    return;
+  }
+
+  const { data: result, error: deductError } = await admin.rpc("deduct_stock_for_order", {
+    p_order_id: orderId,
+    p_store_owner_id: order.store_owner_id,
+    p_items: items,
+  });
+
+  if (deductError) {
+    console.error("Stock deduction failed for approved order:", orderId, deductError);
+    return;
+  }
+
+  const insufficient = result?.insufficient_items?.length ?? 0;
+  const unmatched = result?.unmatched_items?.length ?? 0;
+  if (insufficient > 0 || unmatched > 0) {
+    // Pagamento ja aprovado mas sem estoque para atender: a RPC gravou o
+    // detalhe em orders.stock_shortfall e o painel sinaliza o pedido.
+    console.warn("Approved order with stock shortfall:", orderId, { insufficient, unmatched });
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -166,8 +233,35 @@ Deno.serve(async (req: Request) => {
       })
       .eq("id", paymentRow.id);
 
+    // O estoque so sai quando o dinheiro entra. Antes a baixa acontecia na
+    // CRIACAO do pedido ecommerce (payment_status ainda 'pending'), entao um
+    // PIX abandonado ou um cartao recusado sumiam com o estoque para sempre —
+    // nada devolvia. Agora a baixa acontece aqui, na aprovacao, e os demais
+    // status finais sao gravados no pedido em vez de ficarem presos em
+    // 'pending'.
     if (mpStatus === "approved" && paymentRow.status !== "approved") {
       await admin.from("orders").update({ payment_status: "approved" }).eq("id", paymentRow.order_id);
+      await deductStockForApprovedOrder(admin, paymentRow.order_id);
+    } else if (
+      ["rejected", "cancelled", "refunded", "charged_back"].includes(mpStatus) &&
+      paymentRow.status !== mpStatus
+    ) {
+      const orderPaymentStatus = mpStatus === "charged_back" ? "refunded" : mpStatus;
+      await admin
+        .from("orders")
+        .update({ payment_status: orderPaymentStatus })
+        .eq("id", paymentRow.order_id);
+
+      // Se o pagamento foi aprovado antes e agora voltou atras (estorno /
+      // chargeback), o estoque que saiu precisa voltar.
+      if (paymentRow.status === "approved") {
+        const { error: restoreError } = await admin.rpc("restore_stock_for_order", {
+          p_order_id: paymentRow.order_id,
+        });
+        if (restoreError) {
+          console.error("Failed to restore stock after reversal:", paymentRow.order_id, restoreError);
+        }
+      }
     }
 
     await admin

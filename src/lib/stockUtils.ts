@@ -36,8 +36,27 @@ interface DeductionItem {
   selected_variant_label?: string | null;
 }
 
+export interface StockShortfallItem {
+  product_id: string;
+  product_title: string;
+  variant_stock_id?: string | null;
+  selected_color?: string | null;
+  selected_size?: string | null;
+  selected_flavor?: string | null;
+  requested: number;
+  deducted?: number;
+  /** null/undefined = a combinacao nao existe na grade de variantes. */
+  available?: number | null;
+}
+
 interface DeductionResult {
   success: boolean;
+  /** Quantos itens tiveram baixa real. 0 = nada saiu do estoque. */
+  deductedCount: number;
+  /** Itens sem saldo suficiente — a baixa foi parcial ou nula. */
+  insufficientItems: StockShortfallItem[];
+  /** Itens cuja cor/tamanho nao existe na grade de variantes do produto. */
+  unmatchedItems: StockShortfallItem[];
   notifications: { productId: string; productTitle: string; type: 'low_stock' | 'out_of_stock' }[];
 }
 
@@ -50,7 +69,7 @@ export async function deductStockForOrder(
   // session at checkout: product_variant_stock/products/stock_movements are
   // only writable by the product owner via RLS, so a direct client-side
   // write here would silently no-op (or fail) for anyone but the seller.
-  const { error } = await supabase.rpc('deduct_stock_for_order', {
+  const { data, error } = await supabase.rpc('deduct_stock_for_order', {
     p_order_id: orderId,
     p_store_owner_id: storeOwnerId,
     p_items: items,
@@ -58,82 +77,73 @@ export async function deductStockForOrder(
 
   if (error) {
     console.error('Error deducting stock for order:', error);
-    return { success: false, notifications: [] };
+    return { success: false, deductedCount: 0, insufficientItems: [], unmatchedItems: [], notifications: [] };
   }
 
-  return { success: true, notifications: [] };
+  // A RPC ja persiste o mesmo conteudo em orders.stock_shortfall, entao o
+  // pedido fica sinalizado no painel mesmo que este retorno se perca (aba
+  // fechada no meio do checkout, por exemplo).
+  return {
+    success: true,
+    deductedCount: data?.deducted_count ?? 0,
+    insufficientItems: (data?.insufficient_items ?? []) as StockShortfallItem[],
+    unmatchedItems: (data?.unmatched_items ?? []) as StockShortfallItem[],
+    notifications: [],
+  };
 }
 
-export async function restoreStockForOrder(
-  orderId: string,
-  items: DeductionItem[]
-): Promise<boolean> {
-  for (const item of items) {
-    const { data: product, error: fetchError } = await supabase
-      .from('products')
-      .select('id, track_inventory, stock_quantity')
-      .eq('id', item.product_id)
-      .maybeSingle();
+/**
+ * Estorna ao estoque o que um pedido cancelado tinha baixado.
+ *
+ * Delega para a RPC `restore_stock_for_order`, que usa os `stock_movements`
+ * de saida do pedido como fonte da verdade. A versao anterior devolvia a
+ * quantidade PEDIDA: como a baixa e limitada ao saldo disponivel, um pedido
+ * de 5 unidades com 3 em estoque baixava 3 e o cancelamento devolvia 5,
+ * inventando 2 unidades. A RPC tambem e idempotente e trava as linhas, entao
+ * dois cancelamentos do mesmo pedido nao duplicam a devolucao.
+ */
+export async function restoreStockForOrder(orderId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('restore_stock_for_order', {
+    p_order_id: orderId,
+  });
 
-    if (fetchError || !product || !product.track_inventory) continue;
-
-    const variantStock = await findVariantStock(item.product_id, item.selected_color, item.selected_size, item.selected_flavor);
-
-    if (variantStock) {
-      const prevQty = variantStock.quantity;
-      const newQty = prevQty + item.quantity;
-
-      await supabase
-        .from('product_variant_stock')
-        .update({ quantity: newQty, updated_at: new Date().toISOString() })
-        .eq('id', variantStock.id);
-
-      await recordStockMovement({
-        product_id: item.product_id,
-        variant_stock_id: variantStock.id,
-        movement_type: 'cancelamento',
-        quantity: item.quantity,
-        previous_quantity: prevQty,
-        new_quantity: newQty,
-        reference_type: 'order',
-        reference_id: orderId,
-      });
-
-      await syncProductAggregateStock(item.product_id);
-    } else {
-      const prevQty = product.stock_quantity ?? 0;
-      const newQty = prevQty + item.quantity;
-
-      await supabase
-        .from('products')
-        .update({ stock_quantity: newQty })
-        .eq('id', item.product_id);
-
-      await recordStockMovement({
-        product_id: item.product_id,
-        movement_type: 'cancelamento',
-        quantity: item.quantity,
-        previous_quantity: prevQty,
-        new_quantity: newQty,
-        reference_type: 'order',
-        reference_id: orderId,
-      });
-    }
+  if (error || !data?.success) {
+    console.error('Error restoring stock for order:', error || data?.error);
+    return false;
   }
-
-  await supabase
-    .from('orders')
-    .update({ inventory_deducted: false })
-    .eq('id', orderId);
 
   return true;
 }
 
+export class VariantManagedStockError extends Error {
+  constructor() {
+    super('Este produto tem estoque por variante. Edite pela grade de variantes.');
+    this.name = 'VariantManagedStockError';
+  }
+}
+
+/**
+ * Ajuste manual do estoque agregado de um produto.
+ *
+ * Recusa produtos que tem grade de variantes: neles `products.stock_quantity`
+ * e um valor DERIVADO da soma das variantes ofertadas, entao um numero
+ * digitado aqui era silenciosamente descartado no recalculo da venda seguinte.
+ * O lojista via o estoque "voltar sozinho" sem entender por que.
+ */
 export async function updateProductStock(
   productId: string,
   newQuantity: number,
   performedBy?: string
 ): Promise<boolean> {
+  const { count: variantCount } = await supabase
+    .from('product_variant_stock')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productId);
+
+  if ((variantCount ?? 0) > 0) {
+    throw new VariantManagedStockError();
+  }
+
   const { data: product } = await supabase
     .from('products')
     .select('stock_quantity')

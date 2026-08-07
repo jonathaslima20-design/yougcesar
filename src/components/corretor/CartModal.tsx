@@ -47,6 +47,22 @@ import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
+import { fetchAddressByCep } from '@/lib/viaCep';
+import { getShippingQuote } from '@/lib/merchantShipping';
+import { fetchProductShippingDims, buildSuperFreteProducts } from '@/lib/shippingUtils';
+import type { ShippingQuote } from '@/types';
+
+// Case + diacritic-insensitive comparison ("São Paulo" / "SAO PAULO" / "sao paulo" all match).
+// Typos and alternate city names are an accepted residual risk — no fuzzy matching.
+// Duplicated in CheckoutAddressPage.tsx rather than shared, matching this codebase's
+// existing pattern of keeping the two checkout flows' calculation logic independent.
+function normalizeCityName(city: string): string {
+  return city
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase();
+}
 
 
 interface CartModalProps {
@@ -66,7 +82,11 @@ export default function CartModal({
 }: CartModalProps) {
   const { cart, updateVariantQuantity, removeCartVariant, clearCart, updateVariantNotes, updateVariantOptions, removeDistribution, appliedCoupon, setAppliedCoupon, clearAppliedCoupon } = useCart();
   const { t } = useTranslation(language);
-  const { autoDeductStock, inventoryEnabled } = useInventoryEnabledForStore(corretor?.id);
+  // `loading` importa: enquanto as configuracoes da loja nao chegam,
+  // inventoryEnabled vale `false`. Enviar o pedido nesse intervalo pulava a
+  // revalidacao de estoque E a baixa automatica — o pedido entrava e o estoque
+  // nao mexia. O botao de enviar fica travado ate isso resolver.
+  const { autoDeductStock, inventoryEnabled, loading: inventoryLoading } = useInventoryEnabledForStore(corretor?.id);
   const { loading: couponLoading, error: couponError, validateCoupon, clearCoupon, setError: setCouponError } = useCouponValidation();
   const { settings: checkoutSettings, loading: checkoutSettingsLoading } = useCheckoutSettingsForStore(corretor?.id);
   // Resolved ahead of time (not awaited in handleSendOrder) — window.open()
@@ -88,6 +108,13 @@ export default function CartModal({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string | null>(null);
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
+  const [customerCep, setCustomerCep] = useState('');
+  const [customerCity, setCustomerCity] = useState('');
+  const [customerState, setCustomerState] = useState('');
+  const [cepLoading, setCepLoading] = useState(false);
+  const [shippingQuotes, setShippingQuotes] = useState<ShippingQuote[]>([]);
+  const [shippingQuotesLoading, setShippingQuotesLoading] = useState(false);
+  const [shippingQuotesError, setShippingQuotesError] = useState(false);
 
   const navigate = useNavigate();
   const { customer: buyerAccount } = useBuyerAuth();
@@ -102,13 +129,51 @@ export default function CartModal({
   }, [checkoutMode]);
 
   const enabledPaymentMethods = checkoutSettings.paymentMethods.filter(m => m.enabled);
-  // No shipping address is collected in this modal anymore (the ecommerce
-  // path redirects to its own dedicated address step), so region-restricted
-  // delivery options always show here — same as before an address was typed.
-  const enabledDeliveryOptions = checkoutSettings.deliveryOptions.filter((d) => d.enabled);
+  // A lightweight CEP field (see below) resolves buyer city/state so local-scope
+  // and region-restricted delivery options can be filtered here too, mirroring
+  // CheckoutAddressPage.tsx's filtering (duplicated, not shared — see decision
+  // in the plan for this feature).
+  const merchantCity = corretor.city ? normalizeCityName(corretor.city) : null;
+  const buyerCity = customerCity ? normalizeCityName(customerCity) : null;
+  const enabledDeliveryOptions = checkoutSettings.deliveryOptions.filter((d) => {
+    if (!d.enabled) return false;
+    const scope = d.scope === 'local' ? 'local' : 'national';
+    if (scope === 'local') {
+      return !!merchantCity && !!buyerCity && merchantCity === buyerCity;
+    }
+    if (d.calculationType === 'region' && customerState) {
+      return (d.regions || []).includes(customerState);
+    }
+    return true;
+  });
+
+  const hasNoMatchingLocalOption =
+    enabledDeliveryOptions.length === 0 &&
+    !!buyerCity &&
+    checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local');
+
+  const requiresCityForDelivery =
+    checkoutSettings.requireDeliveryOption &&
+    checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local') &&
+    !buyerCity;
+
+  // Live SuperFrete quotes are merged alongside the manual delivery-option
+  // list into one combined selectable set — the buyer doesn't need to know
+  // which source a given option came from.
+  const superFreteOptions = shippingQuotes.map((q) => ({
+    id: `superfrete:${q.id}`,
+    name: `${q.name} (SuperFrete)`,
+    fee: q.price,
+    enabled: true,
+    freeAbove: null,
+    calculationType: 'carrier' as const,
+    carrierProvider: 'superfrete' as const,
+    scope: 'national' as const,
+  }));
+  const allDeliveryOptions = [...enabledDeliveryOptions, ...superFreteOptions];
 
   const selectedPaymentConfig = enabledPaymentMethods.find(m => m.id === selectedPaymentMethod);
-  const selectedDeliveryConfig = enabledDeliveryOptions.find(d => d.id === selectedDeliveryOption);
+  const selectedDeliveryConfig = allDeliveryOptions.find(d => d.id === selectedDeliveryOption);
 
   const discountAmount = appliedCoupon?.calculatedDiscount || 0;
 
@@ -196,6 +261,45 @@ export default function CartModal({
     );
   };
 
+  const handleCepBlur = async () => {
+    const zipDigits = customerCep.replace(/\D/g, '');
+    if (zipDigits.length !== 8) return;
+    setCepLoading(true);
+    let resolvedCity = '';
+    let resolvedState = '';
+    try {
+      const result = await fetchAddressByCep(customerCep);
+      if (result) {
+        resolvedCity = result.city || '';
+        resolvedState = result.state || '';
+        setCustomerCity(resolvedCity);
+        setCustomerState(resolvedState);
+      }
+    } finally {
+      setCepLoading(false);
+    }
+
+    const superFreteEnabled = checkoutSettings.superFrete?.enabled;
+    const serviceIds = checkoutSettings.superFrete?.serviceIds || [];
+    if (!superFreteEnabled || serviceIds.length === 0) return;
+
+    setShippingQuotes([]);
+    setShippingQuotesError(false);
+    setShippingQuotesLoading(true);
+    try {
+      const productIds = cart.items.map((item) => item.id);
+      const dims = await fetchProductShippingDims(productIds);
+      const products = buildSuperFreteProducts(cart.items, cart.distributions, dims);
+      const { quotes } = await getShippingQuote(corretor.id, zipDigits, products, serviceIds);
+      setShippingQuotes(quotes);
+      setShippingQuotesError(quotes.length === 0);
+    } catch {
+      setShippingQuotesError(true);
+    } finally {
+      setShippingQuotesLoading(false);
+    }
+  };
+
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
     const cleanPhone = customerPhone.replace(/\D/g, '');
@@ -266,15 +370,22 @@ export default function CartModal({
     if (checkoutSettings.requirePaymentMethod && enabledPaymentMethods.length > 0 && !selectedPaymentMethod) {
       newErrors.payment = 'Selecione uma forma de pagamento';
     }
-    if (checkoutSettings.requireDeliveryOption && enabledDeliveryOptions.length > 0 && !selectedDeliveryOption) {
-      newErrors.delivery = 'Selecione uma opcao de entrega';
+    const hasAnyDeliverySource = checkoutSettings.deliveryOptions.some((d) => d.enabled) || !!checkoutSettings.superFrete?.enabled;
+    if (checkoutSettings.requireDeliveryOption && hasAnyDeliverySource) {
+      if (requiresCityForDelivery) {
+        newErrors.delivery = 'Informe seu CEP para ver as opcoes de entrega';
+      } else if (allDeliveryOptions.length === 0) {
+        newErrors.delivery = 'Nao ha opcoes de entrega disponiveis para sua cidade';
+      } else if (!selectedDeliveryOption) {
+        newErrors.delivery = 'Selecione uma opcao de entrega';
+      }
     }
     setFormErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
       const firstError = newErrors.name ? 'Informe seu nome'
         : newErrors.phone ? 'Informe um numero de WhatsApp valido'
         : newErrors.payment ? 'Selecione uma forma de pagamento'
-        : newErrors.delivery ? 'Selecione uma opcao de entrega'
+        : newErrors.delivery ? newErrors.delivery
         : 'Verifique os campos destacados';
       toast.error(firstError);
     }
@@ -325,6 +436,10 @@ export default function CartModal({
   const handleSendOrder = async () => {
     if (!validateCustomerInfo()) return;
     if (cart.items.length === 0 && cart.distributions.length === 0) return;
+    if (inventoryLoading) {
+      toast.error('Aguarde um instante e tente novamente.');
+      return;
+    }
     if (minPurchaseActive && !minPurchaseMet) {
       if (minPurchase!.type === 'value') {
         toast.error(`O valor mínimo para compra é ${formatCurrencyI18n(minPurchase!.value, currency, language)}.`);
@@ -333,6 +448,15 @@ export default function CartModal({
       }
       return;
     }
+
+    // Uma aba EM BRANCO e aberta agora, ainda dentro do gesto sincrono do
+    // clique — e o unico jeito de nao ser bloqueada no iOS Safari / Android
+    // Chrome. So no fim, depois do pedido estar gravado, ela e apontada para
+    // o WhatsApp. Antes o WhatsApp abria aqui ja com a mensagem do pedido, e
+    // qualquer coisa que desse errado depois (estoque insuficiente, falha de
+    // rede, aba suspensa pelo app do WhatsApp assumindo a tela) deixava o
+    // lojista com um pedido no chat que nunca chegou no menu Vendas.
+    const popup = window.open('', '_blank');
 
     try {
       setSendingOrder(true);
@@ -344,17 +468,10 @@ export default function CartModal({
       const effectiveWhatsAppContact = affiliateWhatsAppOverride || corretor;
       const whatsappUrl = getWhatsAppContactUrl(effectiveWhatsAppContact, effectiveWhatsAppContact.whatsapp_mode === 'link' ? '' : orderMessage);
 
-      // Open WhatsApp immediately while still in the synchronous user-gesture context.
-      // Mobile browsers (iOS Safari, Android Chrome) block window.open() if called
-      // after any await, because the user-gesture context is lost across async boundaries.
-      const popup = window.open(whatsappUrl, '_blank');
-
       const orderItems = buildOrderItems();
 
-      // Re-check stock now, right before the order is actually recorded — the item
-      // could have sold out to someone else while it sat in this cart. Can't be done
-      // before window.open() above without losing the user-gesture context for the
-      // popup, so the WhatsApp tab may already be open by the time we catch this.
+      // Revalida o estoque antes de qualquer coisa irreversivel: o item pode
+      // ter esgotado para outro comprador enquanto ficou parado neste carrinho.
       if (inventoryEnabled) {
         const shortfalls = await findCartStockShortfalls(
           orderItems.map((item) => ({
@@ -368,17 +485,17 @@ export default function CartModal({
         );
 
         if (shortfalls.length > 0) {
+          popup?.close();
           toast.error(formatShortfallMessage(shortfalls));
           return;
         }
       }
 
-      toast.success('Pedido enviado! Abrindo WhatsApp...');
-
       const affiliateId = await resolveAttributedAffiliateId(corretor.id);
 
+      let createdOrder: Awaited<ReturnType<typeof createOrder>> = null;
       try {
-        await createOrder(
+        createdOrder = await createOrder(
           {
             store_owner_id: corretor.id,
             customer_name: customer.name,
@@ -396,8 +513,11 @@ export default function CartModal({
             payment_method_discount: paymentMethodDiscount,
             delivery_fee: deliveryFee,
             delivery_option: selectedDeliveryConfig?.name || null,
+            delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope === 'local' ? 'local' : 'national') : null,
             insurance_fee: insuranceFee,
             affiliate_id: affiliateId,
+            shipping_city: customerCity.trim() || null,
+            shipping_state: customerState.trim() || null,
           },
           orderItems,
           inventoryEnabled && autoDeductStock
@@ -408,11 +528,23 @@ export default function CartModal({
         console.error('Failed to save order, proceeding with WhatsApp:', err);
       }
 
+      // O pedido ja esta gravado (ou falhou de forma conhecida) — so agora o
+      // WhatsApp entra em cena. Se a gravacao falhou, o comprador ainda
+      // consegue enviar pelo chat, mas e avisado de que a confirmacao vem
+      // pelo WhatsApp: melhor um pedido avisado do que um pedido fantasma.
+      if (createdOrder?.id) {
+        toast.success('Pedido registrado! Abrindo WhatsApp...');
+      } else {
+        toast.warning('Nao conseguimos registrar seu pedido automaticamente. Envie pelo WhatsApp que o vendedor confirma por la.');
+      }
+
       await trackWhatsAppClick('storefront', 'product', 'cart_checkout');
 
-      if (!popup) {
-        // Popup was blocked — only now fall back to navigating the same tab,
-        // after the order/stock-deduction writes above had a chance to complete.
+      if (popup) {
+        popup.location.href = whatsappUrl;
+      } else {
+        // Aba bloqueada pelo navegador — navega a propria aba, agora que as
+        // escritas do pedido e da baixa de estoque ja terminaram.
         window.location.href = whatsappUrl;
       }
 
@@ -426,10 +558,18 @@ export default function CartModal({
       setCustomerName('');
       setCustomerPhone('');
       setCustomerCountryCode(corretor.country_code || '55');
+      setCustomerCep('');
+      setCustomerCity('');
+      setCustomerState('');
+      setShippingQuotes([]);
+      setShippingQuotesError(false);
       setFormErrors({});
       onOpenChange(false);
     } catch (error) {
       console.error('Error sending order:', error);
+      // Nao deixa a aba em branco orfa se algo estourou antes de aponta-la.
+      popup?.close();
+      toast.error('Nao foi possivel enviar o pedido. Tente novamente.');
     } finally {
       setSendingOrder(false);
     }
@@ -1036,7 +1176,53 @@ export default function CartModal({
                             <p className="text-xs text-destructive">{formErrors.phone}</p>
                           )}
                         </div>
+                        {(checkoutSettings.deliveryOptions.some((d) => d.enabled) || checkoutSettings.superFrete?.enabled) && (
+                          <div className="space-y-1.5">
+                            <Label htmlFor="checkout-cep" className="text-xs text-muted-foreground">
+                              CEP
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="checkout-cep"
+                                placeholder="00000-000"
+                                value={customerCep}
+                                onChange={(e) => {
+                                  setCustomerCep(e.target.value);
+                                  if (shippingQuotes.length > 0 || shippingQuotesError) {
+                                    setShippingQuotes([]);
+                                    setShippingQuotesError(false);
+                                    if (selectedDeliveryOption?.startsWith('superfrete:')) {
+                                      setSelectedDeliveryOption(null);
+                                    }
+                                  }
+                                }}
+                                onBlur={handleCepBlur}
+                                className="h-9 text-xs px-3"
+                              />
+                              {cepLoading && (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                              )}
+                            </div>
+                            {customerCity && (
+                              <p className="text-xs text-muted-foreground">{customerCity} - {customerState}</p>
+                            )}
+                            {shippingQuotesLoading && (
+                              <p className="text-xs text-muted-foreground">Calculando frete...</p>
+                            )}
+                            {shippingQuotesError && !shippingQuotesLoading && (
+                              <p className="text-xs text-muted-foreground">
+                                Não foi possível calcular frete automático agora. Use as opções de entrega acima.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
+
+                      {hasNoMatchingLocalOption && (
+                        <div className="rounded-lg border p-3 text-xs text-muted-foreground">
+                          Não há opções de entrega disponíveis para {customerCity}. Esta loja entrega localmente apenas em {corretor.city}.
+                        </div>
+                      )}
 
                       {/* Coupon Section */}
                       <div className="space-y-1.5">
@@ -1100,7 +1286,7 @@ export default function CartModal({
                       </div>
 
                       {/* Payment & Delivery Row */}
-                      {(enabledPaymentMethods.length > 0 || enabledDeliveryOptions.length > 0) && (
+                      {(enabledPaymentMethods.length > 0 || allDeliveryOptions.length > 0) && (
                         <div className="grid grid-cols-2 gap-3">
                           {enabledPaymentMethods.length > 0 && (
                             <div className="space-y-1.5">
@@ -1144,7 +1330,7 @@ export default function CartModal({
                             </div>
                           )}
 
-                          {enabledDeliveryOptions.length > 0 && (
+                          {allDeliveryOptions.length > 0 && (
                             <div className="space-y-1.5">
                               <Label className="text-xs text-muted-foreground">
                                 Entrega {checkoutSettings.requireDeliveryOption && <span className="text-destructive">*</span>}
@@ -1160,7 +1346,7 @@ export default function CartModal({
                                   <SelectValue placeholder="Selecione" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {enabledDeliveryOptions.map((option) => {
+                                  {allDeliveryOptions.map((option) => {
                                     const subtotalForFreeCheck = Math.max(0, cart.total - discountAmount - paymentMethodDiscount);
                                     const isFreeDelivery = option.freeAbove && subtotalForFreeCheck >= option.freeAbove;
                                     const displayFee = isFreeDelivery ? 0 : option.fee;
@@ -1304,7 +1490,7 @@ export default function CartModal({
                   ) : (
                     <Button
                       onClick={handleSendOrder}
-                      disabled={sendingOrder}
+                      disabled={sendingOrder || inventoryLoading}
                       size="sm"
                       className="flex-1 h-10"
                     >

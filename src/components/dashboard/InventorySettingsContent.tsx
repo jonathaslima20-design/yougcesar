@@ -152,11 +152,6 @@ export default function InventorySettingsContent() {
     }
   };
 
-  const handleReservationChange = (value: string) => {
-    const minutes = parseInt(value);
-    handleSave({ ...state, reservationMinutes: minutes });
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -236,29 +231,16 @@ export default function InventorySettingsContent() {
                 />
               </div>
 
-              <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Tempo de reserva do carrinho</p>
-                  <p className="text-xs text-muted-foreground">
-                    Quanto tempo um item fica reservado no carrinho antes de ser liberado para outros clientes.
-                  </p>
-                </div>
-                <Select
-                  value={String(state.reservationMinutes)}
-                  onValueChange={handleReservationChange}
-                  disabled={saving}
-                >
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 min</SelectItem>
-                    <SelectItem value="10">10 min</SelectItem>
-                    <SelectItem value="15">15 min</SelectItem>
-                    <SelectItem value="30">30 min</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/*
+                O seletor de "tempo de reserva do carrinho" foi retirado daqui.
+                Ele prometia que o item ficava reservado enquanto estivesse no
+                carrinho, mas nada no sistema cria reserva: createReservation()
+                existe em stockReservationService.ts e nunca e chamado. A opcao
+                nao tinha efeito nenhum — o estoque so sai quando o pedido e
+                fechado. O valor ja gravado em settings.reservationMinutes
+                continua sendo preservado no save, para quando a reserva de
+                fato for implementada.
+              */}
             </>
           )}
         </CardContent>

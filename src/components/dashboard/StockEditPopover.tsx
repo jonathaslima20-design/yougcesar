@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { TriangleAlert as AlertTriangle, PackagePlus } from 'lucide-react';
-import { updateProductStock } from '@/lib/stockUtils';
+import { updateProductStock, VariantManagedStockError } from '@/lib/stockUtils';
 import { getStockStatus, type StockStatus } from '@/lib/stockUtils';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,13 +58,26 @@ export function StockEditPopover({
   const handleSave = async () => {
     const newQuantity = Math.max(0, parseInt(value) || 0);
     setSaving(true);
-    const success = await updateProductStock(productId, newQuantity, user?.id);
-    if (success) {
-      onStockUpdated(productId, newQuantity);
-      toast.success('Estoque atualizado');
-      setOpen(false);
-    } else {
-      toast.error('Erro ao atualizar estoque');
+    try {
+      const success = await updateProductStock(productId, newQuantity, user?.id);
+      if (success) {
+        onStockUpdated(productId, newQuantity);
+        toast.success('Estoque atualizado');
+        setOpen(false);
+      } else {
+        toast.error('Erro ao atualizar estoque');
+      }
+    } catch (err) {
+      // Produto com grade de variantes: o total e derivado da soma das
+      // variantes ofertadas, entao um numero digitado aqui seria descartado
+      // no recalculo da proxima venda.
+      if (err instanceof VariantManagedStockError) {
+        toast.error('Este produto tem estoque por variante. Edite pela grade de variantes na pagina do produto.');
+        setOpen(false);
+      } else {
+        console.error('Error updating stock:', err);
+        toast.error('Erro ao atualizar estoque');
+      }
     }
     setSaving(false);
   };
