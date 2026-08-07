@@ -28,6 +28,7 @@ import { trackWhatsAppClick } from '@/lib/tracking';
 import type { User as UserType, PriceTier } from '@/types';
 import { generateCartOrderMessage } from '@/lib/cartUtils';
 import { createOrder } from '@/lib/orderService';
+import { findCartStockShortfalls, formatShortfallMessage } from '@/lib/stockAvailabilityService';
 import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 import { fetchProductPriceTiers, calculateApplicablePrice } from '@/lib/tieredPricingUtils';
@@ -348,9 +349,32 @@ export default function CartModal({
       // after any await, because the user-gesture context is lost across async boundaries.
       const popup = window.open(whatsappUrl, '_blank');
 
+      const orderItems = buildOrderItems();
+
+      // Re-check stock now, right before the order is actually recorded — the item
+      // could have sold out to someone else while it sat in this cart. Can't be done
+      // before window.open() above without losing the user-gesture context for the
+      // popup, so the WhatsApp tab may already be open by the time we catch this.
+      if (inventoryEnabled) {
+        const shortfalls = await findCartStockShortfalls(
+          orderItems.map((item) => ({
+            productId: item.product_id,
+            title: item.product_title,
+            quantity: item.quantity,
+            selectedColor: item.selected_color,
+            selectedSize: item.selected_size,
+            selectedFlavor: (item as { selected_flavor?: string | null }).selected_flavor,
+          }))
+        );
+
+        if (shortfalls.length > 0) {
+          toast.error(formatShortfallMessage(shortfalls));
+          return;
+        }
+      }
+
       toast.success('Pedido enviado! Abrindo WhatsApp...');
 
-      const orderItems = buildOrderItems();
       const affiliateId = await resolveAttributedAffiliateId(corretor.id);
 
       try {

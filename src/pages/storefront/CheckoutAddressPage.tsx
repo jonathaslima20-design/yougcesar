@@ -24,6 +24,7 @@ import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { fetchCustomerAddresses, createCustomerAddress, type CustomerAddress } from '@/lib/customerAddressService';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { createOrder } from '@/lib/orderService';
+import { findCartStockShortfalls, formatShortfallMessage } from '@/lib/stockAvailabilityService';
 import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -275,6 +276,25 @@ export default function CheckoutAddressPage() {
       }
 
       const orderItems = buildOrderItems();
+
+      if (inventoryEnabled) {
+        const shortfalls = await findCartStockShortfalls(
+          orderItems.map((item) => ({
+            productId: item.product_id,
+            title: item.product_title,
+            quantity: item.quantity,
+            selectedColor: item.selected_color,
+            selectedSize: item.selected_size,
+            selectedFlavor: (item as { selected_flavor?: string | null }).selected_flavor,
+          }))
+        );
+
+        if (shortfalls.length > 0) {
+          toast.error(formatShortfallMessage(shortfalls));
+          return;
+        }
+      }
+
       const affiliateId = await resolveAttributedAffiliateId(corretor.id);
 
       const order = await createOrder(
