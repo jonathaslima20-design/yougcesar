@@ -1,4 +1,5 @@
 import './lib/earlyBuyerOAuthCapture';
+import './lib/earlyErpOAuthCapture';
 import { createRoot } from 'react-dom/client';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import App from './App.tsx';

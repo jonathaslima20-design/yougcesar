@@ -12,12 +12,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Key, Plus, Trash2, Copy, Eye, EyeOff, Clock, Shield, Code as Code2, Zap, Lock, Loader as Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import ErpConnectorsSection from './ErpConnectorsSection';
 
 interface ApiKey {
   id: string;
@@ -185,8 +187,8 @@ export default function IntegrationsSettingsContent() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Integrações & API</h3>
             <p className="text-muted-foreground max-w-md mb-4">
-              A API do VitrineTurbo permite integrar sua loja com sistemas externos como Bling, Tiny, e outros
-              ERPs. Este recurso está disponível exclusivamente para assinantes do plano Anual.
+              Conecte sistemas de gestão prontos (ERP) ou crie sua própria integração usando a API da
+              VitrineTurbo. Este recurso está disponível exclusivamente para assinantes do plano Anual.
             </p>
             <Button
               onClick={() => {
@@ -203,35 +205,44 @@ export default function IntegrationsSettingsContent() {
   }
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-muted-foreground -mt-2">
-        Gerencie suas chaves de API para integrar sua loja com sistemas externos.
-      </p>
+    <div className="space-y-8">
+      <ErpConnectorsSection />
 
-      {/* Quick Info Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="flex items-start gap-3 p-4 rounded-lg border bg-card">
-          <Shield className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium">Segura</p>
-            <p className="text-xs text-muted-foreground">Chaves criptografadas com SHA-256</p>
+      <Separator />
+
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-sm font-medium mb-1">API da VitrineTurbo</h2>
+          <p className="text-xs text-muted-foreground">
+            Crie sua própria integração customizada: gere uma chave e use nossa API REST diretamente, sem
+            depender de um conector pronto.
+          </p>
+        </div>
+
+        {/* Quick Info Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex items-start gap-3 p-4 rounded-lg border bg-card">
+            <Shield className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Segura</p>
+              <p className="text-xs text-muted-foreground">Chaves criptografadas com SHA-256</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-4 rounded-lg border bg-card">
+            <Zap className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Rate Limit</p>
+              <p className="text-xs text-muted-foreground">60 requisições/minuto por chave</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-4 rounded-lg border bg-card">
+            <Code2 className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">RESTful</p>
+              <p className="text-xs text-muted-foreground">API padrão com JSON</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-start gap-3 p-4 rounded-lg border bg-card">
-          <Zap className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium">Rate Limit</p>
-            <p className="text-xs text-muted-foreground">60 requisições/minuto por chave</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3 p-4 rounded-lg border bg-card">
-          <Code2 className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium">RESTful</p>
-            <p className="text-xs text-muted-foreground">API padrão com JSON</p>
-          </div>
-        </div>
-      </div>
 
       {/* API Keys Section */}
       <Card>
@@ -438,6 +449,7 @@ export default function IntegrationsSettingsContent() {
           </CardContent>
         )}
       </Card>
+      </div>
 
       {/* Create API Key Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={(open) => { if (!open) resetCreateDialog(); }}>

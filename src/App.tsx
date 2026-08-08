@@ -72,6 +72,7 @@ import CheckoutAddressPage from '@/pages/storefront/CheckoutAddressPage.tsx';
 import DashboardPage from '@/pages/dashboard/DashboardPage.tsx';
 import ReportsPage from '@/pages/dashboard/ReportsPage.tsx';
 import SettingsPage from '@/pages/dashboard/SettingsPage.tsx';
+import OlistCallbackPage from '@/pages/dashboard/OlistCallbackPage.tsx';
 import ListingsPage from '@/pages/dashboard/ListingsPage.tsx';
 import CreateProductPage from '@/pages/dashboard/CreateProductPage.tsx';
 import EditProductPage from '@/pages/dashboard/EditProductPage.tsx';
@@ -94,6 +95,7 @@ import UserDetailPage from '@/pages/admin/UserDetailPage.tsx';
 import CreateUserPage from '@/pages/admin/CreateUserPage.tsx';
 import AdminSettingsPage from '@/pages/admin/SettingsPage.tsx';
 import NetlifyIntegrationPage from '@/pages/admin/NetlifyIntegrationPage.tsx';
+import IntegrationProvidersPage from '@/pages/admin/IntegrationProvidersPage.tsx';
 import SubscriptionPlansPage from '@/pages/admin/SubscriptionPlansPage.tsx';
 import ReferralManagementPage from '@/pages/admin/ReferralManagementPage.tsx';
 import PartnerManagementPage from '@/pages/admin/PartnerManagementPage.tsx';
@@ -303,6 +305,7 @@ function AppContent() {
 
         {/* Protected Dashboard Routes */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard/settings/integrations/olist/callback" element={<OlistCallbackPage />} />
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/dashboard/reports" element={<ReportsPage />} />
@@ -342,6 +345,7 @@ function AppContent() {
             <Route path="/admin/tracking" element={<AdminTrackingPage />} />
             <Route path="/admin/monitoring" element={<AffiliateTeaserMonitoringPage />} />
             <Route path="/admin/netlify" element={<NetlifyIntegrationPage />} />
+            <Route path="/admin/integrations" element={<IntegrationProvidersPage />} />
             <Route path="/admin/help" element={<HelpManagementPage />} />
             <Route path="/admin/blog" element={<BlogManagementPage />} />
             <Route path="/admin/mercadopago" element={<MercadoPagoPage />} />
