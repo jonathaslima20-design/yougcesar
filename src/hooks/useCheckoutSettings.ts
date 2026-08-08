@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, MinimumPurchaseConfig, ShippingInsuranceConfig } from '@/types';
+import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, MinimumPurchaseConfig, ShippingInsuranceConfig, SuperFreteConfig } from '@/types';
 
 const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   { id: 'pix', name: 'PIX', enabled: false },
@@ -22,6 +22,11 @@ const DEFAULT_SHIPPING_INSURANCE: ShippingInsuranceConfig = {
   percentageRate: 0,
 };
 
+const DEFAULT_SUPER_FRETE: SuperFreteConfig = {
+  enabled: false,
+  serviceIds: [],
+};
+
 const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   paymentMethods: DEFAULT_PAYMENT_METHODS,
   deliveryOptions: [],
@@ -31,6 +36,7 @@ const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   minimumPurchase: DEFAULT_MINIMUM_PURCHASE,
   checkoutMode: 'whatsapp',
   shippingInsurance: DEFAULT_SHIPPING_INSURANCE,
+  superFrete: DEFAULT_SUPER_FRETE,
 };
 
 interface UseCheckoutSettingsReturn {
@@ -73,6 +79,7 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
             minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
             checkoutMode: data.settings.checkout.checkoutMode ?? 'whatsapp',
             shippingInsurance: data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE,
+            superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,
           });
         }
       }
@@ -178,6 +185,9 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           // Admin gate: never leak a stale insurance opt-in to buyers if the
           // merchant's access was revoked after they configured a rate.
           shippingInsurance: storeOwner?.insurance_enabled ? rawShippingInsurance : DEFAULT_SHIPPING_INSURANCE,
+          // No admin gate needed here (unlike insurance) — merchant-shipping-quote
+          // always re-verifies is_active server-side regardless of this value.
+          superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,
         });
       }
       setLoading(false);

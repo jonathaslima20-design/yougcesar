@@ -110,6 +110,8 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
             bio,
             instagram,
             location_url,
+            city,
+            state,
             theme,
             currency,
             language,

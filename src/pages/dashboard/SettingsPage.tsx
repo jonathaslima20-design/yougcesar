@@ -6,6 +6,7 @@ import { StorefrontSettings } from '@/components/dashboard/StorefrontSettings';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import TrackingSettingsContent from '@/components/dashboard/TrackingSettingsContent';
 import CheckoutSettingsContent from '@/components/dashboard/CheckoutSettingsContent';
+import ShippingIntegrationSettingsContent from '@/components/dashboard/ShippingIntegrationSettingsContent';
 import PaymentSettingsContent from '@/components/dashboard/PaymentSettingsContent';
 import InventorySettingsContent from '@/components/dashboard/InventorySettingsContent';
 import IntegrationsSettingsContent from '@/components/dashboard/IntegrationsSettingsContent';
@@ -14,7 +15,7 @@ import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
-const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
+const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'shipping', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
@@ -58,6 +59,7 @@ export default function SettingsPage() {
                   appearance: 'Aparência',
                   storefront: 'Vitrine',
                   checkout: 'Regras de Pedido',
+                  shipping: 'Frete',
                   payment: 'Pagamento',
                   inventory: 'Estoque',
                   tracking: 'Rastreamento',
@@ -90,6 +92,7 @@ export default function SettingsPage() {
               {activeTab === 'appearance' && <AppearanceSettings />}
               {activeTab === 'storefront' && <StorefrontSettings />}
               {activeTab === 'checkout' && <CheckoutSettingsContent />}
+              {activeTab === 'shipping' && <ShippingIntegrationSettingsContent />}
               {activeTab === 'payment' && <PaymentSettingsContent />}
               {activeTab === 'inventory' && <InventorySettingsContent />}
               {activeTab === 'tracking' && <TrackingSettingsContent />}

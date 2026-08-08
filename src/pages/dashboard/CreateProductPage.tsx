@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { logActivity } from '@/lib/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
@@ -56,6 +56,10 @@ const productSchema = z.object({
   track_inventory: z.boolean().default(true),
   stock_quantity: z.number().min(0).optional(),
   low_stock_threshold: z.number().min(0).default(5),
+  weight_kg: z.number().min(0).optional(),
+  height_cm: z.number().min(0).optional(),
+  width_cm: z.number().min(0).optional(),
+  length_cm: z.number().min(0).optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -120,6 +124,10 @@ export default function CreateProductPage() {
       track_inventory: true,
       stock_quantity: undefined,
       low_stock_threshold: 5,
+      weight_kg: undefined,
+      height_cm: undefined,
+      width_cm: undefined,
+      length_cm: undefined,
     },
   });
 
@@ -169,6 +177,10 @@ export default function CreateProductPage() {
         track_inventory: true,
         stock_quantity: data.stock_quantity ?? 0,
         low_stock_threshold: data.low_stock_threshold ?? 5,
+        weight_kg: data.weight_kg ?? null,
+        height_cm: data.height_cm ?? null,
+        width_cm: data.width_cm ?? null,
+        length_cm: data.length_cm ?? null,
       };
       const { data: product, error } = await supabase
         .from('products')
@@ -263,6 +275,10 @@ export default function CreateProductPage() {
         track_inventory: data.track_inventory ?? false,
         stock_quantity: data.track_inventory ? (data.stock_quantity ?? 0) : null,
         low_stock_threshold: data.low_stock_threshold ?? 5,
+        weight_kg: data.weight_kg ?? null,
+        height_cm: data.height_cm ?? null,
+        width_cm: data.width_cm ?? null,
+        length_cm: data.length_cm ?? null,
       };
 
       let product: { id: string };
@@ -638,6 +654,97 @@ export default function CreateProductPage() {
               </Card>
             </Collapsible>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Peso e Dimensões de Envio</CardTitle>
+              <CardDescription>
+                Usado para calcular fretes automáticos (SuperFrete). Opcional.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="weight_kg"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Peso (kg)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        placeholder="0.3"
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="height_cm"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Altura (cm)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="2"
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="width_cm"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Largura (cm)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="11"
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="length_cm"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comprimento (cm)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="16"
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

@@ -38,6 +38,11 @@ import { PasswordChangeDialog } from '@/components/Profile/PasswordChangeDialog'
 import { ThemeToggleSection } from '@/components/Profile/ThemeToggleSection';
 import { PromotionalBannerSection } from '@/components/Profile/PromotionalBannerSection';
 
+const BR_STATES = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+];
+
 const formSchema = z.object({
   owner_name: z.string().min(2, 'Nome muito curto').optional().or(z.literal('')),
   name: z.string().min(2, 'Nome muito curto'),
@@ -52,6 +57,8 @@ const formSchema = z.object({
   whatsapp_link: z.string().trim().url('Link inválido').optional().or(z.literal('')),
   instagram: z.string().optional(),
   location_url: z.string().url('URL inválida').optional().or(z.literal('')),
+  city: z.string().optional(),
+  state: z.string().optional(),
   slug: z.string().min(2, 'Link muito curto').max(50, 'Link muito longo')
     .regex(/^[a-z0-9-]+$/, 'Use apenas letras minúsculas, números e hífens'),
 }).superRefine((values, ctx) => {
@@ -98,6 +105,8 @@ export function ProfileSettings() {
       whatsapp_link: '',
       instagram: '',
       location_url: '',
+      city: '',
+      state: '',
       slug: '',
     },
   });
@@ -132,6 +141,8 @@ export function ProfileSettings() {
         whatsapp_link: user.whatsapp_link || '',
         instagram: user.instagram || '',
         location_url: user.location_url || '',
+        city: user.city || '',
+        state: user.state || '',
         slug: user.slug || '',
       });
       
@@ -236,6 +247,8 @@ export function ProfileSettings() {
         whatsapp_link: whatsappLink,
         instagram: formattedInstagram,
         location_url: values.location_url || null,
+        city: values.city || null,
+        state: values.state || null,
         slug: values.slug,
       };
 
@@ -546,6 +559,49 @@ export function ProfileSettings() {
                   <p className="text-xs text-muted-foreground">
                     Link do Google Maps ou outro serviço de localização
                   </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cidade</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Ex: São Paulo"
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Cidade onde sua loja está, usada para validar opções de entrega local
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o estado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {BR_STATES.map((uf) => (
+                        <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

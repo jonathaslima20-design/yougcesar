@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart, Minimize2, ShieldCheck } from 'lucide-react';
+import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart, Minimize2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
-import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, PaymentMethodDiscountType, ShippingCalculationType } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, DeliveryScope, PaymentMethodDiscountType, ShippingCalculationType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function formatCurrency(value: number): string {
@@ -24,9 +25,11 @@ const BR_STATES = [
 
 export default function CheckoutSettingsContent() {
   const { settings, loading, saving, updateSettings, insuranceGateEnabled } = useCheckoutSettings();
+  const { user } = useAuth();
   const [newMethodName, setNewMethodName] = useState('');
   const [newDeliveryName, setNewDeliveryName] = useState('');
   const [newDeliveryFee, setNewDeliveryFee] = useState(0);
+  const hasMerchantCity = !!user?.city?.trim();
 
   const save = async (newSettings: CheckoutSettings) => {
     try {
@@ -117,6 +120,18 @@ export default function CheckoutSettingsContent() {
     save({ ...settings, deliveryOptions: updated });
   };
 
+  const updateDeliveryScope = (id: string, scope: DeliveryScope) => {
+    if (scope === 'local' && !hasMerchantCity) {
+      toast.error('Defina a cidade da sua loja em Perfil antes de criar uma opção de entrega local');
+      return;
+    }
+    const updated = settings.deliveryOptions.map(d =>
+      // A 'local' option has no notion of UF regions — force flat fee calculation.
+      d.id === id ? { ...d, scope, ...(scope === 'local' ? { calculationType: 'flat' as ShippingCalculationType } : {}) } : d
+    );
+    save({ ...settings, deliveryOptions: updated });
+  };
+
   const addDeliveryOption = () => {
     const name = newDeliveryName.trim();
     if (!name) return;
@@ -126,6 +141,7 @@ export default function CheckoutSettingsContent() {
       name,
       fee: newDeliveryFee,
       enabled: true,
+      scope: 'national',
     };
 
     save({
@@ -420,6 +436,15 @@ export default function CheckoutSettingsContent() {
 
           <Separator />
 
+          {!hasMerchantCity && settings.deliveryOptions.some(d => d.scope === 'local') && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <p className="text-xs">
+                Você tem opções de entrega local, mas ainda não definiu a cidade da sua loja em Perfil — elas não aparecerão para os compradores até que isso seja corrigido.
+              </p>
+            </div>
+          )}
+
           {settings.deliveryOptions.length === 0 ? (
             <div className="text-center py-6 text-muted-foreground">
               <Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -438,6 +463,7 @@ export default function CheckoutSettingsContent() {
                   onUpdateFreeAbove={(val) => updateDeliveryFreeAbove(option.id, val)}
                   onUpdateCalculationType={(type) => updateDeliveryCalculationType(option.id, type)}
                   onUpdateRegions={(regions) => updateDeliveryRegions(option.id, regions)}
+                  onUpdateScope={(scope) => updateDeliveryScope(option.id, scope)}
                   onRemove={() => removeDeliveryOption(option.id)}
                 />
               ))}
@@ -676,16 +702,18 @@ interface DeliveryOptionRowProps {
   onUpdateFreeAbove: (val: number | null) => void;
   onUpdateCalculationType: (type: ShippingCalculationType) => void;
   onUpdateRegions: (regions: string[]) => void;
+  onUpdateScope: (scope: DeliveryScope) => void;
   onRemove: () => void;
 }
 
-function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFreeAbove, onUpdateCalculationType, onUpdateRegions, onRemove }: DeliveryOptionRowProps) {
+function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFreeAbove, onUpdateCalculationType, onUpdateRegions, onUpdateScope, onRemove }: DeliveryOptionRowProps) {
   const [editingFee, setEditingFee] = useState(false);
   const [feeValue, setFeeValue] = useState(option.fee);
   const [editingFreeAbove, setEditingFreeAbove] = useState(false);
   const [freeAboveValue, setFreeAboveValue] = useState(option.freeAbove || 0);
   const calculationType = option.calculationType || 'flat';
   const selectedRegions = option.regions || [];
+  const scope: DeliveryScope = option.scope === 'local' ? 'local' : 'national';
 
   const toggleRegion = (uf: string) => {
     if (selectedRegions.includes(uf)) {
@@ -807,6 +835,26 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFree
       )}
 
       {option.enabled && (
+        <div className="space-y-2 pt-1">
+          <Label className="text-xs">Abrangência</Label>
+          <Select value={scope} onValueChange={(v) => onUpdateScope(v as DeliveryScope)}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="national">Todo o Brasil</SelectItem>
+              <SelectItem value="local">Só na minha cidade</SelectItem>
+            </SelectContent>
+          </Select>
+          {scope === 'local' && (
+            <p className="text-xs text-muted-foreground">
+              Só aparece para compradores cuja cidade for igual à cidade cadastrada em Perfil.
+            </p>
+          )}
+        </div>
+      )}
+
+      {option.enabled && scope === 'national' && (
         <div className="space-y-2 pt-1">
           <Label className="text-xs">Como calcular o frete</Label>
           <Select value={calculationType} onValueChange={(v) => onUpdateCalculationType(v as ShippingCalculationType)}>
