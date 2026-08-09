@@ -338,6 +338,13 @@ export default function EditProductPage() {
 
     setLoading(true);
     try {
+      // Products with a color/size/flavor grid get stock_quantity from
+      // recalc_product_aggregate_stock (summed from product_variant_stock),
+      // not from this form — writing the "Quantidade em estoque" field here
+      // would silently overwrite that derived total with whatever stale
+      // number was loaded when the page opened, on every save.
+      const hasVariantGrid = data.colors.length > 0 || data.sizes.length > 0 || data.flavors.length > 0;
+
       const productData = {
         title: data.title,
         description: data.description,
@@ -363,7 +370,9 @@ export default function EditProductPage() {
         pricing_mode: pricingMode === 'tiered' ? 'exact' : 'range',
         has_weight_variants: hasWeightVariants,
         track_inventory: data.track_inventory ?? false,
-        stock_quantity: data.track_inventory ? (data.stock_quantity ?? 0) : null,
+        ...(hasVariantGrid
+          ? {}
+          : { stock_quantity: data.track_inventory ? (data.stock_quantity ?? 0) : null }),
         low_stock_threshold: data.low_stock_threshold ?? 5,
         weight_kg: data.weight_kg ?? null,
         height_cm: data.height_cm ?? null,
@@ -699,29 +708,31 @@ export default function EditProductPage() {
 
                     {form.watch('track_inventory') && (
                       <div className="space-y-4 pl-1">
-                        <FormField
-                          control={form.control}
-                          name="stock_quantity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quantidade em estoque *</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="0"
-                                  value={stockQuantityText}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    setStockQuantityText(raw);
-                                    field.onChange(raw === '' ? undefined : Number(raw));
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {!(form.watch('colors')?.length > 0 || form.watch('sizes')?.length > 0 || form.watch('flavors')?.length > 0) && (
+                          <FormField
+                            control={form.control}
+                            name="stock_quantity"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Quantidade em estoque *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="0"
+                                    value={stockQuantityText}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      setStockQuantityText(raw);
+                                      field.onChange(raw === '' ? undefined : Number(raw));
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
 
                         <FormField
                           control={form.control}
