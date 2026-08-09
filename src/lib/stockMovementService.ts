@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { StockMovement, StockMovementType, StockReferenceType } from '@/types';
+import { pushOlistStockAdjustment } from '@/lib/merchantErp';
 
 interface RecordMovementParams {
   product_id: string;
@@ -119,6 +120,8 @@ export async function registerStockEntry(
       performed_by: performedBy,
     });
 
+    await pushOlistStockAdjustment({ product_id: productId, variant_stock_id: variantStockId, delta: quantity });
+
     await syncProductAggregateStock(productId);
     return true;
   }
@@ -151,6 +154,8 @@ export async function registerStockEntry(
     reason,
     performed_by: performedBy,
   });
+
+  await pushOlistStockAdjustment({ product_id: productId, delta: quantity });
 
   return true;
 }

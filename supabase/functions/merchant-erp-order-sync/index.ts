@@ -77,6 +77,13 @@ interface DeductionItem {
   product_id: string;
   quantity: number;
   unit_price?: number;
+  selected_color?: string | null;
+  selected_size?: string | null;
+  selected_flavor?: string | null;
+}
+
+function variantKey(productId: string, color?: string | null, size?: string | null, flavor?: string | null): string {
+  return `${productId}|${color ?? ""}|${size ?? ""}|${flavor ?? ""}`;
 }
 
 // This endpoint mirrors merchant-shipping-quote's "best effort, never blocking"
@@ -129,20 +136,52 @@ Deno.serve(async (req: Request) => {
     }
 
     const productIds = items.map((i) => i.product_id);
-    const { data: products } = await admin
+
+    // Products owned by this store among the ones sold — establishes which
+    // product_ids are legitimate (this call has no merchant JWT, only
+    // store_owner_id, so item.product_id can't be trusted without this check)
+    // and carries the flat (no-variant) Olist link as a fallback.
+    const { data: ownedProducts } = await admin
       .from("products")
       .select("id, olist_product_id")
       .eq("user_id", store_owner_id)
-      .in("id", productIds)
-      .not("olist_product_id", "is", null);
+      .in("id", productIds);
 
-    const olistIdByProduct = new Map((products || []).map((p) => [p.id, p.olist_product_id as string]));
+    const validProductIds = new Set((ownedProducts || []).map((p) => p.id));
+    const flatOlistIdByProduct = new Map(
+      (ownedProducts || [])
+        .filter((p) => p.olist_product_id)
+        .map((p) => [p.id, p.olist_product_id as string])
+    );
+
+    // Variant-linked rows: each cor/tamanho combination is its own SKU in the
+    // Olist, so a sale of "Camiseta Preta M" must deduct that specific SKU,
+    // not whatever the product-level link (if any) points to.
+    const { data: variantRows } = validProductIds.size
+      ? await admin
+          .from("product_variant_stock")
+          .select("product_id, color, size, flavor, olist_product_id")
+          .in("product_id", Array.from(validProductIds))
+          .not("olist_product_id", "is", null)
+      : { data: [] };
+
+    const olistIdByVariant = new Map(
+      (variantRows || []).map((v) => [
+        variantKey(v.product_id, v.color, v.size, v.flavor),
+        v.olist_product_id as string,
+      ])
+    );
 
     let pushed = 0;
     const errors: Array<{ product_id: string; error: string }> = [];
 
     for (const item of items) {
-      const olistProductId = olistIdByProduct.get(item.product_id);
+      if (!validProductIds.has(item.product_id)) continue;
+
+      const variantOlistId = olistIdByVariant.get(
+        variantKey(item.product_id, item.selected_color, item.selected_size, item.selected_flavor)
+      );
+      const olistProductId = variantOlistId || flatOlistIdByProduct.get(item.product_id);
       if (!olistProductId) continue; // not linked to Olist — nothing to push
 
       try {

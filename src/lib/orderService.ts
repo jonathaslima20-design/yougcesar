@@ -146,6 +146,9 @@ export async function createOrder(
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
+        selected_color: item.selected_color,
+        selected_size: item.selected_size,
+        selected_flavor: item.selected_flavor,
       })),
     });
   }

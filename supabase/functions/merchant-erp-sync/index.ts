@@ -177,6 +177,156 @@ async function importOlistImages(
   await admin.from("products").update({ featured_image_url: uploaded[0].url }).eq("id", productId);
 }
 
+interface OlistGrade {
+  chave?: string;
+  valor?: string;
+}
+
+interface OlistVariation {
+  id: number;
+  precos?: { preco?: number };
+  estoque?: { quantidade?: number };
+  grade?: OlistGrade[];
+}
+
+interface OlistProductDetail {
+  descricao?: string;
+  tipoVariacao?: "N" | "P" | "V" | null;
+  precos?: { preco?: number };
+  variacoes?: OlistVariation[];
+}
+
+// Maps a variacao's grade (e.g. [{chave:"Cor",valor:"Azul"},{chave:"Tamanho",
+// valor:"42"}]) onto our fixed color/size/flavor columns. Grade keys outside
+// those three known axes fall into whichever column is still free, so an
+// odd/custom attribute label doesn't silently disappear.
+function parseVariantGrade(grade: OlistGrade[] | undefined): {
+  color: string | null;
+  size: string | null;
+  flavor: string | null;
+} {
+  let color: string | null = null;
+  let size: string | null = null;
+  let flavor: string | null = null;
+  const leftovers: string[] = [];
+
+  for (const g of grade || []) {
+    const key = (g.chave || "").trim().toLowerCase();
+    const value = (g.valor || "").trim();
+    if (!value) continue;
+    if (key.includes("cor")) color = value;
+    else if (key.includes("tam")) size = value;
+    else if (key.includes("sabor")) flavor = value;
+    else leftovers.push(value);
+  }
+
+  for (const value of leftovers) {
+    if (color === null) color = value;
+    else if (size === null) size = value;
+    else if (flavor === null) flavor = value;
+  }
+
+  return { color, size, flavor };
+}
+
+// Imports one Olist catalog product as a brand-new, unpublished product.
+// A "P" (pai) product has no stock/price of its own in the Olist — each
+// cor/tamanho combination is its own child SKU ("variacao") — so instead of
+// one flat product we create ONE product here with one product_variant_stock
+// row per combination, each carrying its own olist_product_id link. Flat
+// (non-grouped) products keep the simple one-to-one behavior.
+async function importOlistProductAsNew(
+  admin: ReturnType<typeof createClient>,
+  accessToken: string,
+  userId: string,
+  olistProductId: string
+): Promise<{ product_id: string; variant_count: number }> {
+  const response = await olistFetch(accessToken, `/produtos/${olistProductId}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const erpProduct = await response.json() as OlistProductDetail;
+
+  const baseFields = {
+    user_id: userId,
+    title: erpProduct.descricao || "Produto sem nome",
+    description: "",
+    category: [],
+    condition: "novo",
+    status: "disponivel",
+    // Import lands unpublished so the merchant reviews it (images, category,
+    // description) before it can appear on the storefront — importing
+    // straight from an ERP catalog with none of that context filled in
+    // should never go live silently.
+    is_visible_on_storefront: false,
+  };
+
+  const isGrouped = erpProduct.tipoVariacao === "P" && Array.isArray(erpProduct.variacoes) && erpProduct.variacoes.length > 0;
+
+  if (!isGrouped) {
+    const { data: created, error } = await admin
+      .from("products")
+      .insert({
+        ...baseFields,
+        price: erpProduct.precos?.preco ?? 0,
+        olist_product_id: olistProductId,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    await importOlistImages(admin, accessToken, userId, created.id, olistProductId);
+    return { product_id: created.id, variant_count: 0 };
+  }
+
+  const parsedVariants = erpProduct.variacoes!.map((v) => ({
+    olist_product_id: String(v.id),
+    quantity: Math.max(0, Math.round(v.estoque?.quantidade ?? 0)),
+    price: v.precos?.preco,
+    ...parseVariantGrade(v.grade),
+  }));
+
+  const colors = Array.from(new Set(parsedVariants.map((v) => v.color).filter((v): v is string => !!v)));
+  const sizes = Array.from(new Set(parsedVariants.map((v) => v.size).filter((v): v is string => !!v)));
+  const flavors = Array.from(new Set(parsedVariants.map((v) => v.flavor).filter((v): v is string => !!v)));
+  const firstPrice = parsedVariants.find((v) => v.price != null)?.price ?? erpProduct.precos?.preco ?? 0;
+
+  const { data: created, error } = await admin
+    .from("products")
+    .insert({
+      ...baseFields,
+      price: firstPrice,
+      track_inventory: true,
+      colors,
+      sizes,
+      flavors,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const { error: variantError } = await admin.from("product_variant_stock").insert(
+    parsedVariants.map((v) => ({
+      product_id: created.id,
+      color: v.color,
+      size: v.size,
+      flavor: v.flavor,
+      quantity: v.quantity,
+      reserved_quantity: 0,
+      olist_product_id: v.olist_product_id,
+    }))
+  );
+  if (variantError) throw variantError;
+
+  // recalc_product_aggregate_stock only sums rows whose color/size/flavor
+  // match products.colors/sizes/flavors — without setting those arrays above,
+  // every row we just inserted would be treated as an "orphan" and excluded.
+  await admin.rpc("recalc_product_aggregate_stock", { p_product_id: created.id });
+  await importOlistImages(admin, accessToken, userId, created.id, olistProductId);
+
+  return { product_id: created.id, variant_count: parsedVariants.length };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -247,6 +397,7 @@ Deno.serve(async (req: Request) => {
             sku: string;
             descricao: string;
             situacao: string;
+            tipoVariacao?: "N" | "P" | "V" | null;
             precos?: { preco?: number };
           }>;
           paginacao: { limit: number; offset: number; total: number };
@@ -254,13 +405,25 @@ Deno.serve(async (req: Request) => {
 
         return new Response(
           JSON.stringify({
-            products: data.itens.map((item) => ({
-              olist_product_id: String(item.id),
-              sku: item.sku,
-              name: item.descricao,
-              situacao: item.situacao,
-              price: item.precos?.preco ?? null,
-            })),
+            // Olist's /produtos endpoint returns excluded products alongside
+            // active/inactive ones with no status filter param — drop them here
+            // so a product the merchant deleted in Olist can't be picked to
+            // import/link on this side. Each cor/tamanho combination of a
+            // grouped product is ALSO its own item here (tipoVariacao "V"),
+            // repeating the parent's name — that's the "mesmo tenis em 8
+            // linhas" symptom. Only the parent ("P") and ungrouped ("N"/null)
+            // items are surfaced; importing a "P" brings every combination in
+            // together as one product (see importOlistProductAsNew).
+            products: data.itens
+              .filter((item) => item.situacao !== "E" && item.tipoVariacao !== "V")
+              .map((item) => ({
+                olist_product_id: String(item.id),
+                sku: item.sku,
+                name: item.descricao,
+                situacao: item.situacao,
+                price: item.precos?.preco ?? null,
+                has_variations: item.tipoVariacao === "P",
+              })),
             pagination: data.paginacao,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -269,9 +432,10 @@ Deno.serve(async (req: Request) => {
 
       case "linkProduct":
       case "unlinkProduct": {
-        const { product_id, olist_product_id } = payload as {
+        const { product_id, olist_product_id, variant_stock_id } = payload as {
           product_id: string;
           olist_product_id?: string;
+          variant_stock_id?: string;
         };
 
         if (!product_id || (action === "linkProduct" && !olist_product_id)) {
@@ -292,6 +456,37 @@ Deno.serve(async (req: Request) => {
           return new Response(
             JSON.stringify({ error: "Produto não encontrado." }),
             { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // A combinacao cor/tamanho e um SKU proprio na Olist, entao o vinculo
+        // fica na linha da variante — nao no produto — quando variant_stock_id
+        // e informado. Sem isso, um produto so poderia apontar pra um unico
+        // SKU da Olist, impossivel pra quem tem grade de cor/tamanho.
+        if (variant_stock_id) {
+          const { data: variant } = await admin
+            .from("product_variant_stock")
+            .select("id")
+            .eq("id", variant_stock_id)
+            .eq("product_id", product_id)
+            .maybeSingle();
+
+          if (!variant) {
+            return new Response(
+              JSON.stringify({ error: "Variante não encontrada." }),
+              { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
+          const { error } = await admin
+            .from("product_variant_stock")
+            .update({ olist_product_id: action === "linkProduct" ? olist_product_id : null })
+            .eq("id", variant_stock_id);
+          if (error) throw error;
+
+          return new Response(
+            JSON.stringify({ success: true }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
@@ -364,26 +559,16 @@ Deno.serve(async (req: Request) => {
 
         const accessToken = await getValidAccessToken(admin, user.id);
 
-        const response = await olistFetch(accessToken, `/produtos/${olist_product_id}`);
-        if (!response.ok) {
-          return new Response(
-            JSON.stringify({ error: "Produto não encontrado na Olist." }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        const erpProduct = await response.json() as {
-          descricao?: string;
-          precos?: { preco?: number };
-        };
-
-        const fields = {
-          title: erpProduct.descricao || "Produto sem nome",
-          price: erpProduct.precos?.preco ?? 0,
-          olist_product_id,
-        };
-
         if (product_id) {
+          const response = await olistFetch(accessToken, `/produtos/${olist_product_id}`);
+          if (!response.ok) {
+            return new Response(
+              JSON.stringify({ error: "Produto não encontrado na Olist." }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          const erpProduct = await response.json() as { descricao?: string; precos?: { preco?: number } };
+
           const { data: existing } = await admin
             .from("products")
             .select("id")
@@ -400,7 +585,11 @@ Deno.serve(async (req: Request) => {
 
           const { error } = await admin
             .from("products")
-            .update(fields)
+            .update({
+              title: erpProduct.descricao || "Produto sem nome",
+              price: erpProduct.precos?.preco ?? 0,
+              olist_product_id,
+            })
             .eq("id", product_id);
           if (error) throw error;
 
@@ -410,33 +599,18 @@ Deno.serve(async (req: Request) => {
           );
         }
 
-        // No target product: import as a new, unpublished product so the merchant
-        // reviews it (images, category, description) before it can appear on the
-        // storefront — importing straight from an ERP catalog with none of that
-        // context filled in should never go live silently.
-        const { data: created, error } = await admin
-          .from("products")
-          .insert({
-            user_id: user.id,
-            title: fields.title,
-            description: "",
-            price: fields.price,
-            category: [],
-            condition: "novo",
-            status: "disponivel",
-            is_visible_on_storefront: false,
-            olist_product_id,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-
-        await importOlistImages(admin, accessToken, user.id, created.id, olist_product_id);
-
-        return new Response(
-          JSON.stringify({ success: true, product_id: created.id }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        try {
+          const result = await importOlistProductAsNew(admin, accessToken, user.id, olist_product_id);
+          return new Response(
+            JSON.stringify({ success: true, product_id: result.product_id, variant_count: result.variant_count }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } catch (err) {
+          return new Response(
+            JSON.stringify({ error: err instanceof Error ? err.message : "Erro ao importar produto" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
       case "bulkImportProducts": {
@@ -458,34 +632,7 @@ Deno.serve(async (req: Request) => {
         for (let i = 0; i < ids.length; i++) {
           const olistProductId = ids[i];
           try {
-            const productResponse = await olistFetch(accessToken, `/produtos/${olistProductId}`);
-            if (!productResponse.ok) {
-              errors.push({ olist_product_id: olistProductId, error: `HTTP ${productResponse.status}` });
-              continue;
-            }
-            const erpProduct = await productResponse.json() as {
-              descricao?: string;
-              precos?: { preco?: number };
-            };
-
-            const { data: created, error } = await admin
-              .from("products")
-              .insert({
-                user_id: user.id,
-                title: erpProduct.descricao || "Produto sem nome",
-                description: "",
-                price: erpProduct.precos?.preco ?? 0,
-                category: [],
-                condition: "novo",
-                status: "disponivel",
-                is_visible_on_storefront: false,
-                olist_product_id: olistProductId,
-              })
-              .select("id")
-              .single();
-            if (error) throw error;
-
-            await importOlistImages(admin, accessToken, user.id, created.id, olistProductId);
+            await importOlistProductAsNew(admin, accessToken, user.id, olistProductId);
             imported++;
           } catch (err) {
             errors.push({
@@ -513,9 +660,30 @@ Deno.serve(async (req: Request) => {
           .not("olist_product_id", "is", null)
           .limit(MAX_PRODUCTS_PER_RUN);
 
+        // Variant-linked rows: same pull, but each row is one cor/tamanho SKU
+        // in the Olist and writes to product_variant_stock.quantity instead of
+        // the product's flat stock_quantity. Scoped to this user via a join
+        // through products (product_variant_stock has no user_id of its own).
+        const { data: ownedProducts } = await admin
+          .from("products")
+          .select("id")
+          .eq("user_id", user.id);
+        const ownedProductIds = (ownedProducts || []).map((p) => p.id);
+
+        const { data: linkedVariants } = ownedProductIds.length
+          ? await admin
+              .from("product_variant_stock")
+              .select("id, product_id, olist_product_id")
+              .in("product_id", ownedProductIds)
+              .not("olist_product_id", "is", null)
+              .limit(MAX_PRODUCTS_PER_RUN)
+          : { data: [] };
+
         const products = linkedProducts || [];
+        const variants = linkedVariants || [];
         let synced = 0;
         const errors: Array<{ product_id: string; error: string }> = [];
+        const affectedProductIds = new Set<string>();
 
         for (let i = 0; i < products.length; i++) {
           const product = products[i];
@@ -525,7 +693,11 @@ Deno.serve(async (req: Request) => {
               errors.push({ product_id: product.id, error: `HTTP ${response.status}` });
             } else {
               const stock = await response.json() as { saldo?: number; disponivel?: number };
-              const quantity = stock.disponivel ?? stock.saldo ?? 0;
+              // `saldo` is the real physical balance Olist tracks; `disponivel`
+              // (saldo minus reservations) frequently comes back as a real 0 on
+              // this API, and `??` doesn't fall through on 0 — reading
+              // disponivel first was silently zeroing every synced product.
+              const quantity = stock.saldo ?? stock.disponivel ?? 0;
               const { error } = await admin
                 .from("products")
                 .update({ stock_quantity: Math.max(0, Math.round(quantity)) })
@@ -540,7 +712,44 @@ Deno.serve(async (req: Request) => {
             });
           }
 
-          if (i < products.length - 1) await sleep(REQUEST_SPACING_MS);
+          if (i < products.length - 1 || variants.length > 0) await sleep(REQUEST_SPACING_MS);
+        }
+
+        for (let i = 0; i < variants.length; i++) {
+          const variant = variants[i];
+          try {
+            const response = await olistFetch(accessToken, `/estoque/${variant.olist_product_id}`);
+            if (!response.ok) {
+              errors.push({ product_id: variant.product_id, error: `HTTP ${response.status}` });
+            } else {
+              const stock = await response.json() as { saldo?: number; disponivel?: number };
+              // See the same fix in the flat-products loop above: `saldo` is
+              // the real balance, `disponivel` frequently comes back as a
+              // real 0 on this API and `??` doesn't fall through on 0.
+              const quantity = stock.saldo ?? stock.disponivel ?? 0;
+              const { error } = await admin
+                .from("product_variant_stock")
+                .update({ quantity: Math.max(0, Math.round(quantity)), updated_at: new Date().toISOString() })
+                .eq("id", variant.id);
+              if (error) throw error;
+              affectedProductIds.add(variant.product_id);
+              synced++;
+            }
+          } catch (err) {
+            errors.push({
+              product_id: variant.product_id,
+              error: err instanceof Error ? err.message : "Erro desconhecido",
+            });
+          }
+
+          if (i < variants.length - 1) await sleep(REQUEST_SPACING_MS);
+        }
+
+        // Variant rows only feed the aggregate on recalc — without this, a
+        // product's displayed stock_quantity would keep the number from
+        // before this sync even though its variants just changed.
+        for (const productId of affectedProductIds) {
+          await admin.rpc("recalc_product_aggregate_stock", { p_product_id: productId });
         }
 
         await admin
@@ -554,10 +763,91 @@ Deno.serve(async (req: Request) => {
             synced,
             failed: errors.length,
             errors,
-            has_more: products.length === MAX_PRODUCTS_PER_RUN,
+            has_more: products.length === MAX_PRODUCTS_PER_RUN || variants.length === MAX_PRODUCTS_PER_RUN,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      case "pushStockAdjustment": {
+        const { product_id, variant_stock_id, delta } = payload as {
+          product_id: string;
+          variant_stock_id?: string | null;
+          delta: number;
+        };
+
+        if (!product_id || !Number.isFinite(delta) || delta === 0) {
+          return new Response(
+            JSON.stringify({ pushed: false, skipped: true, reason: "no_change" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        let olistProductId: string | null = null;
+
+        if (variant_stock_id) {
+          const { data: variant } = await admin
+            .from("product_variant_stock")
+            .select("olist_product_id, product_id")
+            .eq("id", variant_stock_id)
+            .eq("product_id", product_id)
+            .maybeSingle();
+          olistProductId = variant?.olist_product_id ?? null;
+        } else {
+          const { data: product } = await admin
+            .from("products")
+            .select("olist_product_id")
+            .eq("id", product_id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          olistProductId = product?.olist_product_id ?? null;
+        }
+
+        if (!olistProductId) {
+          return new Response(
+            JSON.stringify({ pushed: false, skipped: true, reason: "not_linked" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        try {
+          const accessToken = await getValidAccessToken(admin, user.id);
+          const pushBody = {
+            tipo: delta > 0 ? "E" : "S",
+            quantidade: Math.abs(delta),
+            observacoes: "Ajuste manual de estoque na VitrineTurbo",
+          };
+          const response = await olistFetch(accessToken, `/estoque/${olistProductId}`, {
+            method: "POST",
+            body: JSON.stringify(pushBody),
+          });
+
+          if (!response.ok) {
+            const body = await response.text().catch(() => "");
+            console.error("Olist stock adjustment push failed:", olistProductId, JSON.stringify(pushBody), response.status, body);
+            return new Response(
+              JSON.stringify({ pushed: false, error: `HTTP ${response.status}` }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
+          // TEMP DEBUG — remove once we confirm the push actually moves the
+          // needle on Olist's side (not just that the call returned 2xx).
+          const okBody = await response.text().catch(() => "");
+          console.log("[olist debug] stock push OK", olistProductId, "sent:", JSON.stringify(pushBody), "response:", okBody);
+
+          return new Response(
+            JSON.stringify({ pushed: true }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } catch (err) {
+          // Best-effort: a manual stock edit inside VitrineTurbo must never
+          // fail because Olist happened to be unreachable.
+          return new Response(
+            JSON.stringify({ pushed: false, error: err instanceof Error ? err.message : "Erro desconhecido" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
       default:

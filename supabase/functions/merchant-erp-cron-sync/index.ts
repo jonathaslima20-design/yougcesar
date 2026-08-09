@@ -98,9 +98,28 @@ async function syncMerchantStock(
     .not("olist_product_id", "is", null)
     .limit(MAX_PRODUCTS_PER_MERCHANT);
 
+  // Variant-linked rows (one cor/tamanho SKU each) — the flat query above only
+  // covers products without a color/size grid.
+  const { data: ownedProducts } = await admin
+    .from("products")
+    .select("id")
+    .eq("user_id", credentials.user_id);
+  const ownedProductIds = (ownedProducts || []).map((p) => p.id);
+
+  const { data: linkedVariants } = ownedProductIds.length
+    ? await admin
+        .from("product_variant_stock")
+        .select("id, product_id, olist_product_id")
+        .in("product_id", ownedProductIds)
+        .not("olist_product_id", "is", null)
+        .limit(MAX_PRODUCTS_PER_MERCHANT)
+    : { data: [] };
+
   const products = linkedProducts || [];
+  const variants = linkedVariants || [];
   let synced = 0;
   let failed = 0;
+  const affectedProductIds = new Set<string>();
 
   for (let i = 0; i < products.length; i++) {
     const product = products[i];
@@ -124,7 +143,37 @@ async function syncMerchantStock(
       failed++;
     }
 
-    if (i < products.length - 1) await sleep(REQUEST_SPACING_MS);
+    if (i < products.length - 1 || variants.length > 0) await sleep(REQUEST_SPACING_MS);
+  }
+
+  for (let i = 0; i < variants.length; i++) {
+    const variant = variants[i];
+    try {
+      const response = await fetch(`${OLIST_API_BASE}/estoque/${variant.olist_product_id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!response.ok) {
+        failed++;
+      } else {
+        const stock = await response.json() as { saldo?: number; disponivel?: number };
+        const quantity = stock.disponivel ?? stock.saldo ?? 0;
+        const { error } = await admin
+          .from("product_variant_stock")
+          .update({ quantity: Math.max(0, Math.round(quantity)), updated_at: new Date().toISOString() })
+          .eq("id", variant.id);
+        if (error) throw error;
+        affectedProductIds.add(variant.product_id);
+        synced++;
+      }
+    } catch {
+      failed++;
+    }
+
+    if (i < variants.length - 1) await sleep(REQUEST_SPACING_MS);
+  }
+
+  for (const productId of affectedProductIds) {
+    await admin.rpc("recalc_product_aggregate_stock", { p_product_id: productId });
   }
 
   await admin

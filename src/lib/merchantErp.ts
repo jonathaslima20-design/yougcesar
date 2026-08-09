@@ -61,6 +61,10 @@ export interface ErpProduct {
   name: string;
   situacao: string;
   price: number | null;
+  // True when this is a "produto pai" grouping cor/tamanho variations in the
+  // Olist — importing it brings every combination into ONE product here,
+  // each with its own stock and its own olist_product_id link.
+  has_variations: boolean;
 }
 
 export function listErpProducts(payload?: {
@@ -71,11 +75,11 @@ export function listErpProducts(payload?: {
   return callErpEndpoint(SYNC_ENDPOINT, 'listErpProducts', payload);
 }
 
-export function linkErpProduct(payload: { product_id: string; olist_product_id: string }) {
+export function linkErpProduct(payload: { product_id: string; olist_product_id: string; variant_stock_id?: string }) {
   return callErpEndpoint(SYNC_ENDPOINT, 'linkProduct', payload);
 }
 
-export function unlinkErpProduct(payload: { product_id: string }) {
+export function unlinkErpProduct(payload: { product_id: string; variant_stock_id?: string }) {
   return callErpEndpoint(SYNC_ENDPOINT, 'unlinkProduct', payload);
 }
 
@@ -86,6 +90,7 @@ export function pushErpPrice(payload: { product_id: string }) {
 export function pullErpProduct(payload: { olist_product_id: string; product_id?: string }): Promise<{
   success: boolean;
   product_id: string;
+  variant_count?: number;
 }> {
   return callErpEndpoint(SYNC_ENDPOINT, 'pullProduct', payload);
 }
@@ -119,7 +124,14 @@ export function pullErpStock(): Promise<PullStockResult> {
 // should never surface as a checkout error.
 export async function pushOlistStockDeduction(payload: {
   store_owner_id: string;
-  items: Array<{ product_id: string; quantity: number; unit_price?: number }>;
+  items: Array<{
+    product_id: string;
+    quantity: number;
+    unit_price?: number;
+    selected_color?: string | null;
+    selected_size?: string | null;
+    selected_flavor?: string | null;
+  }>;
 }): Promise<void> {
   try {
     await fetch(ORDER_SYNC_ENDPOINT, {
@@ -127,6 +139,24 @@ export async function pushOlistStockDeduction(payload: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'pushStockDeduction', payload }),
     });
+  } catch {
+    // best-effort — see comment above
+  }
+}
+
+// Called from the merchant's own dashboard right after a manual stock edit
+// (variant grid, quick popover, restock dialog) — authenticated, unlike
+// pushOlistStockDeduction above. Mirrors its "never throw" contract: editing
+// stock in VitrineTurbo must always succeed even if Olist is unreachable, not
+// connected, or this product/variant isn't linked (the endpoint no-ops in
+// all of those cases rather than erroring).
+export async function pushOlistStockAdjustment(payload: {
+  product_id: string;
+  variant_stock_id?: string | null;
+  delta: number;
+}): Promise<void> {
+  try {
+    await callErpEndpoint(SYNC_ENDPOINT, 'pushStockAdjustment', payload);
   } catch {
     // best-effort — see comment above
   }

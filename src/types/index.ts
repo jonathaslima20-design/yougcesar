@@ -537,6 +537,7 @@ export interface ProductVariantStock {
   weight_variant_id?: string | null;
   quantity: number;
   reserved_quantity: number;
+  olist_product_id?: string | null;
   created_at: string;
   updated_at: string;
 }

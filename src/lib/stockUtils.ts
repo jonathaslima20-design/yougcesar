@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Product, ProductVariantStock } from '@/types';
 import { recordStockMovement, syncProductAggregateStock } from '@/lib/stockMovementService';
+import { pushOlistStockAdjustment } from '@/lib/merchantErp';
 
 export type StockStatus = 'in_stock' | 'low_stock' | 'out_of_stock' | 'untracked';
 
@@ -169,6 +170,8 @@ export async function updateProductStock(
     performed_by: performedBy || null,
   });
 
+  await pushOlistStockAdjustment({ product_id: productId, delta: newQuantity - prevQty });
+
   return true;
 }
 
@@ -246,9 +249,11 @@ export async function upsertVariantStock(
         reference_type: 'manual',
         performed_by: performedBy || null,
       });
+
+      await pushOlistStockAdjustment({ product_id: productId, variant_stock_id: existing.id, delta: quantity - prevQty });
     }
   } else {
-    const { error } = await supabase
+    const { data: created, error } = await supabase
       .from('product_variant_stock')
       .insert({
         product_id: productId,
@@ -257,9 +262,15 @@ export async function upsertVariantStock(
         flavor: flavor || null,
         quantity,
         reserved_quantity: 0,
-      });
+      })
+      .select('id')
+      .single();
 
     if (error) return false;
+
+    if (quantity !== 0) {
+      await pushOlistStockAdjustment({ product_id: productId, variant_stock_id: created.id, delta: quantity });
+    }
   }
 
   await syncProductAggregateStock(productId);
