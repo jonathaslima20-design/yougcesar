@@ -6,7 +6,7 @@ import { StorefrontSettings } from '@/components/dashboard/StorefrontSettings';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import TrackingSettingsContent from '@/components/dashboard/TrackingSettingsContent';
 import CheckoutSettingsContent from '@/components/dashboard/CheckoutSettingsContent';
-import ShippingIntegrationSettingsContent from '@/components/dashboard/ShippingIntegrationSettingsContent';
+import ShippingConnectorsSection from '@/components/dashboard/ShippingConnectorsSection';
 import PaymentSettingsContent from '@/components/dashboard/PaymentSettingsContent';
 import InventorySettingsContent from '@/components/dashboard/InventorySettingsContent';
 import IntegrationsSettingsContent from '@/components/dashboard/IntegrationsSettingsContent';
@@ -92,7 +92,7 @@ export default function SettingsPage() {
               {activeTab === 'appearance' && <AppearanceSettings />}
               {activeTab === 'storefront' && <StorefrontSettings />}
               {activeTab === 'checkout' && <CheckoutSettingsContent />}
-              {activeTab === 'shipping' && <ShippingIntegrationSettingsContent />}
+              {activeTab === 'shipping' && <ShippingConnectorsSection />}
               {activeTab === 'payment' && <PaymentSettingsContent />}
               {activeTab === 'inventory' && <InventorySettingsContent />}
               {activeTab === 'tracking' && <TrackingSettingsContent />}

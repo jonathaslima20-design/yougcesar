@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -21,15 +22,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
+type IntegrationCategory = 'erp' | 'shipping';
+
 interface IntegrationProvider {
   id: string;
   slug: string;
   name: string;
   description: string | null;
   logo_url: string | null;
+  category: IntegrationCategory;
   is_enabled: boolean;
   sort_order: number;
 }
+
+const CATEGORY_LABELS: Record<IntegrationCategory, string> = {
+  erp: 'ERP',
+  shipping: 'Frete',
+};
 
 const LOGO_FOLDER = 'integration-logos';
 
@@ -112,8 +121,8 @@ export default function IntegrationProvidersPage() {
         <div>
           <h1 className="text-2xl md:text-3xl page-title">Integrações</h1>
           <p className="text-muted-foreground">
-            Controle quais sistemas de gestão (ERP) aparecem para os lojistas em Configurações → Integrações,
-            e configure o nome/logo de cada um.
+            Controle quais integrações aparecem para os lojistas — ERPs em Configurações → Integrações,
+            provedores de frete em Configurações → Frete — e configure o nome/logo de cada uma.
           </p>
         </div>
         <Button
@@ -164,6 +173,9 @@ export default function IntegrationProvidersPage() {
                     <code className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
                       {provider.slug}
                     </code>
+                    <Badge variant="secondary" className="text-[10px] shrink-0">
+                      {CATEGORY_LABELS[provider.category]}
+                    </Badge>
                   </div>
                   {provider.description && (
                     <p className="text-xs text-muted-foreground truncate">{provider.description}</p>
@@ -249,6 +261,7 @@ function ProviderFormDialog({ open, onOpenChange, provider, adminUserId, onSaved
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [category, setCategory] = useState<IntegrationCategory>('erp');
   const [isEnabled, setIsEnabled] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -260,6 +273,7 @@ function ProviderFormDialog({ open, onOpenChange, provider, adminUserId, onSaved
     setName(provider?.name || '');
     setDescription(provider?.description || '');
     setLogoUrl(provider?.logo_url || null);
+    setCategory(provider?.category ?? 'erp');
     setIsEnabled(provider?.is_enabled ?? false);
     setSortOrder(provider?.sort_order ?? 0);
   }, [open, provider]);
@@ -325,6 +339,7 @@ function ProviderFormDialog({ open, onOpenChange, provider, adminUserId, onSaved
             name: trimmedName,
             description: description.trim() || null,
             logo_url: logoUrl,
+            category,
             is_enabled: isEnabled,
             sort_order: sortOrder,
           })
@@ -336,6 +351,7 @@ function ProviderFormDialog({ open, onOpenChange, provider, adminUserId, onSaved
           name: trimmedName,
           description: description.trim() || null,
           logo_url: logoUrl,
+          category,
           is_enabled: isEnabled,
           sort_order: sortOrder,
         });
@@ -433,6 +449,19 @@ function ProviderFormDialog({ open, onOpenChange, provider, adminUserId, onSaved
                 ? 'Não pode ser alterado depois de criado.'
                 : 'Usado internamente para ligar este cartão ao conector correspondente.'}
             </p>
+          </div>
+
+          <div>
+            <Label>Categoria</Label>
+            <Select value={category} onValueChange={(v) => setCategory(v as IntegrationCategory)}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="erp">ERP (aba Integrações)</SelectItem>
+                <SelectItem value="shipping">Frete (aba Frete)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
