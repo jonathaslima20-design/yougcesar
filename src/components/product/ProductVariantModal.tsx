@@ -26,23 +26,13 @@ import { fetchProductPriceTiers, calculateApplicablePrice, formatPriceTierRange 
 import { supabase } from '@/lib/supabase';
 import TieredPricingIndicator from '@/components/product/TieredPricingIndicator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getVariantAvailable as getVariantAvailableShared, type VariantStockInfo } from '@/lib/variantAvailability';
 
 interface DistributionItem {
   id: string;
   color?: string;
   size?: string;
   quantity: number;
-}
-
-interface VariantStockInfo {
-  id: string;
-  color: string | null;
-  size: string | null;
-  flavor: string | null;
-  weight_variant_id: string | null;
-  quantity: number;
-  reserved_quantity: number;
-  available: number;
 }
 
 interface ProductVariantModalProps {
@@ -87,28 +77,8 @@ export default function ProductVariantModal({
   const { addToCart, hasVariant, getVariantQuantity } = useCart();
   const { t } = useTranslation(language);
 
-  const getVariantAvailable = (color?: string, size?: string, flavor?: string): number | null => {
-    if (!inventoryEnabled || !product.track_inventory || variantStockData.length === 0) return null;
-
-    // Not enough of the variant selected yet to identify a specific combination.
-    if (product.colors && product.colors.length > 0 && !color) return null;
-    if (product.sizes && product.sizes.length > 0 && !size) return null;
-    if (product.flavors && product.flavors.length > 0 && !flavor) return null;
-
-    const match = variantStockData.find(
-      (v) =>
-        (v.color || null) === (color || null) &&
-        (v.size || null) === (size || null) &&
-        (v.flavor || null) === (flavor || null)
-    );
-    if (match) return match.available;
-    if (variantStockData.length === 1 && !variantStockData[0].color && !variantStockData[0].size && !variantStockData[0].flavor) {
-      return variantStockData[0].available;
-    }
-    // Product tracks per-variant stock but this specific combination has no record,
-    // meaning it was never stocked — treat as zero available rather than "untracked".
-    return 0;
-  };
+  const getVariantAvailable = (color?: string, size?: string, flavor?: string): number | null =>
+    getVariantAvailableShared(product, variantStockData, inventoryEnabled, color, size, flavor);
 
   const currentVariantAvailable = getVariantAvailable(selectedColor, selectedSize, selectedFlavor);
   const isVariantOutOfStock = currentVariantAvailable !== null && currentVariantAvailable <= 0;

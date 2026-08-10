@@ -18,6 +18,7 @@ import { CategorySelector } from '@/components/ui/category-selector';
 import { GenderSelector } from '@/components/ui/gender-selector';
 import { SizesColorsSelector } from '@/components/ui/sizes-colors-selector';
 import { CustomFlavorInput } from '@/components/ui/custom-flavor-input';
+import { PackagingFields } from '@/components/ui/packaging-fields';
 import { TieredPricingManager } from '@/components/ui/tiered-pricing-manager';
 import { PricingModeToggle } from '@/components/ui/pricing-mode-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -68,6 +69,9 @@ const productSchema = z.object({
   height_cm: z.number().min(0).optional(),
   width_cm: z.number().min(0).optional(),
   length_cm: z.number().min(0).optional(),
+  package_type: z.enum(['envelope', 'box', 'cylinder']).default('box'),
+  diameter_cm: z.number().min(0).optional(),
+  package_preset_id: z.string().uuid().optional().nullable(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -103,6 +107,9 @@ export default function EditProductPage() {
   const [isSizesColorsOpen, setIsSizesColorsOpen] = useState(false);
   const [isFlavorsOpen, setIsFlavorsOpen] = useState(false);
   const [isWeightVariantsOpen, setIsWeightVariantsOpen] = useState(false);
+  const [isPackagingOpen, setIsPackagingOpen] = useState(false);
+  const [isPromoPhraseOpen, setIsPromoPhraseOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [hasWeightVariants, setHasWeightVariants] = useState(false);
   const [weightVariants, setWeightVariants] = useState<WeightVariant[]>([]);
   const [images, setImages] = useState<MediaItem[]>([]);
@@ -147,6 +154,9 @@ export default function EditProductPage() {
       height_cm: undefined,
       width_cm: undefined,
       length_cm: undefined,
+      package_type: 'box',
+      diameter_cm: undefined,
+      package_preset_id: null,
     },
   });
 
@@ -207,6 +217,9 @@ export default function EditProductPage() {
           height_cm: product.height_cm ?? undefined,
           width_cm: product.width_cm ?? undefined,
           length_cm: product.length_cm ?? undefined,
+          package_type: product.package_type ?? 'box',
+          diameter_cm: product.diameter_cm ?? undefined,
+          package_preset_id: product.package_preset_id ?? null,
         });
         setStockQuantityText(product.stock_quantity != null ? String(product.stock_quantity) : '');
         setLowStockThresholdText(String(product.low_stock_threshold ?? 5));
@@ -378,6 +391,9 @@ export default function EditProductPage() {
         height_cm: data.height_cm ?? null,
         width_cm: data.width_cm ?? null,
         length_cm: data.length_cm ?? null,
+        package_type: data.package_type ?? 'box',
+        diameter_cm: data.diameter_cm ?? null,
+        package_preset_id: data.package_preset_id ?? null,
       };
 
       const { error: productError } = await supabase
@@ -603,271 +619,17 @@ export default function EditProductPage() {
             </CardContent>
           </Card>
 
-          <Collapsible open={isSizesColorsOpen} onOpenChange={setIsSizesColorsOpen}>
-            <Card>
-              <CollapsibleTrigger className="w-full">
-                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Tamanhos e Cores</CardTitle>
-                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isSizesColorsOpen ? 'transform rotate-180' : ''}`} />
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent>
-                  <SizesColorsSelector
-                    colors={form.watch('colors')}
-                    onColorsChange={(colors) => form.setValue('colors', colors)}
-                    sizes={form.watch('sizes')}
-                    onSizesChange={(sizes) => form.setValue('sizes', sizes)}
-                    userId={user?.id}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
-          <Collapsible open={isFlavorsOpen} onOpenChange={setIsFlavorsOpen}>
-            <Card>
-              <CollapsibleTrigger className="w-full">
-                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Sabores</CardTitle>
-                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isFlavorsOpen ? 'transform rotate-180' : ''}`} />
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent>
-                  <CustomFlavorInput
-                    value={form.watch('flavors')}
-                    onChange={(flavors) => form.setValue('flavors', flavors)}
-                    userId={user?.id}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
-          <Collapsible open={isWeightVariantsOpen} onOpenChange={setIsWeightVariantsOpen}>
-            <Card>
-              <CollapsibleTrigger className="w-full">
-                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Variações de Peso</CardTitle>
-                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isWeightVariantsOpen ? 'transform rotate-180' : ''}`} />
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent>
-                  <ProductWeightVariantsManager
-                    enabled={hasWeightVariants}
-                    onEnabledChange={setHasWeightVariants}
-                    variants={weightVariants}
-                    onChange={setWeightVariants}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
-          {inventoryEnabled && (
-            <Collapsible open={isInventoryOpen} onOpenChange={setIsInventoryOpen}>
-              <Card>
-                <CollapsibleTrigger className="w-full">
-                  <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Estoque</CardTitle>
-                      <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isInventoryOpen ? 'transform rotate-180' : ''}`} />
-                    </div>
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="track_inventory"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Controlar estoque deste produto</FormLabel>
-                            <FormDescription>
-                              Ative para gerenciar a quantidade disponível deste produto
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    {form.watch('track_inventory') && (
-                      <div className="space-y-4 pl-1">
-                        {!(form.watch('colors')?.length > 0 || form.watch('sizes')?.length > 0 || form.watch('flavors')?.length > 0) && (
-                          <FormField
-                            control={form.control}
-                            name="stock_quantity"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Quantidade em estoque *</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    placeholder="0"
-                                    value={stockQuantityText}
-                                    onChange={(e) => {
-                                      const raw = e.target.value;
-                                      setStockQuantityText(raw);
-                                      field.onChange(raw === '' ? undefined : Number(raw));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        )}
-
-                        <FormField
-                          control={form.control}
-                          name="low_stock_threshold"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Alertar quando atingir</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="5"
-                                  value={lowStockThresholdText}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    setLowStockThresholdText(raw);
-                                    field.onChange(raw === '' ? undefined : Number(raw));
-                                  }}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Você será notificado quando o estoque atingir essa quantidade
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
-
-                    {form.watch('track_inventory') && id && (form.watch('colors')?.length > 0 || form.watch('sizes')?.length > 0 || form.watch('flavors')?.length > 0) && (
-                      <div className="pt-2 border-t">
-                        <VariantStockGrid
-                          productId={id}
-                          colors={form.watch('colors') || []}
-                          sizes={form.watch('sizes') || []}
-                          flavors={form.watch('flavors') || []}
-                          lowStockThreshold={form.watch('low_stock_threshold') ?? 5}
-                          performedBy={user?.id || ''}
-                        />
-                      </div>
-                    )}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          )}
-
           <Card>
             <CardHeader>
-              <CardTitle>Peso e Dimensões de Envio</CardTitle>
-              <CardDescription>
-                Usado para calcular fretes automáticos (SuperFrete). Opcional.
-              </CardDescription>
+              <CardTitle>Imagens do Produto</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="weight_kg"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Peso (kg)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.3"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="height_cm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Altura (cm)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="2"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="width_cm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Largura (cm)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="11"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="length_cm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Comprimento (cm)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="16"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <CardContent>
+              <ProductImageManager
+                images={images}
+                onChange={setImages}
+                maxImages={user?.max_images_per_product || 10}
+                maxFileSize={5}
+                availableColors={form.watch('colors') || []}
               />
             </CardContent>
           </Card>
@@ -978,26 +740,9 @@ export default function EditProductPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Frase Promocional e Descrição</CardTitle>
+              <CardTitle>Descrição</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="short_description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <PromotionalPhraseSelector
-                        value={field.value || ''}
-                        onChange={field.onChange}
-                        userId={user?.id}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="description"
@@ -1018,65 +763,333 @@ export default function EditProductPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Imagens do Produto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProductImageManager
-                images={images}
-                onChange={setImages}
-                maxImages={user?.max_images_per_product || 10}
-                maxFileSize={5}
-                availableColors={form.watch('colors') || []}
-              />
-            </CardContent>
-          </Card>
+          <Collapsible open={isSizesColorsOpen} onOpenChange={setIsSizesColorsOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Tamanhos e Cores
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isSizesColorsOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <SizesColorsSelector
+                    colors={form.watch('colors')}
+                    onColorsChange={(colors) => form.setValue('colors', colors)}
+                    sizes={form.watch('sizes')}
+                    onSizesChange={(sizes) => form.setValue('sizes', sizes)}
+                    userId={user?.id}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="external_checkout_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link Externo de Compra</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Se preenchido, o botão de compra redirecionará para este link externo
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <Collapsible open={isPromoPhraseOpen} onOpenChange={setIsPromoPhraseOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Frase Promocional
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isPromoPhraseOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <FormField
+                    control={form.control}
+                    name="short_description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <PromotionalPhraseSelector
+                            value={field.value || ''}
+                            onChange={field.onChange}
+                            userId={user?.id}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
-              <FormField
-                control={form.control}
-                name="is_visible_on_storefront"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Visível na Vitrine</FormLabel>
-                      <FormDescription>
-                        Mostrar este produto na sua vitrine pública
-                      </FormDescription>
+          <Collapsible open={isFlavorsOpen} onOpenChange={setIsFlavorsOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Sabores
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isFlavorsOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <CustomFlavorInput
+                    value={form.watch('flavors')}
+                    onChange={(flavors) => form.setValue('flavors', flavors)}
+                    userId={user?.id}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          <Collapsible open={isWeightVariantsOpen} onOpenChange={setIsWeightVariantsOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Variações de Peso
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isWeightVariantsOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <ProductWeightVariantsManager
+                    enabled={hasWeightVariants}
+                    onEnabledChange={setHasWeightVariants}
+                    variants={weightVariants}
+                    onChange={setWeightVariants}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          {inventoryEnabled && (
+            <Collapsible open={isInventoryOpen} onOpenChange={setIsInventoryOpen}>
+              <Card>
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        Estoque
+                        <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                      </CardTitle>
+                      <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isInventoryOpen ? 'transform rotate-180' : ''}`} />
                     </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="track_inventory"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Controlar estoque deste produto</FormLabel>
+                            <FormDescription>
+                              Ative para gerenciar a quantidade disponível deste produto
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch('track_inventory') && (
+                      <div className="space-y-4 pl-1">
+                        {!(form.watch('colors')?.length > 0 || form.watch('sizes')?.length > 0 || form.watch('flavors')?.length > 0) && (
+                          <FormField
+                            control={form.control}
+                            name="stock_quantity"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Quantidade em estoque *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="0"
+                                    value={stockQuantityText}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      setStockQuantityText(raw);
+                                      field.onChange(raw === '' ? undefined : Number(raw));
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        <FormField
+                          control={form.control}
+                          name="low_stock_threshold"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Alertar quando atingir</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="5"
+                                  value={lowStockThresholdText}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    setLowStockThresholdText(raw);
+                                    field.onChange(raw === '' ? undefined : Number(raw));
+                                  }}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Você será notificado quando o estoque atingir essa quantidade
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
+
+                    {form.watch('track_inventory') && id && (form.watch('colors')?.length > 0 || form.watch('sizes')?.length > 0 || form.watch('flavors')?.length > 0) && (
+                      <div className="pt-2 border-t">
+                        <VariantStockGrid
+                          productId={id}
+                          colors={form.watch('colors') || []}
+                          sizes={form.watch('sizes') || []}
+                          flavors={form.watch('flavors') || []}
+                          lowStockThreshold={form.watch('low_stock_threshold') ?? 5}
+                          performedBy={user?.id || ''}
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
+
+          <Collapsible open={isPackagingOpen} onOpenChange={setIsPackagingOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Peso e Dimensões de Envio
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isPackagingOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                  <CardDescription>
+                    Usado para calcular fretes automáticos. Salve uma embalagem para reutilizar as mesmas
+                    medidas em outros produtos.
+                  </CardDescription>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <PackagingFields
+                    value={{
+                      package_type: form.watch('package_type'),
+                      weight_kg: form.watch('weight_kg'),
+                      height_cm: form.watch('height_cm'),
+                      width_cm: form.watch('width_cm'),
+                      length_cm: form.watch('length_cm'),
+                      diameter_cm: form.watch('diameter_cm'),
+                      package_preset_id: form.watch('package_preset_id'),
+                    }}
+                    onChange={(next) => {
+                      form.setValue('package_type', next.package_type);
+                      form.setValue('weight_kg', next.weight_kg);
+                      form.setValue('height_cm', next.height_cm);
+                      form.setValue('width_cm', next.width_cm);
+                      form.setValue('length_cm', next.length_cm);
+                      form.setValue('diameter_cm', next.diameter_cm);
+                      form.setValue('package_preset_id', next.package_preset_id);
+                    }}
+                    userId={user?.id}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          <Collapsible open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Configurações
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isConfigOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="external_checkout_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Link Externo de Compra</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Se preenchido, o botão de compra redirecionará para este link externo
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="is_visible_on_storefront"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">Visível na Vitrine</FormLabel>
+                          <FormDescription>
+                            Mostrar este produto na sua vitrine pública
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           <div className="flex gap-2">
             <Button type="submit" disabled={loading || uploadingImages}>

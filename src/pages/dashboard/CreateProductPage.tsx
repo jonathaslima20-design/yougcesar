@@ -17,6 +17,7 @@ import { CategorySelector } from '@/components/ui/category-selector';
 import { GenderSelector } from '@/components/ui/gender-selector';
 import { SizesColorsSelector } from '@/components/ui/sizes-colors-selector';
 import { CustomFlavorInput } from '@/components/ui/custom-flavor-input';
+import { PackagingFields } from '@/components/ui/packaging-fields';
 import { TieredPricingManager } from '@/components/ui/tiered-pricing-manager';
 import { PricingModeToggle } from '@/components/ui/pricing-mode-toggle';
 import { Switch } from '@/components/ui/switch';
@@ -60,6 +61,9 @@ const productSchema = z.object({
   height_cm: z.number().min(0).optional(),
   width_cm: z.number().min(0).optional(),
   length_cm: z.number().min(0).optional(),
+  package_type: z.enum(['envelope', 'box', 'cylinder']).default('box'),
+  diameter_cm: z.number().min(0).optional(),
+  package_preset_id: z.string().uuid().optional().nullable(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -92,6 +96,9 @@ export default function CreateProductPage() {
   const [isSizesColorsOpen, setIsSizesColorsOpen] = useState(false);
   const [isFlavorsOpen, setIsFlavorsOpen] = useState(false);
   const [isWeightVariantsOpen, setIsWeightVariantsOpen] = useState(false);
+  const [isPackagingOpen, setIsPackagingOpen] = useState(false);
+  const [isPromoPhraseOpen, setIsPromoPhraseOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [hasWeightVariants, setHasWeightVariants] = useState(false);
   const [weightVariants, setWeightVariants] = useState<WeightVariant[]>([]);
   const [images, setImages] = useState<MediaItem[]>([]);
@@ -128,6 +135,9 @@ export default function CreateProductPage() {
       height_cm: undefined,
       width_cm: undefined,
       length_cm: undefined,
+      package_type: 'box',
+      diameter_cm: undefined,
+      package_preset_id: null,
     },
   });
 
@@ -181,6 +191,9 @@ export default function CreateProductPage() {
         height_cm: data.height_cm ?? null,
         width_cm: data.width_cm ?? null,
         length_cm: data.length_cm ?? null,
+        package_type: data.package_type ?? 'box',
+        diameter_cm: data.diameter_cm ?? null,
+        package_preset_id: data.package_preset_id ?? null,
       };
       const { data: product, error } = await supabase
         .from('products')
@@ -279,6 +292,9 @@ export default function CreateProductPage() {
         height_cm: data.height_cm ?? null,
         width_cm: data.width_cm ?? null,
         length_cm: data.length_cm ?? null,
+        package_type: data.package_type ?? 'box',
+        diameter_cm: data.diameter_cm ?? null,
+        package_preset_id: data.package_preset_id ?? null,
       };
 
       let product: { id: string };
@@ -467,12 +483,159 @@ export default function CreateProductPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Imagens do Produto</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProductImageManager
+                images={images}
+                onChange={setImages}
+                maxImages={user?.max_images_per_product || 10}
+                maxFileSize={5}
+                availableColors={form.watch('colors') || []}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Preços</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {hasWeightVariants && (
+                <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground border">
+                  O preço é definido em cada variação de peso. A vitrine exibirá "A partir
+                  de" usando o menor preço cadastrado.
+                </div>
+              )}
+              {!hasWeightVariants && (
+              <>
+              <PricingModeToggle
+                isTieredPricing={pricingMode === 'tiered'}
+                onModeChange={(useTieredPricing) => {
+                  setPricingMode(useTieredPricing ? 'tiered' : 'simple');
+                  form.setValue('has_tiered_pricing', useTieredPricing);
+                }}
+                hasSinglePriceData={form.watch('price') > 0}
+                hasTieredPriceData={priceTiers.length > 0}
+              />
+
+              {pricingMode === 'simple' ? (
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preço original do produto *</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="R$ 0,00"
+                            currency={userCurrency}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Preço de venda do produto
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="featured_offer_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preço promocional (deve ser menor que o preço original)</FormLabel>
+                        <FormControl>
+                          <DiscountPriceInput
+                            value={field.value}
+                            onChange={field.onChange}
+                            originalPrice={form.watch('price')}
+                            placeholder="R$ 0,00"
+                            currency={userCurrency}
+                          />
+                        </FormControl>
+                        <FormDescription className="text-muted-foreground">
+                          Preço promocional opcional. Se preenchido, será exibido como oferta especial.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="is_starting_price"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">Preço inicial</FormLabel>
+                          <FormDescription>
+                            Marque esta opção se o preço informado é um valor inicial ("A partir de")
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              ) : (
+                <TieredPricingManager
+                  tiers={priceTiers}
+                  onChange={setPriceTiers}
+                  onValidationChange={setIsPriceTiersValid}
+                  currency={userCurrency}
+                />
+              )}
+              </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Descrição</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição Completa *</FormLabel>
+                    <FormControl>
+                      <RichTextEditor
+                        content={field.value}
+                        onChange={field.onChange}
+                        placeholder="Descreva seu produto em detalhes..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
           <Collapsible open={isSizesColorsOpen} onOpenChange={setIsSizesColorsOpen}>
             <Card>
               <CollapsibleTrigger className="w-full">
                 <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <CardTitle>Tamanhos e Cores</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      Tamanhos e Cores
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
                     <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isSizesColorsOpen ? 'transform rotate-180' : ''}`} />
                   </div>
                 </CardHeader>
@@ -491,12 +654,51 @@ export default function CreateProductPage() {
             </Card>
           </Collapsible>
 
+          <Collapsible open={isPromoPhraseOpen} onOpenChange={setIsPromoPhraseOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Frase Promocional
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isPromoPhraseOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <FormField
+                    control={form.control}
+                    name="short_description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <PromotionalPhraseSelector
+                            value={field.value || ''}
+                            onChange={field.onChange}
+                            userId={user?.id}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
           <Collapsible open={isFlavorsOpen} onOpenChange={setIsFlavorsOpen}>
             <Card>
               <CollapsibleTrigger className="w-full">
                 <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <CardTitle>Sabores</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      Sabores
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
                     <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isFlavorsOpen ? 'transform rotate-180' : ''}`} />
                   </div>
                 </CardHeader>
@@ -518,7 +720,10 @@ export default function CreateProductPage() {
               <CollapsibleTrigger className="w-full">
                 <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <CardTitle>Variações de Peso</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      Variações de Peso
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
                     <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isWeightVariantsOpen ? 'transform rotate-180' : ''}`} />
                   </div>
                 </CardHeader>
@@ -542,7 +747,10 @@ export default function CreateProductPage() {
                 <CollapsibleTrigger className="w-full">
                   <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
                     <div className="flex items-center justify-between">
-                      <CardTitle>Estoque</CardTitle>
+                      <CardTitle className="flex items-center gap-2">
+                        Estoque
+                        <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                      </CardTitle>
                       <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isInventoryOpen ? 'transform rotate-180' : ''}`} />
                     </div>
                   </CardHeader>
@@ -655,138 +863,77 @@ export default function CreateProductPage() {
             </Collapsible>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Peso e Dimensões de Envio</CardTitle>
-              <CardDescription>
-                Usado para calcular fretes automáticos (SuperFrete). Opcional.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="weight_kg"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Peso (kg)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.3"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="height_cm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Altura (cm)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="2"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="width_cm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Largura (cm)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="11"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="length_cm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Comprimento (cm)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="16"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+          <Collapsible open={isPackagingOpen} onOpenChange={setIsPackagingOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Peso e Dimensões de Envio
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isPackagingOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                  <CardDescription>
+                    Usado para calcular fretes automáticos. Salve uma embalagem para reutilizar as mesmas
+                    medidas em outros produtos.
+                  </CardDescription>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <PackagingFields
+                    value={{
+                      package_type: form.watch('package_type'),
+                      weight_kg: form.watch('weight_kg'),
+                      height_cm: form.watch('height_cm'),
+                      width_cm: form.watch('width_cm'),
+                      length_cm: form.watch('length_cm'),
+                      diameter_cm: form.watch('diameter_cm'),
+                      package_preset_id: form.watch('package_preset_id'),
+                    }}
+                    onChange={(next) => {
+                      form.setValue('package_type', next.package_type);
+                      form.setValue('weight_kg', next.weight_kg);
+                      form.setValue('height_cm', next.height_cm);
+                      form.setValue('width_cm', next.width_cm);
+                      form.setValue('length_cm', next.length_cm);
+                      form.setValue('diameter_cm', next.diameter_cm);
+                      form.setValue('package_preset_id', next.package_preset_id);
+                    }}
+                    userId={user?.id}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Preços</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {hasWeightVariants && (
-                <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground border">
-                  O preço é definido em cada variação de peso. A vitrine exibirá "A partir
-                  de" usando o menor preço cadastrado.
-                </div>
-              )}
-              {!hasWeightVariants && (
-              <>
-              <PricingModeToggle
-                isTieredPricing={pricingMode === 'tiered'}
-                onModeChange={(useTieredPricing) => {
-                  setPricingMode(useTieredPricing ? 'tiered' : 'simple');
-                  form.setValue('has_tiered_pricing', useTieredPricing);
-                }}
-                hasSinglePriceData={form.watch('price') > 0}
-                hasTieredPriceData={priceTiers.length > 0}
-              />
-
-              {pricingMode === 'simple' ? (
-                <div className="space-y-4">
+          <Collapsible open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      Configurações
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">opcional</span>
+                    </CardTitle>
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isConfigOpen ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="price"
+                    name="external_checkout_url"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Preço original do produto *</FormLabel>
+                        <FormLabel>Link Externo de Compra</FormLabel>
                         <FormControl>
-                          <CurrencyInput
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="R$ 0,00"
-                            currency={userCurrency}
-                          />
+                          <Input placeholder="https://..." {...field} />
                         </FormControl>
                         <FormDescription>
-                          Preço de venda do produto
+                          Se preenchido, o botão de compra redirecionará para este link externo
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -795,36 +942,13 @@ export default function CreateProductPage() {
 
                   <FormField
                     control={form.control}
-                    name="featured_offer_price"
+                    name="is_visible_on_storefront"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço promocional (deve ser menor que o preço original)</FormLabel>
-                        <FormControl>
-                          <DiscountPriceInput
-                            value={field.value}
-                            onChange={field.onChange}
-                            originalPrice={form.watch('price')}
-                            placeholder="R$ 0,00"
-                            currency={userCurrency}
-                          />
-                        </FormControl>
-                        <FormDescription className="text-muted-foreground">
-                          Preço promocional opcional. Se preenchido, será exibido como oferta especial.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="is_starting_price"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start justify-between rounded-lg border p-4">
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Preço inicial</FormLabel>
+                          <FormLabel className="text-base">Visível na Vitrine</FormLabel>
                           <FormDescription>
-                            Marque esta opção se o preço informado é um valor inicial ("A partir de")
+                            Mostrar este produto na sua vitrine pública
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -836,121 +960,10 @@ export default function CreateProductPage() {
                       </FormItem>
                     )}
                   />
-                </div>
-              ) : (
-                <TieredPricingManager
-                  tiers={priceTiers}
-                  onChange={setPriceTiers}
-                  onValidationChange={setIsPriceTiersValid}
-                  currency={userCurrency}
-                />
-              )}
-              </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Frase Promocional e Descrição</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="short_description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <PromotionalPhraseSelector
-                        value={field.value || ''}
-                        onChange={field.onChange}
-                        userId={user?.id}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição Completa *</FormLabel>
-                    <FormControl>
-                      <RichTextEditor
-                        content={field.value}
-                        onChange={field.onChange}
-                        placeholder="Descreva seu produto em detalhes..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Imagens do Produto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProductImageManager
-                images={images}
-                onChange={setImages}
-                maxImages={user?.max_images_per_product || 10}
-                maxFileSize={5}
-                availableColors={form.watch('colors') || []}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="external_checkout_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link Externo de Compra</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Se preenchido, o botão de compra redirecionará para este link externo
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="is_visible_on_storefront"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Visível na Vitrine</FormLabel>
-                      <FormDescription>
-                        Mostrar este produto na sua vitrine pública
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           <div className="flex gap-2">
             <Button type="submit" disabled={loading || uploadingImages}>

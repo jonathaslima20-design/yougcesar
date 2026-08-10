@@ -202,6 +202,22 @@ export interface Product {
   height_cm?: number | null;
   width_cm?: number | null;
   length_cm?: number | null;
+  package_type?: 'envelope' | 'box' | 'cylinder';
+  diameter_cm?: number | null;
+  package_preset_id?: string | null;
+}
+
+export interface PackagingPreset {
+  id: string;
+  user_id: string;
+  preset_name: string;
+  package_type: 'envelope' | 'box' | 'cylinder';
+  weight_kg: number | null;
+  height_cm: number | null;
+  width_cm: number | null;
+  length_cm: number | null;
+  diameter_cm: number | null;
+  created_at: string;
 }
 
 export interface ProductCategory {

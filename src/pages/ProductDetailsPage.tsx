@@ -20,6 +20,7 @@ import { useTieredPricing } from '@/hooks/useTieredPricing';
 import { useCart } from '@/contexts/CartContext';
 import CartModal from '@/components/corretor/CartModal';
 import ProductVariantModal from '@/components/product/ProductVariantModal';
+import InlineVariantSelector from '@/components/product/InlineVariantSelector';
 import { getStockStatus } from '@/lib/stockUtils';
 import { getAvailableVariantStock } from '@/lib/stockReservationService';
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
@@ -352,6 +353,11 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
   const hasOptions = hasColors || hasSizes || hasFlavors;
 
+  // Plain-priced products with variants get the inline picker below; tiered
+  // pricing and weight variants have their own dedicated UI/pricing math that
+  // only ProductVariantModal implements, so those keep opening the modal.
+  const useInlineSelector = hasOptions && !product.has_tiered_pricing && !hasWeightVariants;
+
   const totalInCart = getItemQuantity(product.id);
 
   const handleAddToCart = () => {
@@ -552,8 +558,20 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                 </div>
               )}
 
-              {/* Product Variants Display */}
-              {hasOptions && (
+              {/* Inline variant + quantity picker (plain-priced products) */}
+              {useInlineSelector && (
+                <InlineVariantSelector
+                  product={product}
+                  variantStockData={variantStockData}
+                  inventoryEnabled={inventoryEnabled}
+                  blockZeroStock={blockZeroStock}
+                  onOpenVariantModal={() => setShowVariantModal(true)}
+                />
+              )}
+
+              {/* Product Variants Display (read-only) — tiered pricing / weight-variant
+                  products still show plain availability info and use the modal below */}
+              {hasOptions && !useInlineSelector && (
                 <div className="mt-8 space-y-6">
                   {/* Available Colors */}
                   {hasColors && (
@@ -723,8 +741,8 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
               )}
 
 
-              {/* Send Button */}
-              {cartEnabled && isAvailable && hasPrice && !isOutOfStock && (
+              {/* Send Button — InlineVariantSelector renders its own contextual button */}
+              {cartEnabled && isAvailable && hasPrice && !isOutOfStock && !useInlineSelector && (
                 <div className="mt-8">
                   <Button
                     size="lg"
