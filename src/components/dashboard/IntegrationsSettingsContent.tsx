@@ -422,6 +422,63 @@ export default function IntegrationsSettingsContent() {
               </div>
             </div>
 
+            {/* Variants & Wholesale Pricing */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Variações e Atacado</h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                <code className="bg-muted px-1 rounded">POST /products</code> e{' '}
+                <code className="bg-muted px-1 rounded">PUT /products/:id</code> aceitam um campo{' '}
+                <code className="bg-muted px-1 rounded">variants</code> para criar/substituir estoque por
+                combinação de cor/tamanho/sabor. As cores, tamanhos e sabores do produto são calculados
+                automaticamente a partir dessa lista — não é preciso (nem recomendado) mandar{' '}
+                <code className="bg-muted px-1 rounded">colors</code>/<code className="bg-muted px-1 rounded">sizes</code>/
+                <code className="bg-muted px-1 rounded">flavors</code> junto. O estoque total do produto (
+                <code className="bg-muted px-1 rounded">stock_quantity</code>) passa a ser calculado
+                automaticamente a partir das variações — não pode mais ser definido diretamente por essa rota.
+              </p>
+              <pre className="bg-muted border rounded p-3 text-xs font-mono overflow-x-auto">
+{`curl -X POST ${baseUrl}/api/v1/products \\
+  -H "X-API-Key: vtb_sua_chave_aqui" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "title": "Camiseta Estampada",
+    "price": 59.90,
+    "variants": [
+      { "color": "Azul", "size": "P", "quantity": 10 },
+      { "color": "Azul", "size": "M", "quantity": 5 },
+      { "color": "Vermelho", "size": "P", "quantity": 8 }
+    ]
+  }'`}
+              </pre>
+              <p className="text-xs text-muted-foreground mt-3 mb-2">
+                Ao substituir variações num <code className="bg-muted px-1 rounded">PUT</code>, uma combinação
+                que sair da lista não é apagada — só deixa de contar no estoque total, e volta a contar se você
+                incluí-la de novo depois. Para ajustar o estoque de uma única variação sem reenviar a lista
+                inteira, use <code className="bg-muted px-1 rounded">POST /products/:id/stock/adjust</code>.
+              </p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Preço por atacado (faixas de quantidade) usa o campo{' '}
+                <code className="bg-muted px-1 rounded">price_tiers</code>, também aceito em{' '}
+                <code className="bg-muted px-1 rounded">POST</code>/<code className="bg-muted px-1 rounded">PUT</code>.
+                As faixas não podem se sobrepor, e no máximo uma pode ficar sem{' '}
+                <code className="bg-muted px-1 rounded">max_quantity</code> (faixa "a partir de", sempre a de
+                maior quantidade mínima).
+              </p>
+              <pre className="bg-muted border rounded p-3 text-xs font-mono overflow-x-auto">
+{`"price_tiers": [
+  { "min_quantity": 1,  "max_quantity": 4, "unit_price": 59.90 },
+  { "min_quantity": 5,  "max_quantity": 9, "unit_price": 49.90 },
+  { "min_quantity": 10, "unit_price": 39.90 }
+]`}
+              </pre>
+              <p className="text-xs text-muted-foreground mt-3">
+                <code className="bg-muted px-1 rounded">PATCH</code> não aceita{' '}
+                <code className="bg-muted px-1 rounded">variants</code> nem{' '}
+                <code className="bg-muted px-1 rounded">price_tiers</code> — use{' '}
+                <code className="bg-muted px-1 rounded">PUT</code> para esses dois campos.
+              </p>
+            </div>
+
             {/* Response Format */}
             <div>
               <h3 className="text-sm font-semibold mb-2">Formato de Resposta</h3>
