@@ -15,7 +15,7 @@ import { BulkActionsPanel } from '@/components/dashboard/BulkActionsPanel';
 import { QuickEditModal } from '@/components/dashboard/QuickEditModal';
 import { BulkPricingDialog } from '@/components/dashboard/BulkPricingDialog';
 import { TagManagerDialog } from '@/components/dashboard/TagManagerDialog';
-import { ImportProductsDialog } from '@/components/dashboard/ImportProductsDialog';
+import { BulkImportProductsDialog } from '@/components/dashboard/BulkImportProductsDialog';
 import DashboardInfiniteScrollTrigger from '@/components/dashboard/DashboardInfiniteScrollTrigger';
 import { useProductListManagement } from '@/hooks/useProductListManagement';
 import { useProductAnalytics } from '@/hooks/useProductAnalytics';
@@ -505,10 +505,9 @@ export default function ListingsPage() {
         onDeleteTag={deleteTag}
       />
 
-      <ImportProductsDialog
+      <BulkImportProductsDialog
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
-        userId={user.id}
         onComplete={refreshProducts}
       />
 

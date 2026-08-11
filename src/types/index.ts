@@ -162,6 +162,7 @@ export interface PriceTier {
 export interface Product {
   id: string;
   user_id: string;
+  sku?: string | null;
   title: string;
   description: string;
   price?: number;
