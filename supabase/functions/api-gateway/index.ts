@@ -158,6 +158,217 @@ function getPagination(url: URL): { page: number; perPage: number; from: number;
   return { page, perPage, from, to };
 }
 
+// ─── Variant & Price Tier Helpers ───────────────────────────────────
+
+interface ApiVariantInput {
+  color?: string | null;
+  size?: string | null;
+  flavor?: string | null;
+  quantity: number;
+}
+
+interface ApiPriceTierInput {
+  min_quantity: number;
+  max_quantity?: number | null;
+  unit_price: number;
+  discounted_unit_price?: number | null;
+}
+
+function normKey(v: string | null | undefined): string {
+  return (v ?? "").trim().toLowerCase();
+}
+
+function variantKey(color?: string | null, size?: string | null, flavor?: string | null): string {
+  return `${normKey(color)}|${normKey(size)}|${normKey(flavor)}`;
+}
+
+function uniqueNonEmpty(values: (string | null | undefined)[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of values) {
+    const trimmed = (v ?? "").trim();
+    if (!trimmed) continue;
+    const k = trimmed.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+// Validates a `variants` payload before any write touches the DB.
+function validateVariants(variants: unknown): string | null {
+  if (!Array.isArray(variants)) return "Field 'variants' must be an array";
+
+  const seen = new Set<string>();
+  for (const v of variants as ApiVariantInput[]) {
+    if (typeof v.quantity !== "number" || !Number.isInteger(v.quantity) || v.quantity < 0) {
+      return "Each variant requires an integer 'quantity' >= 0";
+    }
+    const color = v.color?.trim() || null;
+    const size = v.size?.trim() || null;
+    const flavor = v.flavor?.trim() || null;
+    if (!color && !size && !flavor) {
+      return "Each variant requires at least one of 'color', 'size' or 'flavor'";
+    }
+    const key = variantKey(color, size, flavor);
+    if (seen.has(key)) {
+      return `Duplicate variant combination: color="${color || ""}" size="${size || ""}" flavor="${flavor || ""}"`;
+    }
+    seen.add(key);
+  }
+  return null;
+}
+
+// Replaces a product's variant stock with the given set. Rows not present
+// in `variants` are left untouched rather than deleted — they become
+// "orphans" that recalc_product_aggregate_stock already excludes from the
+// total, the same mechanism the dashboard and the CSV bulk importer rely on
+// to keep a removed color/size's stock history recoverable instead of gone
+// (see 20260807100000_offered_only_aggregate_stock.sql). Always followed by
+// a colors/sizes/flavors sync + recalc so the aggregate reflects reality.
+async function applyVariantsReplace(
+  supabase: ReturnType<typeof createClient>,
+  productId: string,
+  variants: ApiVariantInput[]
+): Promise<void> {
+  const { data: existingRows } = await supabase
+    .from("product_variant_stock")
+    .select("id, color, size, flavor")
+    .eq("product_id", productId);
+
+  const existingByKey = new Map<string, string>();
+  for (const row of existingRows || []) {
+    existingByKey.set(variantKey(row.color, row.size, row.flavor), row.id as string);
+  }
+
+  const toInsert: Array<{
+    product_id: string;
+    color: string | null;
+    size: string | null;
+    flavor: string | null;
+    quantity: number;
+    reserved_quantity: number;
+  }> = [];
+
+  for (const v of variants) {
+    const color = v.color?.trim() || null;
+    const size = v.size?.trim() || null;
+    const flavor = v.flavor?.trim() || null;
+    const key = variantKey(color, size, flavor);
+    const existingId = existingByKey.get(key);
+
+    if (existingId) {
+      await supabase.from("product_variant_stock").update({ quantity: v.quantity }).eq("id", existingId);
+    } else {
+      toInsert.push({ product_id: productId, color, size, flavor, quantity: v.quantity, reserved_quantity: 0 });
+    }
+  }
+
+  if (toInsert.length > 0) {
+    await supabase.from("product_variant_stock").insert(toInsert);
+  }
+
+  const colors = uniqueNonEmpty(variants.map((v) => v.color));
+  const sizes = uniqueNonEmpty(variants.map((v) => v.size));
+  const flavors = uniqueNonEmpty(variants.map((v) => v.flavor));
+
+  await supabase.from("products").update({ colors, sizes, flavors, track_inventory: true }).eq("id", productId);
+  await supabase.rpc("recalc_product_aggregate_stock", { p_product_id: productId });
+}
+
+// Mirrors validate_all_price_tiers_for_product() (the DB trigger — see
+// 20260329171806_..._fix_validate_price_tiers_trigger_for_exact_mode.sql)
+// so invalid tiers surface as a clean 400 instead of a raw Postgres
+// exception. Kept as strict as the trigger regardless of whether the
+// trigger itself is confirmed attached in this environment — either way
+// this is the right validation to run before ever hitting the DB.
+function validatePriceTiers(tiers: unknown): string | null {
+  if (!Array.isArray(tiers)) return "Field 'price_tiers' must be an array";
+  const list = tiers as ApiPriceTierInput[];
+
+  let nullMaxCount = 0;
+  let maxMinQuantity = -Infinity;
+  let nullMaxMinQuantity: number | null = null;
+
+  for (const t of list) {
+    if (typeof t.min_quantity !== "number" || !Number.isInteger(t.min_quantity) || t.min_quantity <= 0) {
+      return "Each price tier requires an integer 'min_quantity' > 0";
+    }
+    if (t.max_quantity !== undefined && t.max_quantity !== null) {
+      if (typeof t.max_quantity !== "number" || !Number.isInteger(t.max_quantity) || t.max_quantity < t.min_quantity) {
+        return "'max_quantity' must be an integer >= min_quantity when present";
+      }
+    } else {
+      nullMaxCount++;
+      nullMaxMinQuantity = t.min_quantity;
+    }
+    if (typeof t.unit_price !== "number" || t.unit_price <= 0) {
+      return "Each price tier requires 'unit_price' > 0";
+    }
+    if (t.discounted_unit_price !== undefined && t.discounted_unit_price !== null) {
+      if (
+        typeof t.discounted_unit_price !== "number" ||
+        t.discounted_unit_price <= 0 ||
+        t.discounted_unit_price >= t.unit_price
+      ) {
+        return "'discounted_unit_price' must be > 0 and < unit_price when present";
+      }
+    }
+    if (t.min_quantity > maxMinQuantity) maxMinQuantity = t.min_quantity;
+  }
+
+  if (nullMaxCount > 1) {
+    return "Only one price tier can have unlimited (null) max_quantity";
+  }
+  if (nullMaxCount === 1 && nullMaxMinQuantity !== maxMinQuantity) {
+    return "The tier with unlimited (null) max_quantity must have the highest min_quantity";
+  }
+
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i];
+      const b = list[j];
+      const aMax = a.max_quantity ?? Infinity;
+      const bMax = b.max_quantity ?? Infinity;
+      if (a.min_quantity <= bMax && aMax >= b.min_quantity) {
+        return `Price tiers overlap: [${a.min_quantity},${a.max_quantity ?? "∞"}] and [${b.min_quantity},${b.max_quantity ?? "∞"}]`;
+      }
+    }
+  }
+
+  return null;
+}
+
+// product_price_tiers has no user_id column — ownership is enforced via
+// product_id -> products.user_id (see the table's own RLS policies in
+// 20260109223838_..._create_product_price_tiers_table.sql). The pre-existing
+// POST handler this replaces mistakenly included user_id in its insert too,
+// it just never surfaced as an error because that insert's result was
+// never checked — price tiers created via API have likely been silently
+// failing to save since this endpoint was built.
+async function applyPriceTiersReplace(
+  supabase: ReturnType<typeof createClient>,
+  productId: string,
+  tiers: ApiPriceTierInput[]
+): Promise<{ error: string | null }> {
+  await supabase.from("product_price_tiers").delete().eq("product_id", productId);
+
+  if (tiers.length === 0) return { error: null };
+
+  const { error } = await supabase.from("product_price_tiers").insert(
+    tiers.map((tier) => ({
+      product_id: productId,
+      min_quantity: tier.min_quantity,
+      max_quantity: tier.max_quantity ?? null,
+      unit_price: tier.unit_price,
+      discounted_unit_price: tier.discounted_unit_price ?? null,
+    }))
+  );
+
+  return { error: error ? error.message : null };
+}
+
 // ─── Products Handler ───────────────────────────────────────────────
 
 async function handleProducts(
@@ -287,6 +498,25 @@ async function handleProducts(
         return errorResponse("validation_error", "Field 'title' is required", 400);
       }
 
+      const hasVariants = Array.isArray(body.variants) && body.variants.length > 0;
+
+      if (body.variants !== undefined) {
+        const variantsError = validateVariants(body.variants);
+        if (variantsError) return errorResponse("validation_error", variantsError, 400);
+      }
+      if (hasVariants && (body.stock_quantity !== undefined || body.track_inventory === false)) {
+        return errorResponse(
+          "validation_error",
+          "When 'variants' is provided, do not also send 'stock_quantity' or 'track_inventory: false' — stock is derived from the variants themselves",
+          400
+        );
+      }
+
+      if (body.price_tiers !== undefined) {
+        const tiersError = validatePriceTiers(body.price_tiers);
+        if (tiersError) return errorResponse("validation_error", tiersError, 400);
+      }
+
       const productData = {
         user_id: ctx.userId,
         title: body.title,
@@ -299,26 +529,41 @@ async function handleProducts(
         brand: body.brand || "",
         model: body.model || "",
         gender: body.gender || "unissex",
-        colors: body.colors || [],
-        sizes: body.sizes || [],
-        flavors: body.flavors || [],
+        colors: hasVariants ? uniqueNonEmpty(body.variants.map((v: ApiVariantInput) => v.color)) : (body.colors || []),
+        sizes: hasVariants ? uniqueNonEmpty(body.variants.map((v: ApiVariantInput) => v.size)) : (body.sizes || []),
+        flavors: hasVariants ? uniqueNonEmpty(body.variants.map((v: ApiVariantInput) => v.flavor)) : (body.flavors || []),
         is_visible_on_storefront: body.is_visible_on_storefront ?? true,
-        track_inventory: body.track_inventory ?? false,
-        stock_quantity: body.stock_quantity || 0,
+        track_inventory: hasVariants ? true : (body.track_inventory ?? false),
+        stock_quantity: hasVariants ? 0 : (body.stock_quantity || 0),
         low_stock_threshold: body.low_stock_threshold || 5,
         featured_image_url: body.featured_image_url || "",
         has_tiered_pricing: body.has_tiered_pricing ?? false,
         has_weight_variants: body.has_weight_variants ?? false,
-        pricing_mode: body.pricing_mode || "simple",
+        pricing_mode: body.pricing_mode || "range",
       };
 
-      const { data: product, error } = await supabase
+      const { data: insertedProduct, error } = await supabase
         .from("products")
         .insert(productData)
         .select()
         .single();
 
       if (error) return errorResponse("internal_error", error.message, 500);
+
+      let product = insertedProduct;
+
+      // Create variant stock rows and derive the aggregate stock_quantity
+      // from them — the product row above was inserted with stock_quantity
+      // 0 as a placeholder, so it must be re-fetched after recalculating.
+      if (hasVariants) {
+        await applyVariantsReplace(supabase, product.id, body.variants as ApiVariantInput[]);
+        const { data: refreshed } = await supabase
+          .from("products")
+          .select()
+          .eq("id", product.id)
+          .single();
+        if (refreshed) product = refreshed;
+      }
 
       // Insert images if provided
       if (body.images && Array.isArray(body.images) && body.images.length > 0) {
@@ -332,17 +577,16 @@ async function handleProducts(
         await supabase.from("product_images").insert(imageRecords);
       }
 
-      // Insert price tiers if provided
-      if (body.price_tiers && Array.isArray(body.price_tiers)) {
-        const tierRecords = body.price_tiers.map((tier: { min_quantity: number; max_quantity: number; unit_price: number; discounted_unit_price?: number }) => ({
-          product_id: product.id,
-          user_id: ctx.userId,
-          min_quantity: tier.min_quantity,
-          max_quantity: tier.max_quantity,
-          unit_price: tier.unit_price,
-          discounted_unit_price: tier.discounted_unit_price || null,
-        }));
-        await supabase.from("product_price_tiers").insert(tierRecords);
+      // Insert price tiers if provided (already validated above)
+      if (body.price_tiers && Array.isArray(body.price_tiers) && body.price_tiers.length > 0) {
+        const { error: tiersInsertError } = await applyPriceTiersReplace(
+          supabase,
+          product.id,
+          body.price_tiers as ApiPriceTierInput[]
+        );
+        if (tiersInsertError) {
+          return errorResponse("validation_error", tiersInsertError, 400);
+        }
       }
 
       // Insert weight variants if provided
@@ -379,6 +623,46 @@ async function handleProducts(
 
       if (!existing) return errorResponse("not_found", "Product not found", 404);
 
+      const hasVariantsInBody = Array.isArray(body.variants) && body.variants.length > 0;
+
+      if (body.variants !== undefined) {
+        const variantsError = validateVariants(body.variants);
+        if (variantsError) return errorResponse("validation_error", variantsError, 400);
+      }
+      if (body.price_tiers !== undefined) {
+        const tiersError = validatePriceTiers(body.price_tiers);
+        if (tiersError) return errorResponse("validation_error", tiersError, 400);
+      }
+
+      // stock_quantity is a derived aggregate once a product has variant
+      // stock rows (see recalc_product_aggregate_stock) — writing it
+      // directly here would silently get overwritten by the next recalc
+      // anyway, so reject loudly instead of accepting a value that won't
+      // stick. Checked by actual row existence, NOT by colors/sizes/flavors
+      // being non-empty: today's POST can leave those arrays populated with
+      // zero variant rows, and using that as the signal would newly break
+      // stock_quantity updates on every product already in that state.
+      if (body.stock_quantity !== undefined) {
+        if (hasVariantsInBody) {
+          return errorResponse(
+            "validation_error",
+            "Do not send 'stock_quantity' together with 'variants' — stock is derived from the variants themselves",
+            400
+          );
+        }
+        const { count: existingVariantCount } = await supabase
+          .from("product_variant_stock")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", route.id);
+        if ((existingVariantCount || 0) > 0) {
+          return errorResponse(
+            "validation_error",
+            "This product has variant stock; 'stock_quantity' is derived automatically. Update 'variants' instead, or use /products/:id/stock.",
+            400
+          );
+        }
+      }
+
       const updateData: Record<string, unknown> = {};
       const allowedFields = [
         "title", "description", "price", "discounted_price", "status",
@@ -391,21 +675,58 @@ async function handleProducts(
         "featured_offer_description", "is_starting_price",
       ];
 
+      // colors/sizes/flavors are derived from `variants` (below) when
+      // present, same rule as POST — don't let a stale value from the body
+      // race against applyVariantsReplace's own array update.
+      const skipDerivedFields = body.variants !== undefined;
+
       for (const field of allowedFields) {
+        if (skipDerivedFields && (field === "colors" || field === "sizes" || field === "flavors")) continue;
         if (body[field] !== undefined) {
           updateData[field] = body[field];
         }
       }
 
-      const { data: product, error } = await supabase
-        .from("products")
-        .update(updateData)
-        .eq("id", route.id)
-        .eq("user_id", ctx.userId)
-        .select()
-        .single();
+      let product: Record<string, unknown> | null = null;
 
-      if (error) return errorResponse("internal_error", error.message, 500);
+      if (Object.keys(updateData).length > 0) {
+        const { data: updated, error } = await supabase
+          .from("products")
+          .update(updateData)
+          .eq("id", route.id)
+          .eq("user_id", ctx.userId)
+          .select()
+          .single();
+
+        if (error) return errorResponse("internal_error", error.message, 500);
+        product = updated;
+      }
+
+      if (body.variants !== undefined) {
+        await applyVariantsReplace(supabase, route.id!, body.variants as ApiVariantInput[]);
+      }
+
+      if (body.price_tiers !== undefined) {
+        const { error: tiersError } = await applyPriceTiersReplace(
+          supabase,
+          route.id!,
+          body.price_tiers as ApiPriceTierInput[]
+        );
+        if (tiersError) return errorResponse("validation_error", tiersError, 400);
+      }
+
+      // Re-fetch whenever variants/tiers changed the row out from under the
+      // `product` snapshot above (recalc'd stock_quantity, tier price cache).
+      if (body.variants !== undefined || body.price_tiers !== undefined || !product) {
+        const { data: refreshed, error: refetchError } = await supabase
+          .from("products")
+          .select()
+          .eq("id", route.id)
+          .single();
+        if (refetchError) return errorResponse("internal_error", refetchError.message, 500);
+        product = refreshed;
+      }
+
       return jsonResponse({ data: product });
     }
 
@@ -416,6 +737,20 @@ async function handleProducts(
       if (!route.id) return errorResponse("validation_error", "Product ID required", 400);
 
       const body = await req.json();
+
+      // variants/price_tiers need dedicated replace semantics (diffing,
+      // recalculating the aggregate stock, validating ranges) that a raw
+      // `.update(body)` can't provide — and since neither is an actual
+      // `products` column, PATCH would otherwise fail with an opaque
+      // Postgres "column does not exist" error. Point callers at PUT.
+      if (body.variants !== undefined || body.price_tiers !== undefined) {
+        return errorResponse(
+          "validation_error",
+          "Use PUT /products/:id to update 'variants' or 'price_tiers'",
+          400
+        );
+      }
+
       const { data: existing } = await supabase
         .from("products")
         .select("id")
@@ -617,8 +952,20 @@ async function handleProductStock(
         performed_by: ctx.userId,
       });
 
+      // products.stock_quantity is a derived sum once variant rows exist —
+      // without this, it silently drifts from the real per-variant total
+      // the instant this endpoint is used (same bug class fixed on the
+      // dashboard side in commit 11006cf).
+      const { data: recalced } = await supabase.rpc("recalc_product_aggregate_stock", {
+        p_product_id: route.id,
+      });
+
       return jsonResponse({
-        data: { previous_quantity: variantStock.quantity, new_quantity: newQuantity },
+        data: {
+          previous_quantity: variantStock.quantity,
+          new_quantity: newQuantity,
+          product_stock_quantity: recalced ?? null,
+        },
       });
     }
 
@@ -707,7 +1054,14 @@ async function handleProductStock(
           });
         }
 
-        return jsonResponse({ data: { updated: true, quantity: body.quantity } });
+        // Keep the aggregate in sync — see the /adjust branch above for why.
+        const { data: recalced } = await supabase.rpc("recalc_product_aggregate_stock", {
+          p_product_id: route.id,
+        });
+
+        return jsonResponse({
+          data: { updated: true, quantity: body.quantity, product_stock_quantity: recalced ?? null },
+        });
       }
 
       await supabase
