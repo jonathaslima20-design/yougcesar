@@ -47,6 +47,7 @@ export interface User {
   location_url?: string;
   city?: string;
   state?: string;
+  store_zip_code?: string;
   created_by?: string;
   managed_by_partner_id?: string | null;
   theme?: 'light' | 'dark';
@@ -144,6 +145,12 @@ export interface WeightVariant {
   price: number;
   discounted_price?: number | null;
   display_order: number;
+  // Real shipping weight for this variant (kg) — optional; when unset,
+  // checkout falls back to the product's own weight_kg. unit_value/unit_type
+  // represent the sales unit (e.g. "500g" as a SKU option) and aren't
+  // reliable enough to derive a shipping weight from directly (unit_type
+  // can be 'un'/'cps', which has no weight equivalent).
+  shipping_weight_kg?: number | null;
   created_at?: string;
   updated_at?: string;
 }

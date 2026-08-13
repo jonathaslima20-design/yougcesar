@@ -34,9 +34,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
 import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
-import type { CheckoutMode } from '@/types';
 import {
   getMerchantPaymentConfig,
   saveMerchantPaymentConfig,
@@ -49,14 +47,12 @@ const formSchema = z.object({
   access_token: z.string().optional().or(z.literal('')),
   webhook_secret: z.string().optional().or(z.literal('')),
   is_active: z.boolean(),
-  checkoutMode: z.enum(['whatsapp', 'ecommerce_optional', 'ecommerce_only']),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function PaymentSettingsContent() {
   const { user } = useAuth();
-  const { settings: checkoutSettings, loading: checkoutLoading, updateSettings } = useCheckoutSettings();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -76,7 +72,6 @@ export default function PaymentSettingsContent() {
       access_token: '',
       webhook_secret: '',
       is_active: false,
-      checkoutMode: 'whatsapp',
     },
   });
 
@@ -85,12 +80,6 @@ export default function PaymentSettingsContent() {
   useEffect(() => {
     loadConfig();
   }, []);
-
-  useEffect(() => {
-    if (!checkoutLoading) {
-      form.setValue('checkoutMode', checkoutSettings.checkoutMode || 'whatsapp');
-    }
-  }, [checkoutLoading, checkoutSettings.checkoutMode]);
 
   const loadConfig = async () => {
     try {
@@ -103,7 +92,6 @@ export default function PaymentSettingsContent() {
           access_token: config.access_token || '',
           webhook_secret: config.webhook_secret || '',
           is_active: config.is_active,
-          checkoutMode: form.getValues('checkoutMode'),
         });
         setMpAccountEmail(config.mp_account_email || null);
       }
@@ -125,8 +113,6 @@ export default function PaymentSettingsContent() {
         webhook_secret: values.webhook_secret || '',
         is_active: values.is_active,
       });
-
-      await updateSettings({ ...checkoutSettings, checkoutMode: values.checkoutMode as CheckoutMode });
 
       toast.success('Configurações salvas com sucesso');
       loadConfig();
@@ -163,7 +149,7 @@ export default function PaymentSettingsContent() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (loading || checkoutLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -222,7 +208,8 @@ export default function PaymentSettingsContent() {
           <span>
             Pagamentos online estão temporariamente desativados para todas as lojas enquanto a
             VitrineTurbo finaliza os testes dessa funcionalidade. Você pode configurar suas credenciais
-            normalmente, mas a ativação e o modo de checkout ficam bloqueados até isso ser liberado.
+            normalmente, mas a ativação fica bloqueada até isso ser liberado. O modo de finalização de
+            pedido (WhatsApp/pagamento online) agora é definido em Regras de Pedido.
           </span>
         </div>
       )}
@@ -351,38 +338,6 @@ export default function PaymentSettingsContent() {
                         disabled={!isBRL || !platformPaymentsEnabled}
                       />
                     </FormControl>
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Como finalizar o pedido</CardTitle>
-              <CardDescription>
-                Escolha se o cliente finaliza pelo WhatsApp, paga direto na vitrine, ou tem as duas opções.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="checkoutMode"
-                render={({ field }) => (
-                  <FormItem>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!platformPaymentsEnabled}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="whatsapp">Só WhatsApp (padrão atual)</SelectItem>
-                        <SelectItem value="ecommerce_optional">WhatsApp e Pagar Agora (cliente escolhe)</SelectItem>
-                        <SelectItem value="ecommerce_only">Só Pagar Agora</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
                   </FormItem>
                 )}
               />

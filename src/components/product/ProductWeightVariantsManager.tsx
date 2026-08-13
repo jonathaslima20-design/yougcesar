@@ -43,6 +43,7 @@ export function ProductWeightVariantsManager({
       price: 0,
       discounted_price: null,
       display_order: variants.length,
+      shipping_weight_kg: null,
     };
     onChange([...variants, newVariant]);
   };
@@ -170,6 +171,27 @@ export function ProductWeightVariantsManager({
                       handleUpdate(index, 'discounted_price', v > 0 ? v : null)
                     }
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Peso de envio (kg, opcional)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Usa o peso do produto se vazio"
+                    value={variant.shipping_weight_kg ?? ''}
+                    onChange={(e) =>
+                      handleUpdate(
+                        index,
+                        'shipping_weight_kg',
+                        e.target.value === '' ? null : parseFloat(e.target.value) || 0
+                      )
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Preencha se esta variação pesa diferente das outras (ex: 500g vs 1kg) — afeta o frete calculado.
+                  </p>
                 </div>
               </div>
             </div>

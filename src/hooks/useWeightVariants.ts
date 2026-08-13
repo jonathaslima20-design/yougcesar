@@ -68,6 +68,7 @@ export function useWeightVariants(productId?: string): UseWeightVariantsReturn {
           price: Number(v.price) || 0,
           discounted_price: v.discounted_price ?? null,
           display_order: idx,
+          shipping_weight_kg: v.shipping_weight_kg && v.shipping_weight_kg > 0 ? v.shipping_weight_kg : null,
         }));
 
         const { data, error: insertError } = await supabase

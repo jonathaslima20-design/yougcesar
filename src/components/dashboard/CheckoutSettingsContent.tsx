@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart, Minimize2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Loader as Loader2, CreditCard, Truck, Plus, Trash2, Percent, ShoppingCart, Minimize2, ShieldCheck, AlertTriangle, MessageCircle, Wallet, MapPin, CheckCircle2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
+import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
 import { useAuth } from '@/contexts/AuthContext';
-import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, DeliveryScope, PaymentMethodDiscountType, ShippingCalculationType } from '@/types';
+import { fetchAddressByCep } from '@/lib/viaCep';
+import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, DeliveryScope, PaymentMethodDiscountType, ShippingCalculationType, CheckoutMode } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function formatCurrency(value: number): string {
@@ -25,11 +28,18 @@ const BR_STATES = [
 
 export default function CheckoutSettingsContent() {
   const { settings, loading, saving, updateSettings, insuranceGateEnabled } = useCheckoutSettings();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { enabled: platformPaymentsEnabled } = usePlatformPaymentsEnabled(user?.id);
   const [newMethodName, setNewMethodName] = useState('');
   const [newDeliveryName, setNewDeliveryName] = useState('');
   const [newDeliveryFee, setNewDeliveryFee] = useState(0);
+  const [storeZipCode, setStoreZipCode] = useState('');
+  const [storeCepLoading, setStoreCepLoading] = useState(false);
   const hasMerchantCity = !!user?.city?.trim();
+
+  useEffect(() => {
+    setStoreZipCode(user?.store_zip_code || '');
+  }, [user?.id, user?.store_zip_code]);
 
   const save = async (newSettings: CheckoutSettings) => {
     try {
@@ -38,6 +48,31 @@ export default function CheckoutSettingsContent() {
     } catch {
       toast.error('Erro ao salvar configuracoes');
     }
+  };
+
+  const handleStoreCepBlur = async () => {
+    const digits = storeZipCode.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    setStoreCepLoading(true);
+    try {
+      const result = await fetchAddressByCep(storeZipCode);
+      if (!result || !result.city) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+      const { error } = await updateUser({ store_zip_code: digits, city: result.city, state: result.state });
+      if (error) {
+        toast.error('Erro ao salvar CEP da loja');
+      } else {
+        toast.success(`Cidade da loja definida como ${result.city} - ${result.state}`);
+      }
+    } finally {
+      setStoreCepLoading(false);
+    }
+  };
+
+  const updateCheckoutMode = (mode: CheckoutMode) => {
+    save({ ...settings, checkoutMode: mode });
   };
 
   const togglePaymentMethod = (id: string, enabled: boolean) => {
@@ -122,7 +157,7 @@ export default function CheckoutSettingsContent() {
 
   const updateDeliveryScope = (id: string, scope: DeliveryScope) => {
     if (scope === 'local' && !hasMerchantCity) {
-      toast.error('Defina a cidade da sua loja em Perfil antes de criar uma opção de entrega local');
+      toast.error('Defina o CEP da sua loja acima antes de criar uma opção de entrega local');
       return;
     }
     const updated = settings.deliveryOptions.map(d =>
@@ -203,8 +238,138 @@ export default function CheckoutSettingsContent() {
   const hasAnyDeliveryEnabled = settings.deliveryOptions.some(d => d.enabled);
   const isDefaultMethod = (id: string) => ['pix', 'credit_card', 'debit_card', 'cash', 'bank_transfer'].includes(id);
 
+  const checkoutMode = settings.checkoutMode || 'whatsapp';
+  const hasLocalDeliveryOption = settings.deliveryOptions.some((d) => d.enabled && d.scope === 'local');
+  const hasNationalDeliveryOption =
+    settings.deliveryOptions.some((d) => d.enabled && d.scope !== 'local') ||
+    // superFrete.enabled alone isn't enough: checkout only fetches quotes
+    // when at least one service is selected too (see CheckoutAddressPage.tsx).
+    (!!settings.superFrete?.enabled && (settings.superFrete?.serviceIds?.length ?? 0) > 0);
+  const onlinePaymentAllowed = platformPaymentsEnabled && checkoutMode !== 'whatsapp';
+  const whatsappAllowed = checkoutMode !== 'ecommerce_only';
+
+  const flow1Active = onlinePaymentAllowed && hasMerchantCity && hasLocalDeliveryOption;
+  const flow2Active = onlinePaymentAllowed && hasNationalDeliveryOption;
+  const flow3Active = whatsappAllowed && hasMerchantCity && hasLocalDeliveryOption;
+
   return (
     <div className="space-y-6">
+      {/* How you sell: checkoutMode + store CEP + the 3 order flows explained together */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Como você vende</CardTitle>
+          <CardDescription>
+            Defina o CEP da sua loja e como o cliente finaliza o pedido. Isso controla os 3 fluxos de venda abaixo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {!platformPaymentsEnabled && (
+            <div className="flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                Pagamento online está temporariamente desativado para todas as lojas. Enquanto isso, sua loja
+                vende só por WhatsApp — configure as credenciais em Pagamento a qualquer momento.
+              </span>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="store-zip-code">CEP da sua loja</Label>
+            <div className="flex items-center gap-2 max-w-xs">
+              <Input
+                id="store-zip-code"
+                placeholder="00000-000"
+                value={storeZipCode}
+                onChange={(e) => setStoreZipCode(e.target.value)}
+                onBlur={handleStoreCepBlur}
+                disabled={storeCepLoading}
+              />
+              {storeCepLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            {hasMerchantCity ? (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> Cidade cadastrada: {user?.city} - {user?.state}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Usado para comparar com o CEP do comprador e liberar a entrega local.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Como o cliente finaliza o pedido</Label>
+            <Select
+              value={checkoutMode}
+              onValueChange={(v) => updateCheckoutMode(v as CheckoutMode)}
+              disabled={saving || !platformPaymentsEnabled}
+            >
+              <SelectTrigger className="max-w-md">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="whatsapp">Só WhatsApp</SelectItem>
+                <SelectItem value="ecommerce_optional">WhatsApp e Pagamento Online (cliente escolhe)</SelectItem>
+                <SelectItem value="ecommerce_only">Só Pagamento Online</SelectItem>
+              </SelectContent>
+            </Select>
+            {!platformPaymentsEnabled && (
+              <p className="text-xs text-muted-foreground">
+                Trava em "Só WhatsApp" até o pagamento online ser liberado para sua loja.
+              </p>
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <FlowStatusCard
+              icon={<Wallet className="h-4 w-4" />}
+              title="Pagamento online + local"
+              description="Cliente cria conta, paga na hora. Só aparece se o CEP dele coincidir com a cidade da sua loja."
+              active={flow1Active}
+              missing={
+                !onlinePaymentAllowed
+                  ? 'Ative "Pagamento Online" acima'
+                  : !hasMerchantCity
+                    ? 'Defina o CEP da loja'
+                    : !hasLocalDeliveryOption
+                      ? 'Crie uma opção de entrega local'
+                      : undefined
+              }
+            />
+            <FlowStatusCard
+              icon={<Truck className="h-4 w-4" />}
+              title="Pagamento online + nacional"
+              description="Cliente cria conta, paga na hora. Frete calculado pelo CEP via suas integrações de frete ativas."
+              active={flow2Active}
+              missing={
+                !onlinePaymentAllowed
+                  ? 'Ative "Pagamento Online" acima'
+                  : !hasNationalDeliveryOption
+                    ? 'Crie uma opção nacional ou ative uma integração de frete'
+                    : undefined
+              }
+            />
+            <FlowStatusCard
+              icon={<MessageCircle className="h-4 w-4" />}
+              title="Pedido via WhatsApp + local"
+              description="Sem necessidade de conta. Só aparece se o CEP do comprador coincidir com a cidade da loja. Não oferece frete nacional."
+              active={flow3Active}
+              missing={
+                !whatsappAllowed
+                  ? 'Ative o WhatsApp acima'
+                  : !hasMerchantCity
+                    ? 'Defina o CEP da loja'
+                    : !hasLocalDeliveryOption
+                      ? 'Crie uma opção de entrega local'
+                      : undefined
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Cart Enable/Disable */}
       <Card>
         <CardHeader>
@@ -440,7 +605,7 @@ export default function CheckoutSettingsContent() {
             <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-amber-800 dark:text-amber-300">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <p className="text-xs">
-                Você tem opções de entrega local, mas ainda não definiu a cidade da sua loja em Perfil — elas não aparecerão para os compradores até que isso seja corrigido.
+                Você tem opções de entrega local, mas ainda não definiu o CEP da sua loja acima — elas não aparecerão para os compradores até que isso seja corrigido.
               </p>
             </div>
           )}
@@ -555,6 +720,38 @@ export default function CheckoutSettingsContent() {
             )}
           </CardContent>
         </Card>
+      )}
+    </div>
+  );
+}
+
+interface FlowStatusCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  active: boolean;
+  missing?: string;
+}
+
+function FlowStatusCard({ icon, title, description, active, missing }: FlowStatusCardProps) {
+  return (
+    <div className={`rounded-lg border p-3 space-y-2 ${active ? 'border-green-500/30 bg-green-500/5' : 'border-border'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-sm font-medium">
+          {icon}
+          {title}
+        </div>
+        <Badge variant={active ? 'default' : 'outline'} className="shrink-0">
+          {active ? (
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Ativo</span>
+          ) : (
+            'Inativo'
+          )}
+        </Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+      {!active && missing && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">{missing}</p>
       )}
     </div>
   );
@@ -848,7 +1045,7 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFree
           </Select>
           {scope === 'local' && (
             <p className="text-xs text-muted-foreground">
-              Só aparece para compradores cuja cidade for igual à cidade cadastrada em Perfil.
+              Só aparece para compradores cujo CEP resolver para a mesma cidade cadastrada acima em "Como você vende".
             </p>
           )}
         </div>

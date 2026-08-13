@@ -499,6 +499,7 @@ export default function EditProductPage() {
           price: Number(v.price) || 0,
           discounted_price: v.discounted_price ?? null,
           display_order: idx,
+          shipping_weight_kg: v.shipping_weight_kg && v.shipping_weight_kg > 0 ? v.shipping_weight_kg : null,
         }));
         const { error: insertVariantsError } = await supabase
           .from('product_weight_variants')

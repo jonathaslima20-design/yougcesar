@@ -29,8 +29,9 @@ import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getShippingQuote } from '@/lib/merchantShipping';
-import { fetchProductShippingDims, buildSuperFreteProducts } from '@/lib/shippingUtils';
+import { fetchProductShippingDims, fetchVariantShippingWeights, buildSuperFreteProducts } from '@/lib/shippingUtils';
 import type { ShippingQuote } from '@/types';
+import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption } from '@/lib/localDelivery';
 
 interface ManualAddress {
   street: string;
@@ -51,16 +52,6 @@ const EMPTY_ADDRESS: ManualAddress = {
   state: '',
   zipCode: '',
 };
-
-// Case + diacritic-insensitive comparison ("São Paulo" / "SAO PAULO" / "sao paulo" all match).
-// Typos and alternate city names are an accepted residual risk — no fuzzy matching.
-function normalizeCityName(city: string): string {
-  return city
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .trim()
-    .toLowerCase();
-}
 
 export default function CheckoutAddressPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -146,29 +137,23 @@ export default function CheckoutAddressPage() {
   const currentCity = showManualForm ? manualAddress.city : (selectedSavedAddress?.city || '');
   const currentZip = showManualForm ? manualAddress.zipCode : (selectedSavedAddress?.zip_code || '');
 
-  const merchantCity = corretor?.city ? normalizeCityName(corretor.city) : null;
   const buyerCity = currentCity ? normalizeCityName(currentCity) : null;
 
   const enabledDeliveryOptions = useMemo(
     () =>
-      checkoutSettings.deliveryOptions.filter((d) => {
-        if (!d.enabled) return false;
-        const scope = d.scope === 'local' ? 'local' : 'national';
-        if (scope === 'local') {
-          return !!merchantCity && !!buyerCity && merchantCity === buyerCity;
-        }
-        if (d.calculationType === 'region' && currentState) {
-          return (d.regions || []).includes(currentState);
-        }
-        return true;
+      filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
+        merchantCity: corretor?.city,
+        buyerCity: currentCity,
+        buyerState: currentState,
       }),
-    [checkoutSettings.deliveryOptions, currentState, merchantCity, buyerCity]
+    [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city]
   );
 
-  const hasNoMatchingLocalOption =
-    enabledDeliveryOptions.length === 0 &&
-    !!buyerCity &&
-    checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local');
+  const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
+    enabledDeliveryOptions.length,
+    buyerCity,
+    checkoutSettings.deliveryOptions
+  );
 
   const zipDigits = currentZip.replace(/\D/g, '');
 
@@ -194,8 +179,12 @@ export default function CheckoutAddressPage() {
     (async () => {
       try {
         const productIds = cart.items.map((item) => item.id);
-        const dims = await fetchProductShippingDims(productIds);
-        const products = buildSuperFreteProducts(cart.items, cart.distributions, dims);
+        const variantIds = cart.items.map((item) => item.selectedVariantId).filter((id): id is string => !!id);
+        const [dims, variantWeights] = await Promise.all([
+          fetchProductShippingDims(productIds),
+          fetchVariantShippingWeights(variantIds),
+        ]);
+        const products = buildSuperFreteProducts(cart.items, cart.distributions, dims, variantWeights);
         const { quotes } = await getShippingQuote(corretor.id, zipDigits, products, serviceIds);
         if (cancelled) return;
         setShippingQuotes(quotes);
@@ -212,7 +201,7 @@ export default function CheckoutAddressPage() {
 
   const superFreteOptions = shippingQuotes.map((q) => ({
     id: `superfrete:${q.id}`,
-    name: `${q.name} (SuperFrete)`,
+    name: q.name,
     fee: q.price,
     enabled: true,
     freeAbove: null,
@@ -220,7 +209,17 @@ export default function CheckoutAddressPage() {
     carrierProvider: 'superfrete' as const,
     scope: 'national' as const,
   }));
-  const allDeliveryOptions = [...enabledDeliveryOptions, ...superFreteOptions];
+  // When a live carrier quote exists for this CEP, it replaces the merchant's
+  // manual national option(s) entirely — showing a flat manual rate next to
+  // real per-carrier quotes for the same destination is confusing (the buyer
+  // can't tell which "R$" is actually calculated for their address). Local
+  // options are unaffected: they're a separate scope decided by city match,
+  // not by carrier availability.
+  const nationalDeliveryOptions = superFreteOptions.length > 0
+    ? superFreteOptions
+    : enabledDeliveryOptions.filter((d) => d.scope !== 'local');
+  const localDeliveryOptions = enabledDeliveryOptions.filter((d) => d.scope === 'local');
+  const allDeliveryOptions = [...localDeliveryOptions, ...nationalDeliveryOptions];
 
   const selectedDeliveryConfig = allDeliveryOptions.find((d) => d.id === selectedDeliveryOption);
 

@@ -49,20 +49,9 @@ import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { getShippingQuote } from '@/lib/merchantShipping';
-import { fetchProductShippingDims, buildSuperFreteProducts } from '@/lib/shippingUtils';
+import { fetchProductShippingDims, fetchVariantShippingWeights, buildSuperFreteProducts } from '@/lib/shippingUtils';
 import type { ShippingQuote } from '@/types';
-
-// Case + diacritic-insensitive comparison ("São Paulo" / "SAO PAULO" / "sao paulo" all match).
-// Typos and alternate city names are an accepted residual risk — no fuzzy matching.
-// Duplicated in CheckoutAddressPage.tsx rather than shared, matching this codebase's
-// existing pattern of keeping the two checkout flows' calculation logic independent.
-function normalizeCityName(city: string): string {
-  return city
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .trim()
-    .toLowerCase();
-}
+import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption } from '@/lib/localDelivery';
 
 
 interface CartModalProps {
@@ -131,26 +120,22 @@ export default function CartModal({
   const enabledPaymentMethods = checkoutSettings.paymentMethods.filter(m => m.enabled);
   // A lightweight CEP field (see below) resolves buyer city/state so local-scope
   // and region-restricted delivery options can be filtered here too, mirroring
-  // CheckoutAddressPage.tsx's filtering (duplicated, not shared — see decision
-  // in the plan for this feature).
-  const merchantCity = corretor.city ? normalizeCityName(corretor.city) : null;
+  // CheckoutAddressPage.tsx's filtering (shared via src/lib/localDelivery.ts).
   const buyerCity = customerCity ? normalizeCityName(customerCity) : null;
-  const enabledDeliveryOptions = checkoutSettings.deliveryOptions.filter((d) => {
-    if (!d.enabled) return false;
-    const scope = d.scope === 'local' ? 'local' : 'national';
-    if (scope === 'local') {
-      return !!merchantCity && !!buyerCity && merchantCity === buyerCity;
-    }
-    if (d.calculationType === 'region' && customerState) {
-      return (d.regions || []).includes(customerState);
-    }
-    return true;
+  // WhatsApp checkout never offers national delivery — only the online-payment
+  // tab does. This is what keeps flow 3 (WhatsApp) local-only.
+  const enabledDeliveryOptions = filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
+    merchantCity: corretor.city,
+    buyerCity: customerCity,
+    buyerState: customerState,
+    restrictToLocal: orderMode === 'whatsapp',
   });
 
-  const hasNoMatchingLocalOption =
-    enabledDeliveryOptions.length === 0 &&
-    !!buyerCity &&
-    checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local');
+  const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
+    enabledDeliveryOptions.length,
+    buyerCity,
+    checkoutSettings.deliveryOptions
+  );
 
   const requiresCityForDelivery =
     checkoutSettings.requireDeliveryOption &&
@@ -159,10 +144,11 @@ export default function CartModal({
 
   // Live SuperFrete quotes are merged alongside the manual delivery-option
   // list into one combined selectable set — the buyer doesn't need to know
-  // which source a given option came from.
+  // which source a given option came from. SuperFrete quotes are always
+  // national, so they're excluded on the WhatsApp tab (flow 3 is local-only).
   const superFreteOptions = shippingQuotes.map((q) => ({
     id: `superfrete:${q.id}`,
-    name: `${q.name} (SuperFrete)`,
+    name: q.name,
     fee: q.price,
     enabled: true,
     freeAbove: null,
@@ -170,7 +156,9 @@ export default function CartModal({
     carrierProvider: 'superfrete' as const,
     scope: 'national' as const,
   }));
-  const allDeliveryOptions = [...enabledDeliveryOptions, ...superFreteOptions];
+  const allDeliveryOptions = orderMode === 'whatsapp'
+    ? enabledDeliveryOptions
+    : [...enabledDeliveryOptions, ...superFreteOptions];
 
   const selectedPaymentConfig = enabledPaymentMethods.find(m => m.id === selectedPaymentMethod);
   const selectedDeliveryConfig = allDeliveryOptions.find(d => d.id === selectedDeliveryOption);
@@ -279,6 +267,11 @@ export default function CartModal({
       setCepLoading(false);
     }
 
+    // National shipping quotes are irrelevant on the WhatsApp tab (flow 3 is
+    // local-only) — skip the edge-function call entirely rather than fetch
+    // and discard.
+    if (orderMode === 'whatsapp') return;
+
     const superFreteEnabled = checkoutSettings.superFrete?.enabled;
     const serviceIds = checkoutSettings.superFrete?.serviceIds || [];
     if (!superFreteEnabled || serviceIds.length === 0) return;
@@ -288,8 +281,12 @@ export default function CartModal({
     setShippingQuotesLoading(true);
     try {
       const productIds = cart.items.map((item) => item.id);
-      const dims = await fetchProductShippingDims(productIds);
-      const products = buildSuperFreteProducts(cart.items, cart.distributions, dims);
+      const variantIds = cart.items.map((item) => item.selectedVariantId).filter((id): id is string => !!id);
+      const [dims, variantWeights] = await Promise.all([
+        fetchProductShippingDims(productIds),
+        fetchVariantShippingWeights(variantIds),
+      ]);
+      const products = buildSuperFreteProducts(cart.items, cart.distributions, dims, variantWeights);
       const { quotes } = await getShippingQuote(corretor.id, zipDigits, products, serviceIds);
       setShippingQuotes(quotes);
       setShippingQuotesError(quotes.length === 0);
