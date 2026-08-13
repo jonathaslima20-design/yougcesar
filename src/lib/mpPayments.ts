@@ -3,6 +3,26 @@ import { supabase } from './supabase';
 const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mercadopago`;
 const ADMIN_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mp-admin`;
 
+const DEVICE_SCRIPT_SRC = 'https://www.mercadopago.com/v2/security.js';
+const DEVICE_SCRIPT_ID = 'mp-device-fingerprint-script';
+
+// Loads Mercado Pago's device-fingerprint script, which sets
+// window.MP_DEVICE_SESSION_ID once it finishes running. This is NOT loaded
+// by initMercadoPago()/@mercadopago/sdk-react — confirmed by inspecting the
+// actual SDK v2 bundle (sdk.mercadopago.com/js/v2), which contains no
+// reference to security.js or to MP_DEVICE_SESSION_ID at all. Without this,
+// card charges are sent with no device signal, which Mercado Pago's fraud
+// engine tends to reject as cc_rejected_high_risk. Idempotent — safe to
+// call on every checkout mount.
+export function loadMpDeviceFingerprintScript(): void {
+  if (typeof document === 'undefined' || document.getElementById(DEVICE_SCRIPT_ID)) return;
+  const script = document.createElement('script');
+  script.id = DEVICE_SCRIPT_ID;
+  script.src = DEVICE_SCRIPT_SRC;
+  script.setAttribute('view', 'checkout');
+  document.head.appendChild(script);
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
   return {

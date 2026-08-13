@@ -10,6 +10,7 @@ import {
   getPaymentStatus,
   getPublicKey,
   translateCardRejection,
+  loadMpDeviceFingerprintScript,
   type PixPaymentResult,
   type CardPaymentResult,
 } from '@/lib/mpPayments';
@@ -716,6 +717,11 @@ export default function CheckoutPage() {
 
     const initSdk = async () => {
       try {
+        // Load in parallel with the public key fetch — the fingerprint
+        // takes a moment to finish running, so starting it as early as
+        // possible gives it the best chance of being ready by the time the
+        // buyer actually submits the card form.
+        loadMpDeviceFingerprintScript();
         const info = await getPublicKey();
         if (cancelled) return;
         if (!info.public_key) {
