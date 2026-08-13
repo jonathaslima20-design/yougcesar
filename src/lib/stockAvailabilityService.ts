@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/supabase';
 
 export interface CartStockCheckItem {
+  // Identifies the cart entry this check item came from (a plain item's
+  // variantId, or a `dist:<distributionId>:<distributionItemId>` marker for
+  // wholesale distribution lines) so a shortfall can be traced back to the
+  // exact cart entry to adjust, instead of just reported as a blocking error.
+  key: string;
   productId: string;
   title: string;
   quantity: number;
@@ -10,6 +15,7 @@ export interface CartStockCheckItem {
 }
 
 export interface StockShortfall {
+  key: string;
   productId: string;
   title: string;
   variantLabel: string | null;
@@ -72,6 +78,7 @@ export async function findCartStockShortfalls(
 
     if (available < item.quantity) {
       shortfalls.push({
+        key: item.key,
         productId: item.productId,
         title: item.title,
         variantLabel:
@@ -86,12 +93,17 @@ export async function findCartStockShortfalls(
   return shortfalls;
 }
 
+export function formatShortfallLines(shortfalls: StockShortfall[]): string {
+  return shortfalls
+    .map((s) => {
+      const variant = s.variantLabel ? ` (${s.variantLabel})` : '';
+      return s.available > 0
+        ? `${s.title}${variant}: restam apenas ${s.available} unidade(s)`
+        : `${s.title}${variant}: esgotado`;
+    })
+    .join('\n');
+}
+
 export function formatShortfallMessage(shortfalls: StockShortfall[]): string {
-  const lines = shortfalls.map((s) => {
-    const variant = s.variantLabel ? ` (${s.variantLabel})` : '';
-    return s.available > 0
-      ? `${s.title}${variant}: restam apenas ${s.available} unidade(s)`
-      : `${s.title}${variant}: esgotado`;
-  });
-  return `Estoque insuficiente para continuar. Ajuste o carrinho:\n${lines.join('\n')}`;
+  return `Estoque insuficiente para continuar. Ajuste o carrinho:\n${formatShortfallLines(shortfalls)}`;
 }

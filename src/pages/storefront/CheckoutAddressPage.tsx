@@ -24,7 +24,7 @@ import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { fetchCustomerAddresses, createCustomerAddress, type CustomerAddress } from '@/lib/customerAddressService';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { createOrder } from '@/lib/orderService';
-import { findCartStockShortfalls, formatShortfallMessage } from '@/lib/stockAvailabilityService';
+import { findCartStockShortfalls, formatShortfallMessage, formatShortfallLines } from '@/lib/stockAvailabilityService';
 import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -57,7 +57,7 @@ export default function CheckoutAddressPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { corretor, loading: corretorLoading } = useCorretorData({ slug });
-  const { cart, clearCart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon } = useCart();
+  const { cart, clearCart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon, updateVariantQuantity, removeCartVariant } = useCart();
   const { customer: buyerAccount, loading: authLoading } = useBuyerAuth();
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
   // autoDeductStock nao e lido aqui: a baixa deste fluxo acontece no webhook
@@ -138,6 +138,9 @@ export default function CheckoutAddressPage() {
   const currentZip = showManualForm ? manualAddress.zipCode : (selectedSavedAddress?.zip_code || '');
 
   const buyerCity = currentCity ? normalizeCityName(currentCity) : null;
+  // Merchants who ship nationwide and don't want buyers gated on a CEP lookup
+  // can turn this off — every enabled delivery option is then shown as-is.
+  const skipLocationMatch = checkoutSettings.requireDeliveryCep === false;
 
   const enabledDeliveryOptions = useMemo(
     () =>
@@ -145,14 +148,16 @@ export default function CheckoutAddressPage() {
         merchantCity: corretor?.city,
         buyerCity: currentCity,
         buyerState: currentState,
+        skipLocationMatch,
       }),
-    [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city]
+    [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city, skipLocationMatch]
   );
 
   const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
     enabledDeliveryOptions.length,
     buyerCity,
-    checkoutSettings.deliveryOptions
+    checkoutSettings.deliveryOptions,
+    skipLocationMatch
   );
 
   const zipDigits = currentZip.replace(/\D/g, '');
@@ -362,19 +367,51 @@ export default function CheckoutAddressPage() {
       const orderItems = buildOrderItems();
 
       if (inventoryEnabled) {
-        const shortfalls = await findCartStockShortfalls(
-          orderItems.map((item) => ({
-            productId: item.product_id,
-            title: item.product_title,
+        const shortfalls = await findCartStockShortfalls([
+          ...cart.distributions.flatMap((dist) =>
+            dist.items.map((distItem) => ({
+              key: `dist:${dist.distribution.id}:${distItem.id}`,
+              productId: dist.product.id,
+              title: dist.product.title,
+              quantity: distItem.quantity,
+              selectedColor: distItem.color,
+              selectedSize: distItem.size,
+            }))
+          ),
+          ...cart.items.map((item) => ({
+            key: item.variantId || item.id,
+            productId: item.id,
+            title: item.title,
             quantity: item.quantity,
-            selectedColor: item.selected_color,
-            selectedSize: item.selected_size,
-            selectedFlavor: (item as { selected_flavor?: string | null }).selected_flavor,
-          }))
-        );
+            selectedColor: item.selectedColor,
+            selectedSize: item.selectedSize,
+            selectedFlavor: item.selectedFlavor,
+          })),
+        ]);
 
         if (shortfalls.length > 0) {
-          toast.error(formatShortfallMessage(shortfalls));
+          // Distribution (wholesale) shortfalls can't be safely auto-adjusted —
+          // shrinking one color/size within a tiered bulk allocation would
+          // throw off the applied tier price, so those still block with the
+          // old message. Plain cart items get fixed automatically instead of
+          // wiping the whole cart: the buyer only loses what's actually gone.
+          const adjustable = shortfalls.filter((s) => !s.key.startsWith('dist:'));
+          const blocking = shortfalls.filter((s) => s.key.startsWith('dist:'));
+
+          for (const s of adjustable) {
+            if (s.available > 0) {
+              updateVariantQuantity(s.key, s.available);
+            } else {
+              removeCartVariant(s.key);
+            }
+          }
+
+          if (adjustable.length > 0) {
+            toast.error(`Seu carrinho foi ajustado por falta de estoque:\n${formatShortfallLines(adjustable)}\nRevise e envie o pedido novamente.`);
+          }
+          if (blocking.length > 0) {
+            toast.error(formatShortfallMessage(blocking));
+          }
           return;
         }
       }

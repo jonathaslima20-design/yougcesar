@@ -202,6 +202,10 @@ export default function CheckoutSettingsContent() {
     save({ ...settings, requireDeliveryOption: checked });
   };
 
+  const toggleRequireDeliveryCep = (checked: boolean) => {
+    save({ ...settings, requireDeliveryCep: checked });
+  };
+
   const toggleCartEnabled = (checked: boolean) => {
     save({ ...settings, cartEnabled: checked });
   };
@@ -595,6 +599,22 @@ export default function CheckoutSettingsContent() {
             <Switch
               checked={settings.requireDeliveryOption}
               onCheckedChange={toggleRequireDelivery}
+              disabled={saving}
+            />
+          </div>
+
+          <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Pedir CEP do comprador</p>
+              <p className="text-xs text-muted-foreground">
+                {settings.requireDeliveryCep === false
+                  ? 'Desativado: o comprador não precisa informar CEP e vê todas as opções de entrega habilitadas abaixo, sem checar a cidade dele. Use se você vende para todo o Brasil e não tem opções restritas à sua cidade.'
+                  : 'O comprador informa o CEP e só vê as opções de entrega compatíveis com a cidade dele (abrangência "Só na minha cidade" ou "Todo o Brasil" configurada em cada opção abaixo).'}
+              </p>
+            </div>
+            <Switch
+              checked={settings.requireDeliveryCep !== false}
+              onCheckedChange={toggleRequireDeliveryCep}
               disabled={saving}
             />
           </div>

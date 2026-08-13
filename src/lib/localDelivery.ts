@@ -34,14 +34,20 @@ interface FilterEligibleDeliveryOptionsParams {
   // WhatsApp checkout must never offer national delivery — only local options
   // are selectable there. Online-payment checkout keeps the full list.
   restrictToLocal?: boolean;
+  // Merchant opted out of CEP/city matching entirely (settings.requireDeliveryCep
+  // === false) — e.g. a store that only ships nationwide and doesn't want buyers
+  // gated on a CEP lookup. Every enabled option is shown, scope and
+  // restrictToLocal are both ignored.
+  skipLocationMatch?: boolean;
 }
 
 export function filterEligibleDeliveryOptions<T extends DeliveryOptionLike>(
   options: T[],
-  { merchantCity, buyerCity, buyerState, restrictToLocal = false }: FilterEligibleDeliveryOptionsParams
+  { merchantCity, buyerCity, buyerState, restrictToLocal = false, skipLocationMatch = false }: FilterEligibleDeliveryOptionsParams
 ): T[] {
   return options.filter((d) => {
     if (!d.enabled) return false;
+    if (skipLocationMatch) return true;
     const scope = d.scope === 'local' ? 'local' : 'national';
     if (scope === 'local') {
       return citiesMatch(merchantCity, buyerCity);
@@ -57,7 +63,9 @@ export function filterEligibleDeliveryOptions<T extends DeliveryOptionLike>(
 export function hasNoMatchingLocalOption(
   eligibleCount: number,
   buyerCity: string | null | undefined,
-  allOptions: DeliveryOptionLike[]
+  allOptions: DeliveryOptionLike[],
+  skipLocationMatch = false
 ): boolean {
+  if (skipLocationMatch) return false;
   return eligibleCount === 0 && !!buyerCity && allOptions.some((d) => d.enabled && d.scope === 'local');
 }

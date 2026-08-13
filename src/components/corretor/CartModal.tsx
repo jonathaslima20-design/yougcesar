@@ -28,7 +28,7 @@ import { trackWhatsAppClick } from '@/lib/tracking';
 import type { User as UserType, PriceTier } from '@/types';
 import { generateCartOrderMessage } from '@/lib/cartUtils';
 import { createOrder } from '@/lib/orderService';
-import { findCartStockShortfalls, formatShortfallMessage } from '@/lib/stockAvailabilityService';
+import { findCartStockShortfalls, formatShortfallMessage, formatShortfallLines } from '@/lib/stockAvailabilityService';
 import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 import { fetchProductPriceTiers, calculateApplicablePrice } from '@/lib/tieredPricingUtils';
@@ -122,6 +122,9 @@ export default function CartModal({
   // and region-restricted delivery options can be filtered here too, mirroring
   // CheckoutAddressPage.tsx's filtering (shared via src/lib/localDelivery.ts).
   const buyerCity = customerCity ? normalizeCityName(customerCity) : null;
+  // Merchants who ship nationwide and don't want buyers gated on a CEP lookup
+  // can turn this off — every enabled delivery option is then shown as-is.
+  const skipLocationMatch = checkoutSettings.requireDeliveryCep === false;
   // WhatsApp checkout never offers national delivery — only the online-payment
   // tab does. This is what keeps flow 3 (WhatsApp) local-only.
   const enabledDeliveryOptions = filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
@@ -129,15 +132,18 @@ export default function CartModal({
     buyerCity: customerCity,
     buyerState: customerState,
     restrictToLocal: orderMode === 'whatsapp',
+    skipLocationMatch,
   });
 
   const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
     enabledDeliveryOptions.length,
     buyerCity,
-    checkoutSettings.deliveryOptions
+    checkoutSettings.deliveryOptions,
+    skipLocationMatch
   );
 
   const requiresCityForDelivery =
+    !skipLocationMatch &&
     checkoutSettings.requireDeliveryOption &&
     checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local') &&
     !buyerCity;
@@ -352,7 +358,11 @@ export default function CartModal({
     setStep('checkout');
   };
 
-  const validateCustomerInfo = (): boolean => {
+  // cityOverride/stateOverride let handleSendOrder pass a CEP result it just
+  // awaited — customerCity/customerState from the enclosing render can still
+  // be stale at that point since React hasn't re-rendered yet, and this
+  // function's own closure would otherwise re-check the pre-fetch values.
+  const validateCustomerInfo = (cityOverride?: string, stateOverride?: string): boolean => {
     const newErrors: { name?: string; phone?: string; payment?: string; delivery?: string } = {};
     if (!customerName.trim()) {
       newErrors.name = 'Informe seu nome';
@@ -369,9 +379,26 @@ export default function CartModal({
     }
     const hasAnyDeliverySource = checkoutSettings.deliveryOptions.some((d) => d.enabled) || !!checkoutSettings.superFrete?.enabled;
     if (checkoutSettings.requireDeliveryOption && hasAnyDeliverySource) {
-      if (requiresCityForDelivery) {
+      const resolvedCity = cityOverride ?? customerCity;
+      const resolvedState = stateOverride ?? customerState;
+      const freshEnabledOptions = filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
+        merchantCity: corretor.city,
+        buyerCity: resolvedCity,
+        buyerState: resolvedState,
+        restrictToLocal: orderMode === 'whatsapp',
+        skipLocationMatch,
+      });
+      const freshAllOptions = orderMode === 'whatsapp'
+        ? freshEnabledOptions
+        : [...freshEnabledOptions, ...superFreteOptions];
+      const freshRequiresCity =
+        !skipLocationMatch &&
+        checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local') &&
+        !(resolvedCity ? normalizeCityName(resolvedCity) : null);
+
+      if (freshRequiresCity) {
         newErrors.delivery = 'Informe seu CEP para ver as opcoes de entrega';
-      } else if (allDeliveryOptions.length === 0) {
+      } else if (freshAllOptions.length === 0) {
         newErrors.delivery = 'Nao ha opcoes de entrega disponiveis para sua cidade';
       } else if (!selectedDeliveryOption) {
         newErrors.delivery = 'Selecione uma opcao de entrega';
@@ -431,7 +458,28 @@ export default function CartModal({
   };
 
   const handleSendOrder = async () => {
-    if (!validateCustomerInfo()) return;
+    // A buyer who finishes typing the CEP and immediately taps Confirm can
+    // beat handleCepBlur's async lookup to the punch, since React hasn't
+    // re-rendered with the resolved city yet. Resolve it here first so
+    // validateCustomerInfo always sees an up-to-date city for this click.
+    let resolvedCity = customerCity;
+    let resolvedState = customerState;
+    const cepDigits = customerCep.replace(/\D/g, '');
+    if (!skipLocationMatch && !resolvedCity && cepDigits.length === 8) {
+      setCepLoading(true);
+      try {
+        const result = await fetchAddressByCep(customerCep);
+        if (result) {
+          resolvedCity = result.city || '';
+          resolvedState = result.state || '';
+          setCustomerCity(resolvedCity);
+          setCustomerState(resolvedState);
+        }
+      } finally {
+        setCepLoading(false);
+      }
+    }
+    if (!validateCustomerInfo(resolvedCity, resolvedState)) return;
     if (cart.items.length === 0 && cart.distributions.length === 0) return;
     if (inventoryLoading) {
       toast.error('Aguarde um instante e tente novamente.');
@@ -470,20 +518,52 @@ export default function CartModal({
       // Revalida o estoque antes de qualquer coisa irreversivel: o item pode
       // ter esgotado para outro comprador enquanto ficou parado neste carrinho.
       if (inventoryEnabled) {
-        const shortfalls = await findCartStockShortfalls(
-          orderItems.map((item) => ({
-            productId: item.product_id,
-            title: item.product_title,
+        const shortfalls = await findCartStockShortfalls([
+          ...cart.distributions.flatMap((dist) =>
+            dist.items.map((distItem) => ({
+              key: `dist:${dist.distribution.id}:${distItem.id}`,
+              productId: dist.product.id,
+              title: dist.product.title,
+              quantity: distItem.quantity,
+              selectedColor: distItem.color,
+              selectedSize: distItem.size,
+            }))
+          ),
+          ...cart.items.map((item) => ({
+            key: item.variantId || item.id,
+            productId: item.id,
+            title: item.title,
             quantity: item.quantity,
-            selectedColor: item.selected_color,
-            selectedSize: item.selected_size,
-            selectedFlavor: (item as { selected_flavor?: string | null }).selected_flavor,
-          }))
-        );
+            selectedColor: item.selectedColor,
+            selectedSize: item.selectedSize,
+            selectedFlavor: item.selectedFlavor,
+          })),
+        ]);
 
         if (shortfalls.length > 0) {
           popup?.close();
-          toast.error(formatShortfallMessage(shortfalls));
+          // Distribution (wholesale) shortfalls can't be safely auto-adjusted —
+          // shrinking one color/size within a tiered bulk allocation would
+          // throw off the applied tier price, so those still block with the
+          // old message. Plain cart items get fixed automatically instead of
+          // wiping the whole cart: the buyer only loses what's actually gone.
+          const adjustable = shortfalls.filter((s) => !s.key.startsWith('dist:'));
+          const blocking = shortfalls.filter((s) => s.key.startsWith('dist:'));
+
+          for (const s of adjustable) {
+            if (s.available > 0) {
+              updateVariantQuantity(s.key, s.available);
+            } else {
+              removeCartVariant(s.key);
+            }
+          }
+
+          if (adjustable.length > 0) {
+            toast.error(`Seu carrinho foi ajustado por falta de estoque:\n${formatShortfallLines(adjustable)}\nRevise e envie o pedido novamente.`);
+          }
+          if (blocking.length > 0) {
+            toast.error(formatShortfallMessage(blocking));
+          }
           return;
         }
       }
@@ -1173,7 +1253,7 @@ export default function CartModal({
                             <p className="text-xs text-destructive">{formErrors.phone}</p>
                           )}
                         </div>
-                        {(checkoutSettings.deliveryOptions.some((d) => d.enabled) || checkoutSettings.superFrete?.enabled) && (
+                        {!skipLocationMatch && (checkoutSettings.deliveryOptions.some((d) => d.enabled) || checkoutSettings.superFrete?.enabled) && (
                           <div className="space-y-1.5">
                             <Label htmlFor="checkout-cep" className="text-xs text-muted-foreground">
                               CEP
@@ -1185,6 +1265,14 @@ export default function CartModal({
                                 value={customerCep}
                                 onChange={(e) => {
                                   setCustomerCep(e.target.value);
+                                  // The previously resolved city/state belonged to the
+                                  // old CEP value — keeping it displayed would mislead
+                                  // the buyer, and keeping it in state would make
+                                  // handleSendOrder skip re-resolving on submit.
+                                  if (customerCity || customerState) {
+                                    setCustomerCity('');
+                                    setCustomerState('');
+                                  }
                                   if (shippingQuotes.length > 0 || shippingQuotesError) {
                                     setShippingQuotes([]);
                                     setShippingQuotesError(false);
@@ -1487,11 +1575,11 @@ export default function CartModal({
                   ) : (
                     <Button
                       onClick={handleSendOrder}
-                      disabled={sendingOrder || inventoryLoading}
+                      disabled={sendingOrder || inventoryLoading || cepLoading}
                       size="sm"
                       className="flex-1 h-10"
                     >
-                      {sendingOrder ? 'Enviando...' : 'Confirmar'}
+                      {sendingOrder ? 'Enviando...' : cepLoading ? 'Calculando entrega...' : 'Confirmar'}
                     </Button>
                   )}
                 </div>

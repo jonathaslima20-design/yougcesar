@@ -37,6 +37,7 @@ const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   checkoutMode: 'whatsapp',
   shippingInsurance: DEFAULT_SHIPPING_INSURANCE,
   superFrete: DEFAULT_SUPER_FRETE,
+  requireDeliveryCep: true,
 };
 
 interface UseCheckoutSettingsReturn {
@@ -80,6 +81,7 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
             checkoutMode: data.settings.checkout.checkoutMode ?? 'whatsapp',
             shippingInsurance: data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE,
             superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,
+            requireDeliveryCep: data.settings.checkout.requireDeliveryCep ?? true,
           });
         }
       }
@@ -188,6 +190,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           // No admin gate needed here (unlike insurance) — merchant-shipping-quote
           // always re-verifies is_active server-side regardless of this value.
           superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,
+          requireDeliveryCep: data.settings.checkout.requireDeliveryCep ?? true,
         });
       }
       setLoading(false);

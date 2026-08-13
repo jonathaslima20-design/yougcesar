@@ -774,4 +774,5 @@ export interface CheckoutSettings {
   checkoutMode?: CheckoutMode; // missing = treated as 'whatsapp' (back-compat)
   shippingInsurance?: ShippingInsuranceConfig;
   superFrete?: SuperFreteConfig;
+  requireDeliveryCep?: boolean; // missing = treated as true (back-compat) — false skips CEP/city matching entirely and shows every enabled delivery option, for merchants who ship nationwide and don't need geographic filtering
 }
