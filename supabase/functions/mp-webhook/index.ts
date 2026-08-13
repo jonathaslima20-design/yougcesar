@@ -221,6 +221,7 @@ Deno.serve(async (req: Request) => {
       .from("mercadopago_config")
       .select("webhook_secret, environment, access_token_test, access_token_prod")
       .eq("is_active", true)
+      .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 

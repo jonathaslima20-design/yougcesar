@@ -78,7 +78,12 @@ export interface SellerPublicKeyResult {
 }
 
 export function getSellerPublicKey(storeOwnerId: string): Promise<SellerPublicKeyResult> {
-  return callMerchantPayments('getSellerPublicKey', { store_owner_id: storeOwnerId }, false);
+  // The buyer is always authenticated by the time OrderPaymentPage mounts
+  // (order creation requires buyer_id), so send the buyer's token like every
+  // other call in this file — the previous requireAuth=false sent no
+  // Authorization header at all, which the Supabase Functions gateway
+  // rejects with a 401 before this project's own code ever runs.
+  return callMerchantPayments('getSellerPublicKey', { store_owner_id: storeOwnerId });
 }
 
 export interface OrderPixPaymentResult {

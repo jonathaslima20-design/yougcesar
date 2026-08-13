@@ -347,6 +347,10 @@ function CardSection({ plan, onSuccess, earlyRenewal, offerContext, referralCode
           early_renewal: earlyRenewalRef.current,
           offer_id: offerIdRef.current,
           referral_code: referralCodeRef.current,
+          // Set by the security script initMercadoPago() already loads —
+          // sending it lets Mercado Pago's fraud engine actually recognize
+          // this device instead of defaulting to a high-risk rejection.
+          device_id: (window as any).MP_DEVICE_SESSION_ID || undefined,
         });
         setResult(cardResult);
         if (cardResult.status === 'approved') {

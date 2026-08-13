@@ -35,6 +35,7 @@ interface CardPaymentPayload {
   early_renewal?: boolean;
   offer_id?: string;
   referral_code?: string;
+  device_id?: string;
 }
 
 interface ResolvedDiscount {
@@ -226,6 +227,7 @@ async function getConfig(admin: ReturnType<typeof createClient>) {
     .from("mercadopago_config")
     .select("*")
     .eq("is_active", true)
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -544,6 +546,7 @@ Deno.serve(async (req: Request) => {
           early_renewal,
           offer_id,
           referral_code,
+          device_id,
         } = payload as CardPaymentPayload;
 
         const { data: plan } = await admin
@@ -638,6 +641,12 @@ Deno.serve(async (req: Request) => {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
               "X-Idempotency-Key": paymentRow.id,
+              // Device fingerprint (window.MP_DEVICE_SESSION_ID on the client,
+              // set by the security script initMercadoPago() loads). Without
+              // this header MP's fraud engine has much less signal about the
+              // buyer's device and defaults to rejecting more card charges as
+              // cc_rejected_high_risk — this was previously never sent.
+              ...(device_id ? { "X-meli-session-id": device_id } : {}),
             },
             body: JSON.stringify(mpBody),
           }

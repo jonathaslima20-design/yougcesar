@@ -13,6 +13,23 @@ function maskToken(token: string): string {
   return "****" + token.slice(-8);
 }
 
+// Mercado Pago credentials are self-describing by prefix: production
+// public keys/access tokens always start with "APP_USR-", sandbox ones
+// with "TEST-". Nothing else in this file cross-checks that a saved
+// public_key/access_token pair actually belongs to the same environment —
+// catching an obvious prefix mismatch here is cheap and catches the most
+// common real-world mistake (pasting a credential into the wrong slot),
+// though it can't detect a same-environment pair from two different MP
+// applications/accounts, which only a real card tokenization would reveal.
+function validateCredentialPrefix(label: string, value: string, expectedPrefix: string): string | null {
+  if (!value) return null;
+  if (!value.startsWith(expectedPrefix)) {
+    const envLabel = expectedPrefix === "TEST-" ? "teste" : "produção";
+    return `${label} não parece ser uma credencial de ${envLabel} (deveria começar com "${expectedPrefix}")`;
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -70,6 +87,7 @@ Deno.serve(async (req: Request) => {
           .from("mercadopago_config")
           .select("*")
           .eq("is_active", true)
+          .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
@@ -125,6 +143,7 @@ Deno.serve(async (req: Request) => {
           .from("mercadopago_config")
           .select("id, access_token_test, access_token_prod, webhook_secret")
           .eq("is_active", true)
+          .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
@@ -155,6 +174,26 @@ Deno.serve(async (req: Request) => {
           updateData.webhook_secret = existing.webhook_secret;
         }
 
+        // Catch the classic "pasted the wrong credential in the wrong slot"
+        // mistake before it ever reaches production checkout — this is the
+        // #1 cause of "PIX works, every card is declined" (card charges
+        // need the public key and access token to belong to the same MP
+        // application; PIX never touches the public key at all, so a
+        // mismatch there is invisible until a real card is charged).
+        const credentialErrors = [
+          validateCredentialPrefix("Public Key de teste", updateData.public_key_test, "TEST-"),
+          validateCredentialPrefix("Access Token de teste", updateData.access_token_test, "TEST-"),
+          validateCredentialPrefix("Public Key de produção", updateData.public_key_prod, "APP_USR-"),
+          validateCredentialPrefix("Access Token de produção", updateData.access_token_prod, "APP_USR-"),
+        ].filter((e): e is string => !!e);
+
+        if (credentialErrors.length > 0) {
+          return new Response(
+            JSON.stringify({ error: credentialErrors.join(" | ") }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         if (existing) {
           const { error } = await admin
             .from("mercadopago_config")
@@ -181,6 +220,7 @@ Deno.serve(async (req: Request) => {
           .from("mercadopago_config")
           .select("*")
           .eq("is_active", true)
+          .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 

@@ -63,6 +63,11 @@ export interface CardPaymentArgs {
   early_renewal?: boolean;
   offer_id?: string;
   referral_code?: string;
+  // Mercado Pago's device fingerprint (window.MP_DEVICE_SESSION_ID, set by
+  // the security script the SDK already loads via initMercadoPago). Without
+  // this, MP's fraud engine has far less signal and rejects a much larger
+  // share of otherwise-legitimate card payments as cc_rejected_high_risk.
+  device_id?: string;
 }
 
 export interface PixPaymentResult {
