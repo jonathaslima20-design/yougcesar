@@ -9,11 +9,12 @@ import {
   Loader, Download, RefreshCw, ImageIcon, Layers,
 } from 'lucide-react';
 import {
-  parseBulkImportCsv, chunkGroups, getBulkImportTemplate,
+  parseBulkImportCsv, chunkGroups,
   type BulkImportGroup, type BulkImportRowError,
 } from '@/lib/bulkImportUtils';
+import { generateBulkImportXlsxTemplate, parseBulkImportXlsxFile } from '@/lib/bulkImportXlsx';
 import { importBulkProductBatch, type BulkImportGroupResult } from '@/lib/bulkImport';
-import { downloadCSV } from '@/lib/csvUtils';
+import { downloadCSV, downloadBlob } from '@/lib/csvUtils';
 import { toast } from 'sonner';
 
 interface BulkImportProductsDialogProps {
@@ -46,9 +47,23 @@ export function BulkImportProductsDialog({
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const isXlsx = /\.xlsx$/i.test(file.name);
+
+    if (isXlsx) {
+      try {
+        const parsed = await parseBulkImportXlsxFile(file);
+        setGroups(parsed.groups);
+        setParseErrors(parsed.errors);
+        setStep('preview');
+      } catch {
+        toast.error('Não foi possível ler o arquivo .xlsx');
+      }
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -98,8 +113,9 @@ export function BulkImportProductsDialog({
     runImport(retryGroups);
   };
 
-  const handleDownloadTemplate = () => {
-    downloadCSV(getBulkImportTemplate(), 'template_importacao_avancada.csv');
+  const handleDownloadTemplate = async () => {
+    const blob = await generateBulkImportXlsxTemplate();
+    downloadBlob(blob, 'template_importacao_avancada.xlsx');
   };
 
   const handleDownloadErrorReport = () => {
@@ -128,7 +144,7 @@ export function BulkImportProductsDialog({
         <DialogHeader>
           <DialogTitle>Importação avançada de produtos</DialogTitle>
           <DialogDescription>
-            CSV com variações (cor/tamanho/sabor), imagens por URL e atualização de produtos existentes por SKU
+            Planilha (.xlsx ou .csv) com variações (cor/tamanho/sabor), imagens por URL e atualização de produtos existentes por SKU
           </DialogDescription>
         </DialogHeader>
 
@@ -136,12 +152,12 @@ export function BulkImportProductsDialog({
           <div className="space-y-4 py-2">
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border/60 rounded-xl cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all">
               <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-              <span className="text-sm text-muted-foreground">Clique para selecionar o arquivo CSV</span>
-              <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+              <span className="text-sm text-muted-foreground">Clique para selecionar o arquivo .xlsx ou .csv</span>
+              <input ref={fileRef} type="file" accept=".csv,.xlsx" className="hidden" onChange={handleFileChange} />
             </label>
             <Button variant="outline" size="sm" className="w-full text-xs" onClick={handleDownloadTemplate}>
               <Download className="h-3.5 w-3.5 mr-1.5" />
-              Baixar template CSV avançado
+              Baixar planilha modelo (.xlsx)
             </Button>
           </div>
         )}

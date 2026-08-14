@@ -141,18 +141,31 @@ interface RawRow {
 
 export function parseBulkImportCsv(content: string): BulkImportParseResult {
   const rows = parseCsvRows(content);
-  const errors: BulkImportRowError[] = [];
 
   if (rows.length < 2) {
     return { groups: [], errors: [{ row: 0, message: 'Arquivo vazio ou sem dados' }], totalRows: 0 };
   }
 
   const headers = rows[0].map((h) => h.trim().toLowerCase());
+  return buildGroupsFromTable(headers, rows.slice(1), 2);
+}
+
+// Shared by the CSV parser and the XLSX parser (bulkImportXlsx.ts): both reduce
+// their source format down to a plain header row + data rows, then group them
+// identically. `startLine` is the 1-indexed row number of the first data row,
+// used only to make error messages point back at the right place in the source file.
+export function buildGroupsFromTable(
+  headers: string[],
+  dataRows: string[][],
+  startLine: number
+): BulkImportParseResult {
+  const errors: BulkImportRowError[] = [];
+
   const missingHeaders = REQUIRED_HEADERS.filter((h) => !headers.includes(h));
   if (missingHeaders.length > 0) {
     return {
       groups: [],
-      errors: [{ row: 1, message: `Colunas obrigatórias ausentes: ${missingHeaders.join(', ')}` }],
+      errors: [{ row: startLine - 1, message: `Colunas obrigatórias ausentes: ${missingHeaders.join(', ')}` }],
       totalRows: 0,
     };
   }
@@ -161,12 +174,12 @@ export function parseBulkImportCsv(content: string): BulkImportParseResult {
   headers.forEach((h, idx) => { if (EXPECTED_HEADERS.includes(h)) headerIndex.set(h, idx); });
 
   const rawRows: RawRow[] = [];
-  for (let i = 1; i < rows.length; i++) {
+  for (let i = 0; i < dataRows.length; i++) {
     const cols: Record<string, string> = {};
     for (const [name, idx] of headerIndex) {
-      cols[name] = rows[i][idx] ?? '';
+      cols[name] = dataRows[i][idx] ?? '';
     }
-    rawRows.push({ line: i + 1, cols });
+    rawRows.push({ line: startLine + i, cols });
   }
 
   const groupsByKey = new Map<string, RawRow[]>();
@@ -308,15 +321,4 @@ export function chunkGroups(groups: BulkImportGroup[], size: number = BULK_IMPOR
     chunks.push(groups.slice(i, i + size));
   }
   return chunks;
-}
-
-export function getBulkImportTemplate(): string {
-  const headers = EXPECTED_HEADERS.join(',');
-  const rows = [
-    '1,CAM-EST-01,Camiseta Estampada,Camiseta 100% algodão,Camisetas,Marca X,,novo,unissex,disponivel,sim,0.2,,,,sim,59.90,49.90,Azul,P,,10,https://exemplo.com/foto1.jpg|https://exemplo.com/foto2.jpg',
-    '1,,,,,,,,,,,,,,,,,,Azul,M,,5,',
-    '1,,,,,,,,,,,,,,,,,,Vermelho,P,,8,',
-    '2,TENIS-CAS-42,Tênis Casual,Tênis confortável para o dia a dia,Calçados,Marca Y,,novo,unissex,disponivel,sim,,,,,nao,199.90,,,,,,https://exemplo.com/tenis.jpg',
-  ];
-  return [headers, ...rows].join('\n');
 }

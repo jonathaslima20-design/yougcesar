@@ -47,6 +47,10 @@ export function exportProductsToCSV(products: Product[], currency: string = 'BRL
 
 export function downloadCSV(content: string, filename: string) {
   const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
+  downloadBlob(blob, filename);
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
