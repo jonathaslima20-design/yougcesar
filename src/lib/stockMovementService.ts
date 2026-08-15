@@ -172,12 +172,15 @@ export async function registerStockEntry(
  * Produtos sem grade de variantes nao sao tocados pela RPC — neles o estoque
  * e digitado manualmente no proprio agregado.
  */
-export async function syncProductAggregateStock(productId: string): Promise<void> {
+export async function syncProductAggregateStock(productId: string): Promise<boolean> {
   const { error } = await supabase.rpc('recalc_my_product_aggregate_stock', {
     p_product_id: productId,
   });
 
   if (error) {
     console.error('Error recalculating aggregate stock:', error);
+    return false;
   }
+
+  return true;
 }

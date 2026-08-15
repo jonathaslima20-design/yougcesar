@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import { fetchVariantStockForProduct, upsertVariantStock, getVariantStockStatus } from '@/lib/stockUtils';
+import { syncProductAggregateStock } from '@/lib/stockMovementService';
 import type { ProductVariantStock } from '@/types';
 
 interface VariantStockGridProps {
@@ -162,7 +164,6 @@ const VariantStockGrid = forwardRef<VariantStockGridHandle, VariantStockGridProp
 
   const save = useCallback(async (): Promise<boolean> => {
     const itemsToSave = cells.filter((c) => c.dirty || !c.hasRow);
-    if (itemsToSave.length === 0) return true;
 
     setSaving(true);
 
@@ -179,8 +180,32 @@ const VariantStockGrid = forwardRef<VariantStockGridHandle, VariantStockGridProp
       if (!success) allSuccess = false;
     }
 
+    // Always reconcile the aggregate, even when nothing was dirty: if a past
+    // save persisted the variant rows but the aggregate RPC failed silently
+    // (as happened in production — product_variant_stock summed correctly
+    // while products.stock_quantity stayed stuck at 0), the cells already
+    // read as "clean" and a normal resave would otherwise never touch it
+    // again, leaving the product permanently stuck showing "esgotado".
+    if (allSuccess && cells.length > 0) {
+      const recalculated = await syncProductAggregateStock(productId);
+      if (!recalculated) {
+        // Fall back to a direct write using the grid's own total. `cells`
+        // only ever holds the currently offered combos (orphans are tracked
+        // separately), so this total is exactly the same number the RPC
+        // would have computed.
+        const total = cells.reduce((sum, c) => sum + c.quantity, 0);
+        const { error: fallbackError } = await supabase
+          .from('products')
+          .update({ stock_quantity: total })
+          .eq('id', productId);
+        if (fallbackError) allSuccess = false;
+      }
+    }
+
     if (allSuccess) {
-      setCells((prev) => prev.map((c) => ({ ...c, original: c.quantity, dirty: false, hasRow: true })));
+      if (itemsToSave.length > 0) {
+        setCells((prev) => prev.map((c) => ({ ...c, original: c.quantity, dirty: false, hasRow: true })));
+      }
       onStockChanged?.();
     }
 
