@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Loader as Loader2, Save, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,13 @@ interface VariantStockGridProps {
   onStockChanged?: () => void;
 }
 
+export interface VariantStockGridHandle {
+  // Persists any unsaved quantity edits. Returns true if there was nothing
+  // dirty or everything saved successfully, false if a save failed — lets a
+  // parent form flush this grid's independent state before it navigates away.
+  flush: () => Promise<boolean>;
+}
+
 interface CellState {
   key: string;
   color: string | null;
@@ -28,7 +35,7 @@ interface CellState {
   hasRow: boolean;
 }
 
-export default function VariantStockGrid({
+const VariantStockGrid = forwardRef<VariantStockGridHandle, VariantStockGridProps>(function VariantStockGrid({
   productId,
   colors,
   sizes,
@@ -36,7 +43,7 @@ export default function VariantStockGrid({
   lowStockThreshold,
   performedBy,
   onStockChanged,
-}: VariantStockGridProps) {
+}, ref) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cells, setCells] = useState<CellState[]>([]);
@@ -153,13 +160,9 @@ export default function VariantStockGrid({
   // never gets persisted and reads back as "untracked" instead of "esgotado".
   const hasDirty = cells.some((c) => c.dirty || !c.hasRow);
 
-  const handleSave = async () => {
-    // Include cells the merchant never touched but that still have no stock
-    // record yet — otherwise a variant left at the default "0" (e.g. never
-    // restocked) silently never gets persisted and the storefront treats it
-    // as "untracked" instead of "esgotado".
+  const save = useCallback(async (): Promise<boolean> => {
     const itemsToSave = cells.filter((c) => c.dirty || !c.hasRow);
-    if (itemsToSave.length === 0) return;
+    if (itemsToSave.length === 0) return true;
 
     setSaving(true);
 
@@ -177,15 +180,24 @@ export default function VariantStockGrid({
     }
 
     if (allSuccess) {
-      toast.success('Estoque por variante salvo');
       setCells((prev) => prev.map((c) => ({ ...c, original: c.quantity, dirty: false, hasRow: true })));
       onStockChanged?.();
-    } else {
-      toast.error('Erro ao salvar algumas variantes');
     }
 
     setSaving(false);
+    return allSuccess;
+  }, [cells, productId, performedBy, onStockChanged]);
+
+  const handleSave = async () => {
+    const success = await save();
+    if (success) {
+      toast.success('Estoque por variante salvo');
+    } else {
+      toast.error('Erro ao salvar algumas variantes');
+    }
   };
+
+  useImperativeHandle(ref, () => ({ flush: save }), [save]);
 
   if (loading) {
     return (
@@ -232,7 +244,7 @@ export default function VariantStockGrid({
               Total: {totalStock} un.
             </Badge>
             {hasDirty && (
-              <Button size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs gap-1">
+              <Button type="button" size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs gap-1">
                 <Save className="h-3 w-3" />
                 {saving ? 'Salvando...' : 'Salvar'}
               </Button>
@@ -301,7 +313,7 @@ export default function VariantStockGrid({
             Total: {totalStock} un.
           </Badge>
           {hasDirty && (
-            <Button size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs gap-1">
+            <Button type="button" size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs gap-1">
               <Save className="h-3 w-3" />
               {saving ? 'Salvando...' : 'Salvar'}
             </Button>
@@ -340,4 +352,6 @@ export default function VariantStockGrid({
       {orphanWarning}
     </div>
   );
-}
+});
+
+export default VariantStockGrid;

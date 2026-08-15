@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,7 +40,7 @@ import {
 } from '@/lib/productImageService';
 import { PromotionalPhraseSelector } from '@/components/ui/promotional-phrase-selector';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
-import VariantStockGrid from '@/components/dashboard/VariantStockGrid';
+import VariantStockGrid, { VariantStockGridHandle } from '@/components/dashboard/VariantStockGrid';
 
 const productSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -100,6 +100,7 @@ export default function EditProductPage() {
   const { inventoryEnabled } = useInventoryEnabled();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const variantStockGridRef = useRef<VariantStockGridHandle>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [pricingMode, setPricingMode] = useState<'simple' | 'tiered'>('simple');
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
@@ -351,6 +352,16 @@ export default function EditProductPage() {
 
     setLoading(true);
     try {
+      // Flush any unsaved edits in the variant stock grid first — it keeps its
+      // own local state and won't persist to product_variant_stock (or
+      // recalculate the product's aggregate stock_quantity) unless flushed
+      // explicitly, since it's a separate widget from this form's fields.
+      const stockSaved = await variantStockGridRef.current?.flush();
+      if (stockSaved === false) {
+        toast.error('Erro ao salvar o estoque por variante. Tente novamente.');
+        return;
+      }
+
       // Products with a color/size/flavor grid get stock_quantity from
       // recalc_product_aggregate_stock (summed from product_variant_stock),
       // not from this form — writing the "Quantidade em estoque" field here
@@ -975,6 +986,7 @@ export default function EditProductPage() {
                     {form.watch('track_inventory') && id && (form.watch('colors')?.length > 0 || form.watch('sizes')?.length > 0 || form.watch('flavors')?.length > 0) && (
                       <div className="pt-2 border-t">
                         <VariantStockGrid
+                          ref={variantStockGridRef}
                           productId={id}
                           colors={form.watch('colors') || []}
                           sizes={form.watch('sizes') || []}

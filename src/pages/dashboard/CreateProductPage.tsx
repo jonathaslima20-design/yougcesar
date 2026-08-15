@@ -32,7 +32,7 @@ import { PromotionalPhraseSelector } from '@/components/ui/promotional-phrase-se
 import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { useSubscriptionModal } from '@/contexts/SubscriptionModalContext';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
-import VariantStockGrid from '@/components/dashboard/VariantStockGrid';
+import VariantStockGrid, { VariantStockGridHandle } from '@/components/dashboard/VariantStockGrid';
 
 const productSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -88,6 +88,7 @@ export default function CreateProductPage() {
   const [loading, setLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
+  const variantStockGridRef = useRef<VariantStockGridHandle>(null);
   const draftSaveInProgress = useRef(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [pricingMode, setPricingMode] = useState<'simple' | 'tiered'>('simple');
@@ -260,6 +261,16 @@ export default function CreateProductPage() {
 
     setLoading(true);
     try {
+      // Flush any unsaved edits in the variant stock grid first — it keeps its
+      // own local state and won't persist to product_variant_stock (or
+      // recalculate the product's aggregate stock_quantity) unless flushed
+      // explicitly, since it's a separate widget from this form's fields.
+      const stockSaved = await variantStockGridRef.current?.flush();
+      if (stockSaved === false) {
+        toast.error('Erro ao salvar o estoque por variante. Tente novamente.');
+        return;
+      }
+
       const productData = {
         user_id: user.id,
         title: data.title,
@@ -846,6 +857,7 @@ export default function CreateProductPage() {
                             <div className="space-y-2">
                               <p className="text-sm font-medium">Estoque por variante</p>
                               <VariantStockGrid
+                                ref={variantStockGridRef}
                                 productId={savedProductId}
                                 colors={colors}
                                 sizes={sizes}
