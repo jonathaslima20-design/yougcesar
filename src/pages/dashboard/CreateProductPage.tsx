@@ -261,16 +261,6 @@ export default function CreateProductPage() {
 
     setLoading(true);
     try {
-      // Flush any unsaved edits in the variant stock grid first — it keeps its
-      // own local state and won't persist to product_variant_stock (or
-      // recalculate the product's aggregate stock_quantity) unless flushed
-      // explicitly, since it's a separate widget from this form's fields.
-      const stockSaved = await variantStockGridRef.current?.flush();
-      if (stockSaved === false) {
-        toast.error('Erro ao salvar o estoque por variante. Tente novamente.');
-        return;
-      }
-
       const productData = {
         user_id: user.id,
         title: data.title,
@@ -326,6 +316,19 @@ export default function CreateProductPage() {
           .single();
         if (productError) throw productError;
         product = inserted;
+      }
+
+      // Flush any unsaved edits in the variant stock grid only after the
+      // product's own colors/sizes/flavors are persisted above — the
+      // aggregate-recalc RPC (and its client-side fallback) filters
+      // product_variant_stock rows by what's CURRENTLY in products.colors/
+      // sizes/flavors, so flushing before this insert/update would recalc
+      // against a stale (often empty) list and silently drop quantities for
+      // colors/sizes just added on this same save.
+      const stockSaved = await variantStockGridRef.current?.flush();
+      if (stockSaved === false) {
+        toast.error('Produto salvo, mas houve erro ao salvar o estoque por variante. Tente salvar novamente.');
+        return;
       }
 
       const filesToUpload = images

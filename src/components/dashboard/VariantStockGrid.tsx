@@ -187,6 +187,17 @@ const VariantStockGrid = forwardRef<VariantStockGridHandle, VariantStockGridProp
     // read as "clean" and a normal resave would otherwise never touch it
     // again, leaving the product permanently stuck showing "esgotado".
     if (allSuccess && cells.length > 0) {
+      // The aggregate RPC (and its fallback below) only counts variant rows
+      // whose color/size/flavor is in products.colors/sizes/flavors — so if
+      // this grid's own "Salvar" is clicked without going through the parent
+      // form's submit first, the product row can still have the pre-edit
+      // (often empty) lists, and quantities for a combo just added here
+      // would be silently excluded from the total. Sync them first.
+      await supabase
+        .from('products')
+        .update({ colors, sizes, flavors })
+        .eq('id', productId);
+
       const recalculated = await syncProductAggregateStock(productId);
       if (!recalculated) {
         // Fall back to a direct write using the grid's own total. `cells`
@@ -211,7 +222,7 @@ const VariantStockGrid = forwardRef<VariantStockGridHandle, VariantStockGridProp
 
     setSaving(false);
     return allSuccess;
-  }, [cells, productId, performedBy, onStockChanged]);
+  }, [cells, productId, performedBy, onStockChanged, colors, sizes, flavors]);
 
   const handleSave = async () => {
     const success = await save();

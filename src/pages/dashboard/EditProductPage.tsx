@@ -352,16 +352,6 @@ export default function EditProductPage() {
 
     setLoading(true);
     try {
-      // Flush any unsaved edits in the variant stock grid first — it keeps its
-      // own local state and won't persist to product_variant_stock (or
-      // recalculate the product's aggregate stock_quantity) unless flushed
-      // explicitly, since it's a separate widget from this form's fields.
-      const stockSaved = await variantStockGridRef.current?.flush();
-      if (stockSaved === false) {
-        toast.error('Erro ao salvar o estoque por variante. Tente novamente.');
-        return;
-      }
-
       // Products with a color/size/flavor grid get stock_quantity from
       // recalc_product_aggregate_stock (summed from product_variant_stock),
       // not from this form — writing the "Quantidade em estoque" field here
@@ -414,6 +404,23 @@ export default function EditProductPage() {
         .eq('user_id', user.id);
 
       if (productError) throw productError;
+
+      // Flush any unsaved edits in the variant stock grid only after the
+      // product's own colors/sizes/flavors are persisted above — the
+      // aggregate-recalc RPC (and its client-side fallback) filters
+      // product_variant_stock rows by what's CURRENTLY in products.colors/
+      // sizes/flavors. Flushing before this update ran the recalc against
+      // the stale pre-edit lists, so quantities entered for a color/size
+      // just added on this same save were invisible to it and silently
+      // excluded from the total (reproduced live: a product with no prior
+      // variants stayed at stock_quantity 0 after adding colors+sizes+
+      // quantities and saving, even though product_variant_stock held the
+      // correct numbers).
+      const stockSaved = await variantStockGridRef.current?.flush();
+      if (stockSaved === false) {
+        toast.error('Produto salvo, mas houve erro ao salvar o estoque por variante. Tente salvar novamente.');
+        return;
+      }
 
       const removedImages = initialImages.filter(
         (initial) => !images.find((img) => img.id === initial.id)
