@@ -57,8 +57,10 @@ export function CustomFlavorInput({
     if (userId) {
       const success = await addCustomFlavor(trimmed);
       if (!success) {
-        toast.error('Erro ao salvar sabor no banco de dados');
-        onChange(newFlavors.filter((f) => f !== trimmed));
+        // The flavor is already applied to this product above — that write
+        // never touches the network. Only the reusable "flavor library" save
+        // failed, so warn without undoing the product's own flavor list.
+        toast.warning('Sabor adicionado ao produto, mas não foi possível salvá-lo na biblioteca para reutilização');
       } else {
         toast.success('Sabor adicionado com sucesso');
       }

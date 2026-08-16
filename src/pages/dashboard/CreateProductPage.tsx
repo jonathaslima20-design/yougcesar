@@ -213,6 +213,29 @@ export default function CreateProductPage() {
     }
   };
 
+  // Auto-creates the draft as soon as the product has any color/size/flavor
+  // combo and stock tracking is on, instead of only on an explicit toggle of
+  // the "Controlar estoque" switch (which defaults to already-on, so most
+  // merchants never fire that handler). Without this, the variant stock grid
+  // never mounts during creation — merchants type quantities nowhere, hit
+  // "Salvar" once, get redirected to the listings page with a product that
+  // has zero stock, and only get a working grid the second time, editing it.
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (savedProductId || draftSaveInProgress.current) return;
+      if (name !== 'colors' && name !== 'sizes' && name !== 'flavors') return;
+      const hasVariants =
+        (value.colors?.length ?? 0) > 0 ||
+        (value.sizes?.length ?? 0) > 0 ||
+        (value.flavors?.length ?? 0) > 0;
+      if (hasVariants && value.track_inventory) {
+        saveDraft();
+      }
+    });
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, savedProductId]);
+
   const onSubmit = async (data: ProductFormData) => {
     if (!user?.id) {
       toast.error('Usuário não autenticado');
@@ -261,6 +284,12 @@ export default function CreateProductPage() {
 
     setLoading(true);
     try {
+      // Products with a color/size/flavor grid get stock_quantity from
+      // recalc_product_aggregate_stock (summed from product_variant_stock)
+      // once the grid flushes below — writing the plain "Quantidade em
+      // estoque" field here would just get overwritten by that recalc.
+      const hasVariantGrid = data.colors.length > 0 || data.sizes.length > 0 || data.flavors.length > 0;
+
       const productData = {
         user_id: user.id,
         title: data.title,
@@ -287,7 +316,9 @@ export default function CreateProductPage() {
         pricing_mode: pricingMode === 'tiered' ? 'exact' : 'range',
         has_weight_variants: hasWeightVariants,
         track_inventory: data.track_inventory ?? false,
-        stock_quantity: data.track_inventory ? (data.stock_quantity ?? 0) : null,
+        ...(hasVariantGrid
+          ? {}
+          : { stock_quantity: data.track_inventory ? (data.stock_quantity ?? 0) : null }),
         low_stock_threshold: data.low_stock_threshold ?? 5,
         weight_kg: data.weight_kg ?? null,
         height_cm: data.height_cm ?? null,
@@ -798,25 +829,27 @@ export default function CreateProductPage() {
 
                     {form.watch('track_inventory') && (
                       <div className="space-y-4 pl-1">
-                        <FormField
-                          control={form.control}
-                          name="stock_quantity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quantidade em estoque *</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="0"
-                                  value={field.value ?? ''}
-                                  onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {!(form.watch('colors')?.length > 0 || form.watch('sizes')?.length > 0 || form.watch('flavors')?.length > 0) && (
+                          <FormField
+                            control={form.control}
+                            name="stock_quantity"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Quantidade em estoque *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="0"
+                                    value={field.value ?? ''}
+                                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
 
                         <FormField
                           control={form.control}
