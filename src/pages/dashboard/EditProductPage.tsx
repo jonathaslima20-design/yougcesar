@@ -36,6 +36,7 @@ import {
   deleteProductImages,
   updateImageOrder,
   updateFeaturedImage,
+  replaceProductImage,
   checkRemainingImagesCount,
 } from '@/lib/productImageService';
 import { PromotionalPhraseSelector } from '@/components/ui/promotional-phrase-selector';
@@ -91,6 +92,7 @@ type MediaItem = {
   fileHash?: string;
   visualFingerprint?: string;
   blobUrl?: string;
+  associatedColor?: string | null;
 };
 
 export default function EditProductPage() {
@@ -425,17 +427,28 @@ export default function EditProductPage() {
       const removedImages = initialImages.filter(
         (initial) => !images.find((img) => img.id === initial.id)
       );
-      const newImages = images.filter((img) => img.file);
-      const reorderedImages = images.filter((img) => !img.file);
+      // A recropped existing image keeps its original DB id but gains a
+      // `.file` (see ProductImageManager.handleCropComplete), so it must be
+      // classified separately from a genuinely new upload (id starts with
+      // "new-"): treating it as "new" left the old row behind and inserted
+      // a second row for the same photo instead of replacing it in place.
+      const brandNewImages = images.filter((img) => img.file && img.id.startsWith('new-'));
+      const recroppedImages = images.filter((img) => img.file && !img.id.startsWith('new-'));
+      const unchangedImages = images.filter((img) => !img.file);
 
       if (removedImages.length > 0) {
         const removedIds = removedImages.map((img) => img.id);
         await deleteProductImages(removedIds, user.id);
       }
 
-      if (newImages.length > 0) {
+      let uploadedFeaturedUrl: string | null = null;
+
+      if (brandNewImages.length > 0) {
         setUploadingImages(true);
-        const filesToUpload = newImages.map((img) => img.file as File);
+        const filesToUpload = brandNewImages.map((img) => ({
+          file: img.file as File,
+          isFeatured: img.isFeatured,
+        }));
         const uploadedImages = await uploadProductImages(
           filesToUpload,
           user.id,
@@ -443,27 +456,40 @@ export default function EditProductPage() {
         );
 
         if (uploadedImages.length > 0) {
-          const featuredImage = uploadedImages.find((img) => img.is_featured);
-          if (featuredImage) {
-            await updateFeaturedImage(id, featuredImage.url);
-          }
-
+          uploadedFeaturedUrl = uploadedImages.find((img) => img.is_featured)?.url ?? null;
           await saveProductImages(id, uploadedImages, user.id);
         }
         setUploadingImages(false);
       }
 
-      if (reorderedImages.length > 0) {
-        const allCurrentImages = [...reorderedImages, ...newImages].map(img => ({
-          ...img,
+      const replacedUrlById = new Map<string, string>();
+      for (const img of recroppedImages) {
+        const previousUrl = initialImages.find((initial) => initial.id === img.id)?.url ?? null;
+        const newUrl = await replaceProductImage(img.id, img.file as File, user.id, id, previousUrl);
+        replacedUrlById.set(img.id, newUrl);
+      }
+
+      const persistedExistingImages = [...unchangedImages, ...recroppedImages];
+      if (persistedExistingImages.length > 0) {
+        const imagesForOrderUpdate = persistedExistingImages.map((img, index) => ({
+          id: img.id,
+          url: replacedUrlById.get(img.id) || img.url,
+          is_featured: img.isFeatured,
+          media_type: 'image' as const,
+          display_order: index,
           associated_color: img.associatedColor || null,
         }));
-        await updateImageOrder(id, allCurrentImages);
+        await updateImageOrder(id, imagesForOrderUpdate);
       }
 
       const featuredImage = images.find((img) => img.isFeatured);
-      if (featuredImage && !featuredImage.file) {
-        await updateFeaturedImage(id, featuredImage.url);
+      if (featuredImage) {
+        const finalFeaturedUrl = featuredImage.id.startsWith('new-')
+          ? uploadedFeaturedUrl
+          : replacedUrlById.get(featuredImage.id) || featuredImage.url;
+        if (finalFeaturedUrl) {
+          await updateFeaturedImage(id, finalFeaturedUrl);
+        }
       }
 
       if (pricingMode === 'tiered') {

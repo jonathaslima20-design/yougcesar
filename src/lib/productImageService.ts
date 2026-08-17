@@ -127,7 +127,7 @@ async function compressImage(file: File, maxWidth: number = 1200): Promise<File>
 }
 
 export async function uploadProductImages(
-  files: File[],
+  files: { file: File; isFeatured: boolean }[],
   userId: string,
   productId: string,
   onProgress?: (uploaded: number, total: number) => void
@@ -144,7 +144,7 @@ export async function uploadProductImages(
     }
 
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+      const { file, isFeatured } = files[i];
 
       try {
         const compressedFile = await compressImage(file);
@@ -176,7 +176,7 @@ export async function uploadProductImages(
         const uploadedImage: UploadedImage = {
           id: `new-${Date.now()}-${i}`,
           url: publicUrl,
-          is_featured: i === 0,
+          is_featured: isFeatured,
           media_type: 'image',
           display_order: i,
         };
@@ -208,29 +208,91 @@ export async function saveProductImages(
   if (!uploadedImages.length) return;
 
   try {
-    const imagesToInsert = uploadedImages.map((img) => ({
-      product_id: productId,
-      url: img.url,
-      is_featured: img.is_featured,
-      media_type: img.media_type,
-      display_order: img.display_order,
-    }));
+    const urls = uploadedImages.map((img) => img.url);
 
-    const { error } = await withRetry(() =>
-      supabase
+    // Each retry attempt re-checks which URLs are already persisted before
+    // inserting, so a retry triggered by a slow/dropped response after the
+    // insert actually succeeded server-side re-inserts nothing instead of
+    // creating duplicate product_images rows for the same photo.
+    const { error } = await withRetry(async () => {
+      const { data: existing, error: existingError } = await supabase
         .from('product_images')
-        .insert(imagesToInsert)
-        .then((result) => {
-          if (result.error) throw result.error;
-          return result;
-        })
-    );
+        .select('url')
+        .eq('product_id', productId)
+        .in('url', urls);
+
+      if (existingError) throw existingError;
+
+      const existingUrls = new Set((existing || []).map((row) => row.url));
+      const remaining = uploadedImages.filter((img) => !existingUrls.has(img.url));
+
+      if (!remaining.length) return { error: null };
+
+      const imagesToInsert = remaining.map((img) => ({
+        product_id: productId,
+        url: img.url,
+        is_featured: img.is_featured,
+        media_type: img.media_type,
+        display_order: img.display_order,
+      }));
+
+      const result = await supabase.from('product_images').insert(imagesToInsert);
+      if (result.error) throw result.error;
+      return result;
+    });
 
     if (error) throw error;
   } catch (error) {
     console.error('Error saving product images:', error);
     throw error;
   }
+}
+
+export async function replaceProductImage(
+  imageId: string,
+  file: File,
+  userId: string,
+  productId: string,
+  previousUrl?: string | null
+): Promise<string> {
+  const compressedFile = await compressImage(file);
+
+  const fileName = `product-${productId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+  const filePath = `product/${userId}/${fileName}`;
+
+  const { error: uploadError } = await storageFromSupabase(
+    () =>
+      supabase.storage
+        .from('public')
+        .upload(filePath, compressedFile, { cacheControl: '3600', upsert: false })
+        .then((result) => {
+          if (result.error) throw result.error;
+          return result;
+        }),
+    { maxRetries: 3 }
+  );
+
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('public').getPublicUrl(filePath);
+
+  // Update the existing row in place instead of inserting a new one, so a
+  // recropped photo keeps its original product_images row (and stays out of
+  // the "new image" insert path that was creating a duplicate row for it).
+  const { error: updateError } = await supabase
+    .from('product_images')
+    .update({ url: publicUrl })
+    .eq('id', imageId);
+
+  if (updateError) throw updateError;
+
+  if (previousUrl) {
+    await deleteProductImage(previousUrl);
+  }
+
+  return publicUrl;
 }
 
 function getStorageObjectPath(fileUrl: string): string | null {
@@ -344,7 +406,6 @@ export async function updateImageOrder(
   try {
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
-      const isFeatured = i === 0;
 
       if (image.id.startsWith('new-')) {
         continue;
@@ -353,7 +414,7 @@ export async function updateImageOrder(
       const { error } = await supabase
         .from('product_images')
         .update({
-          is_featured: isFeatured,
+          is_featured: image.is_featured,
           display_order: i,
           associated_color: image.associated_color || null,
         })

@@ -364,7 +364,7 @@ export default function CreateProductPage() {
 
       const filesToUpload = images
         .filter((img) => img.file)
-        .map((img) => img.file as File);
+        .map((img) => ({ file: img.file as File, isFeatured: img.isFeatured }));
 
       if (filesToUpload.length > 0) {
         setUploadingImages(true);
