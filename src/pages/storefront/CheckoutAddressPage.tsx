@@ -149,6 +149,7 @@ export default function CheckoutAddressPage() {
         buyerCity: currentCity,
         buyerState: currentState,
         skipLocationMatch,
+        excludeQuoteOnRequest: true,
       }),
     [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city, skipLocationMatch]
   );

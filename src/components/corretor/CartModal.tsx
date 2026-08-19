@@ -133,6 +133,9 @@ export default function CartModal({
     buyerState: customerState,
     restrictToLocal: orderMode === 'whatsapp',
     skipLocationMatch,
+    // "A Consultar" has no closed value to charge — only offer it on the
+    // WhatsApp tab, never on "Pagar Agora" (which needs a real amount).
+    excludeQuoteOnRequest: orderMode !== 'whatsapp',
   });
 
   const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
@@ -184,6 +187,7 @@ export default function CartModal({
 
   const deliveryFee = (() => {
     if (!selectedDeliveryConfig) return 0;
+    if (selectedDeliveryConfig.quoteOnRequest) return 0;
     if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscounts >= selectedDeliveryConfig.freeAbove) return 0;
     return selectedDeliveryConfig.fee;
   })();
@@ -250,6 +254,7 @@ export default function CartModal({
         paymentMethodDiscount,
         deliveryOption: selectedDeliveryConfig?.name || null,
         deliveryFee,
+        deliveryIsQuote: selectedDeliveryConfig?.quoteOnRequest || false,
         insuranceFee,
       }
     );
@@ -591,6 +596,7 @@ export default function CartModal({
             delivery_fee: deliveryFee,
             delivery_option: selectedDeliveryConfig?.name || null,
             delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope === 'local' ? 'local' : 'national') : null,
+            delivery_is_quote: selectedDeliveryConfig?.quoteOnRequest || false,
             insurance_fee: insuranceFee,
             affiliate_id: affiliateId,
             shipping_city: customerCity.trim() || null,
@@ -1439,9 +1445,13 @@ export default function CartModal({
                                       <SelectItem key={option.id} value={option.id} className="text-xs">
                                         <div className="flex items-center gap-1.5">
                                           <span>{option.name}</span>
-                                          <span className={displayFee === 0 ? 'text-xs text-green-600 dark:text-green-400' : 'text-xs text-muted-foreground'}>
-                                            {displayFee === 0 ? 'Gratis' : `+${formatCurrencyI18n(displayFee, currency, language)}`}
-                                          </span>
+                                          {option.quoteOnRequest ? (
+                                            <span className="text-xs text-amber-600 dark:text-amber-400">A combinar</span>
+                                          ) : (
+                                            <span className={displayFee === 0 ? 'text-xs text-green-600 dark:text-green-400' : 'text-xs text-muted-foreground'}>
+                                              {displayFee === 0 ? 'Gratis' : `+${formatCurrencyI18n(displayFee, currency, language)}`}
+                                            </span>
+                                          )}
                                         </div>
                                       </SelectItem>
                                     );
@@ -1516,13 +1526,15 @@ export default function CartModal({
                         </div>
                       )}
                       {orderMode === 'whatsapp' && selectedDeliveryConfig && (
-                        <div className={`flex justify-between items-center ${deliveryFee === 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
-                          <span className={`flex items-center gap-1.5 ${deliveryFee > 0 ? 'text-muted-foreground' : ''}`}>
+                        <div className={`flex justify-between items-center ${selectedDeliveryConfig.quoteOnRequest ? 'text-amber-600 dark:text-amber-400' : deliveryFee === 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
+                          <span className={`flex items-center gap-1.5 ${!selectedDeliveryConfig.quoteOnRequest && deliveryFee > 0 ? 'text-muted-foreground' : ''}`}>
                             <Truck className="h-3 w-3" />
                             {selectedDeliveryConfig.name}
                           </span>
                           <span>
-                            {deliveryFee === 0 ? 'Gratis' : `+${formatCurrencyI18n(deliveryFee, currency, language)}`}
+                            {selectedDeliveryConfig.quoteOnRequest
+                              ? 'A combinar'
+                              : deliveryFee === 0 ? 'Gratis' : `+${formatCurrencyI18n(deliveryFee, currency, language)}`}
                           </span>
                         </div>
                       )}

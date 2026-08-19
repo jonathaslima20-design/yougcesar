@@ -359,8 +359,9 @@ export default function OrdersPage() {
                           <Badge variant="outline" className="text-xs">
                             <Truck className="h-3 w-3 mr-1" />
                             {order.delivery_option}
-                            {order.delivery_scope === 'local' && ' (Local)'}
-                            {order.delivery_scope === 'national' && ' (Nacional)'}
+                            {order.delivery_is_quote && ' (A combinar)'}
+                            {!order.delivery_is_quote && order.delivery_scope === 'local' && ' (Local)'}
+                            {!order.delivery_is_quote && order.delivery_scope === 'national' && ' (Nacional)'}
                           </Badge>
                         )}
                       </div>

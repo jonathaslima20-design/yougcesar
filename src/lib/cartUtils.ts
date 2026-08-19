@@ -30,6 +30,7 @@ interface PaymentDeliveryInfo {
   paymentMethodDiscount?: number;
   deliveryOption?: string | null;
   deliveryFee?: number;
+  deliveryIsQuote?: boolean;
   insuranceFee?: number;
 }
 
@@ -248,7 +249,19 @@ export function generateCartOrderMessage(
     orderMessage += `*${pmDiscountLabels[language] || pmDiscountLabels['pt-BR']}:* -${formatCurrencyI18n(paymentDelivery.paymentMethodDiscount, currency, language)}\n`;
   }
 
-  if (paymentDelivery?.deliveryFee && paymentDelivery.deliveryFee > 0) {
+  if (paymentDelivery?.deliveryIsQuote && paymentDelivery.deliveryOption) {
+    const deliveryLabels = {
+      'pt-BR': 'Entrega',
+      'en-US': 'Delivery',
+      'es-ES': 'Entrega',
+    };
+    const quoteLabels = {
+      'pt-BR': 'A combinar',
+      'en-US': 'To be quoted',
+      'es-ES': 'A combinar',
+    };
+    orderMessage += `*${deliveryLabels[language] || deliveryLabels['pt-BR']}:* ${paymentDelivery.deliveryOption} (${quoteLabels[language] || quoteLabels['pt-BR']})\n`;
+  } else if (paymentDelivery?.deliveryFee && paymentDelivery.deliveryFee > 0) {
     const deliveryLabels = {
       'pt-BR': 'Entrega',
       'en-US': 'Delivery',

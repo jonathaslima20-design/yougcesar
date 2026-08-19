@@ -470,10 +470,12 @@ export default function OrderDetailsPanel({
                         <Truck className="h-3.5 w-3.5" />
                         Entrega: {order.delivery_option}
                       </span>
-                      <span className="text-sm font-medium">
-                        {order.delivery_fee && order.delivery_fee > 0
-                          ? `+${formatCurrency(order.delivery_fee)}`
-                          : 'Gratis'
+                      <span className={`text-sm font-medium ${order.delivery_is_quote ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                        {order.delivery_is_quote
+                          ? 'A combinar'
+                          : order.delivery_fee && order.delivery_fee > 0
+                            ? `+${formatCurrency(order.delivery_fee)}`
+                            : 'Gratis'
                         }
                       </span>
                     </div>

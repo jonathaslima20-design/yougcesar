@@ -155,6 +155,13 @@ export default function CheckoutSettingsContent() {
     save({ ...settings, deliveryOptions: updated });
   };
 
+  const updateDeliveryQuoteOnRequest = (id: string, quoteOnRequest: boolean) => {
+    const updated = settings.deliveryOptions.map(d =>
+      d.id === id ? { ...d, quoteOnRequest } : d
+    );
+    save({ ...settings, deliveryOptions: updated });
+  };
+
   const updateDeliveryScope = (id: string, scope: DeliveryScope) => {
     if (scope === 'local' && !hasMerchantCity) {
       toast.error('Defina o CEP da sua loja acima antes de criar uma opção de entrega local');
@@ -649,6 +656,7 @@ export default function CheckoutSettingsContent() {
                   onUpdateCalculationType={(type) => updateDeliveryCalculationType(option.id, type)}
                   onUpdateRegions={(regions) => updateDeliveryRegions(option.id, regions)}
                   onUpdateScope={(scope) => updateDeliveryScope(option.id, scope)}
+                  onUpdateQuoteOnRequest={(val) => updateDeliveryQuoteOnRequest(option.id, val)}
                   onRemove={() => removeDeliveryOption(option.id)}
                 />
               ))}
@@ -920,10 +928,11 @@ interface DeliveryOptionRowProps {
   onUpdateCalculationType: (type: ShippingCalculationType) => void;
   onUpdateRegions: (regions: string[]) => void;
   onUpdateScope: (scope: DeliveryScope) => void;
+  onUpdateQuoteOnRequest: (quoteOnRequest: boolean) => void;
   onRemove: () => void;
 }
 
-function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFreeAbove, onUpdateCalculationType, onUpdateRegions, onUpdateScope, onRemove }: DeliveryOptionRowProps) {
+function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFreeAbove, onUpdateCalculationType, onUpdateRegions, onUpdateScope, onUpdateQuoteOnRequest, onRemove }: DeliveryOptionRowProps) {
   const [editingFee, setEditingFee] = useState(false);
   const [feeValue, setFeeValue] = useState(option.fee);
   const [editingFreeAbove, setEditingFreeAbove] = useState(false);
@@ -961,18 +970,24 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFree
           />
           <div>
             <span className="text-sm font-medium">{option.name}</span>
-            <span className="text-xs text-muted-foreground ml-2">
-              {option.fee === 0 ? 'Grátis' : formatCurrency(option.fee)}
-            </span>
-            {option.freeAbove && option.freeAbove > 0 && (
-              <span className="text-xs text-green-600 dark:text-green-400 ml-2">
-                Grátis acima de {formatCurrency(option.freeAbove)}
-              </span>
+            {option.quoteOnRequest ? (
+              <span className="text-xs text-amber-600 dark:text-amber-400 ml-2">A Consultar</span>
+            ) : (
+              <>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {option.fee === 0 ? 'Grátis' : formatCurrency(option.fee)}
+                </span>
+                {option.freeAbove && option.freeAbove > 0 && (
+                  <span className="text-xs text-green-600 dark:text-green-400 ml-2">
+                    Grátis acima de {formatCurrency(option.freeAbove)}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {option.enabled && (
+          {option.enabled && !option.quoteOnRequest && (
             <>
               <Button
                 variant="ghost"
@@ -1071,7 +1086,25 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdateFee, onUpdateFree
         </div>
       )}
 
-      {option.enabled && scope === 'national' && (
+      {option.enabled && (
+        <div className="flex flex-row items-center justify-between rounded-lg border p-3 mt-1">
+          <div className="space-y-0.5 pr-2">
+            <Label htmlFor={`quote-${option.id}`} className="text-xs">Frete a Consultar</Label>
+            <p className="text-[11px] text-muted-foreground">
+              Não mostra nenhum valor — o cliente combina o frete direto com você. Só aparece em pedidos via WhatsApp
+              {scope === 'national' && ' (troque a abrangência para "Só na minha cidade" para ela poder aparecer)'}.
+            </p>
+          </div>
+          <Switch
+            id={`quote-${option.id}`}
+            checked={option.quoteOnRequest ?? false}
+            onCheckedChange={onUpdateQuoteOnRequest}
+            disabled={saving}
+          />
+        </div>
+      )}
+
+      {option.enabled && !option.quoteOnRequest && scope === 'national' && (
         <div className="space-y-2 pt-1">
           <Label className="text-xs">Como calcular o frete</Label>
           <Select value={calculationType} onValueChange={(v) => onUpdateCalculationType(v as ShippingCalculationType)}>

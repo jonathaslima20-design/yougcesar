@@ -25,6 +25,7 @@ interface DeliveryOptionLike {
   scope?: 'local' | 'national';
   calculationType?: string;
   regions?: string[];
+  quoteOnRequest?: boolean;
 }
 
 interface FilterEligibleDeliveryOptionsParams {
@@ -39,14 +40,19 @@ interface FilterEligibleDeliveryOptionsParams {
   // gated on a CEP lookup. Every enabled option is shown, scope and
   // restrictToLocal are both ignored.
   skipLocationMatch?: boolean;
+  // "Frete a Consultar" options have no closed value to charge, so every
+  // online-payment flow must pass this — only the WhatsApp order flow leaves
+  // it false and lets buyers pick them.
+  excludeQuoteOnRequest?: boolean;
 }
 
 export function filterEligibleDeliveryOptions<T extends DeliveryOptionLike>(
   options: T[],
-  { merchantCity, buyerCity, buyerState, restrictToLocal = false, skipLocationMatch = false }: FilterEligibleDeliveryOptionsParams
+  { merchantCity, buyerCity, buyerState, restrictToLocal = false, skipLocationMatch = false, excludeQuoteOnRequest = false }: FilterEligibleDeliveryOptionsParams
 ): T[] {
   return options.filter((d) => {
     if (!d.enabled) return false;
+    if (excludeQuoteOnRequest && d.quoteOnRequest) return false;
     if (skipLocationMatch) return true;
     const scope = d.scope === 'local' ? 'local' : 'national';
     if (scope === 'local') {

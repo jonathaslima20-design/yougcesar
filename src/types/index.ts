@@ -522,6 +522,7 @@ export interface Order {
   delivery_fee?: number;
   delivery_option?: string | null;
   delivery_scope?: 'local' | 'national' | null;
+  delivery_is_quote?: boolean | null;
   insurance_fee?: number;
   affiliate_id?: string | null;
   buyer_id?: string | null;
@@ -736,6 +737,12 @@ export interface DeliveryOption {
   regions?: string[]; // UF codes, used when calculationType === 'region'
   carrierProvider?: 'correios' | 'melhor_envio' | 'superfrete' | null; // reserved for a future phase, always null today
   scope?: DeliveryScope; // missing = treated as 'national' (back-compat) — only an explicit 'local' restricts to same-city buyers
+  // "Frete a Consultar": no value is charged or shown — the buyer and merchant
+  // agree on the real fee afterward (e.g. over WhatsApp). Only usable in the
+  // WhatsApp order flow; `fee`/`freeAbove` are ignored while this is true, and
+  // the option is excluded from every online-payment flow since those require
+  // a closed amount to charge.
+  quoteOnRequest?: boolean;
 }
 
 export interface MinimumPurchaseConfig {
