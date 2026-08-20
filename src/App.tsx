@@ -34,6 +34,7 @@ import AdminLayout from '@/components/layouts/AdminLayout';
 
 // Public Pages
 import LandingPage from '@/pages/LandingPage.tsx';
+import PlansSharePage from '@/pages/PlansSharePage.tsx';
 import LoginPage from '@/pages/LoginPage.tsx';
 import RegisterPage from '@/pages/RegisterPage.tsx';
 import AuthCallbackPage from '@/pages/AuthCallbackPage.tsx';
@@ -257,6 +258,7 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/partners/login" element={<PartnersLoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/planos" element={<PlansSharePage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/completar-cadastro" element={<CompleteProfilePage />} />
 

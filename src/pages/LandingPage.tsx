@@ -2,6 +2,9 @@ import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Plus, Package, MessageCircle, Gift, Globe as Globe2, ChartBar as BarChart3, Check, X, Zap, TrendingUp, Users, LogIn, ShoppingCart, Radio, Box, ClipboardList, Tag, Code as Code2, Palette, Globe, Shield, TriangleAlert as AlertTriangle, Percent, Timer } from 'lucide-react';
 import HeroPhoneCarousel from '@/components/landing/HeroPhoneCarousel';
+import PricingCard from '@/components/pricing/PricingCard';
+import { PAID_PLANS, FREE_PLAN_BENEFITS_INCLUDED, FREE_PLAN_BENEFITS_EXCLUDED } from '@/lib/pricingPlans';
+import { useReveal } from '@/hooks/useReveal';
 import { supabase } from '@/lib/supabase';
 
 const LandingSocialProof = lazy(() => import('@/components/landing/LandingSocialProof'));
@@ -93,46 +96,6 @@ function useLandingTracking() {
     return () => {
       window.clearTimeout(timer);
       [metaScript, metaNoScript, gtmScript, gtmNoScript, gtmDataLayer, domainVerificationMeta].forEach((el) => el?.remove());
-    };
-  }, []);
-}
-
-function useReveal() {
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.12 }
-    );
-    const observed = new WeakSet<Element>();
-    const observeAll = () => {
-      document.querySelectorAll('.reveal').forEach((el) => {
-        if (!observed.has(el)) {
-          observed.add(el);
-          observer.observe(el);
-        }
-      });
-    };
-    observeAll();
-    let debounceId: number | undefined;
-    const mutation = new MutationObserver(() => {
-      if (debounceId !== undefined) return;
-      debounceId = window.setTimeout(() => {
-        debounceId = undefined;
-        observeAll();
-      }, 150);
-    });
-    mutation.observe(document.body, { childList: true, subtree: true });
-    return () => {
-      observer.disconnect();
-      mutation.disconnect();
-      if (debounceId !== undefined) window.clearTimeout(debounceId);
     };
   }, []);
 }
@@ -876,84 +839,6 @@ function AnalyticsSection() {
   );
 }
 
-function PricingCard({
-  tag,
-  name,
-  priceSuffix,
-  billedNote,
-  savingsBadge,
-  featured = false,
-  benefits,
-  refCode,
-}: {
-  tag: string;
-  name: string;
-  priceSuffix: string;
-  billedNote: string;
-  savingsBadge?: string;
-  featured?: boolean;
-  benefits: string[];
-  refCode: string | null;
-}) {
-  return (
-    <div
-      className={`reveal card-hover rounded-2xl p-7 lg:p-8 border hairline flex flex-col ${
-        featured ? 'bg-ink-900 text-white' : 'bg-surface text-ink-900'
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <span className={`font-display font-semibold text-[16px] ${featured ? 'text-white' : 'text-ink-900'}`}>
-          {name}
-        </span>
-        <span
-          className={`font-mono-label uppercase text-[10px] px-2.5 py-1 rounded-full border ${
-            featured ? 'border-white/30 text-white' : 'hairline text-ink-500'
-          }`}
-        >
-          {tag}
-        </span>
-      </div>
-      <div className="mt-8">
-        <span className="font-display font-semibold text-[44px] lg:text-[52px] tracking-[-0.03em] leading-none">R$ {priceSuffix}</span>
-        <span className={`text-[14px] ml-1 ${featured ? 'text-white/60' : 'text-ink-500'}`}>/mês</span>
-      </div>
-      <div className="flex items-center gap-2 mt-2">
-        <p className={`text-[12px] ${featured ? 'text-white/60' : 'text-ink-400'}`}>{billedNote}</p>
-        {savingsBadge && (
-          <span className="font-mono-label uppercase text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-            {savingsBadge}
-          </span>
-        )}
-      </div>
-      <ul className="mt-8 space-y-3 flex-1">
-        {benefits.map((b) => (
-          <li key={b} className="flex items-center gap-3">
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                featured ? 'bg-white/15' : 'bg-white border hairline'
-              }`}
-            >
-              <Check size={12} strokeWidth={3} className={featured ? 'text-white' : 'text-ink-900'} />
-            </span>
-            <span className={`text-[14px] ${featured ? 'text-white/90' : 'text-ink-700'}`}>{b}</span>
-          </li>
-        ))}
-      </ul>
-      <a
-        href={getRegisterHref(refCode)}
-        className={`mt-8 rounded-full px-6 py-3.5 font-display font-medium text-[14px] inline-flex items-center justify-center gap-2 transition-colors ${
-          featured
-            ? 'bg-white text-ink-900 hover:bg-white/90'
-            : 'btn-primary'
-        }`}
-      >
-        Começar agora
-        <ArrowRight size={14} />
-      </a>
-    </div>
-  );
-}
-
 function SocialProofSection() {
   return (
     <section id="usuarios" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}>
@@ -968,41 +853,6 @@ function SocialProofSection() {
 }
 
 function PricingSection({ refCode }: { refCode: string | null }) {
-  const allPaidBenefits = [
-    'Produtos ilimitados',
-    'Categorias e tags ilimitadas',
-    'Catálogo Digital via Link',
-    'Painel Administrativo completo',
-    'Carrinho de compras',
-    'Controle de Estoque e Inventário',
-    'Gestão de Pedidos e Vendas',
-    'Sistema de Cupons',
-    'Personalização de cores e fontes',
-    'Integração com Meta Pixel e Google Tag',
-    'Programa de Indicação',
-    'Domínio próprio com SSL',
-  ];
-
-  const anualBenefits = [
-    ...allPaidBenefits,
-    'API REST para integrações externas (Bling, Tiny, ERPs)',
-    'Remoção da logomarca VitrineTurbo',
-  ];
-
-  const freeBenefitsIncluded = [
-    'Até 20 produtos',
-    'Catálogo Digital via Link',
-    'Suporte Humanizado',
-  ];
-
-  const freeBenefitsExcluded = [
-    'Domínio próprio',
-    'Personalização de cores',
-    'Analytics avançado',
-    'Cupons de desconto',
-    'Produtos ilimitados',
-  ];
-
   return (
     <section id="precos" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -1022,7 +872,7 @@ function PricingSection({ refCode }: { refCode: string | null }) {
             </div>
             <p className="text-[13px] text-ink-500 mt-3">Para quem está começando</p>
             <ul className="mt-8 space-y-3 flex-1">
-              {freeBenefitsIncluded.map((b) => (
+              {FREE_PLAN_BENEFITS_INCLUDED.map((b) => (
                 <li key={b} className="flex items-center gap-3">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center bg-white border hairline">
                     <Check size={12} strokeWidth={3} className="text-ink-900" />
@@ -1030,7 +880,7 @@ function PricingSection({ refCode }: { refCode: string | null }) {
                   <span className="text-[14px] text-ink-700">{b}</span>
                 </li>
               ))}
-              {freeBenefitsExcluded.map((b) => (
+              {FREE_PLAN_BENEFITS_EXCLUDED.map((b) => (
                 <li key={b} className="flex items-center gap-3">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center bg-ink-50 border hairline">
                     <X size={12} strokeWidth={3} className="text-ink-300" />
@@ -1048,33 +898,9 @@ function PricingSection({ refCode }: { refCode: string | null }) {
             </a>
           </div>
 
-          <PricingCard
-            tag="Flexível"
-            name="Mensal"
-            priceSuffix="57,00"
-            billedNote="Cobrado mensalmente"
-            benefits={allPaidBenefits}
-            refCode={refCode}
-          />
-          <PricingCard
-            tag="Mais escolhido"
-            name="Semestral"
-            priceSuffix="38,17"
-            billedNote="R$ 229 a cada 6 meses"
-            savingsBadge="Economize 33%"
-            benefits={allPaidBenefits}
-            refCode={refCode}
-          />
-          <PricingCard
-            tag="Recomendado"
-            name="Anual"
-            priceSuffix="28,00"
-            billedNote="R$ 336 cobrados por ano"
-            savingsBadge="Economize 51%"
-            featured
-            benefits={anualBenefits}
-            refCode={refCode}
-          />
+          {PAID_PLANS.map((plan) => (
+            <PricingCard key={plan.id} plan={plan} ctaHref={getRegisterHref(refCode)} />
+          ))}
         </div>
       </div>
     </section>
