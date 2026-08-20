@@ -5,6 +5,7 @@ import HeroPhoneCarousel from '@/components/landing/HeroPhoneCarousel';
 import { supabase } from '@/lib/supabase';
 
 const LandingSocialProof = lazy(() => import('@/components/landing/LandingSocialProof'));
+const LandingTestimonials = lazy(() => import('@/components/landing/LandingTestimonials'));
 
 function useLandingTracking() {
   useEffect(() => {
@@ -236,18 +237,18 @@ function Header({ refCode }: { refCode: string | null }) {
             href="https://www.instagram.com/vitrineturbo_/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex w-9 h-9 rounded-full border border-ink-200 items-center justify-center text-ink-500 hover:text-ink-900 hover:border-ink-400 transition-colors"
+            className="hidden sm:inline-flex w-9 h-9 rounded-full border border-ink-200 items-center justify-center text-ink-500 hover:text-ink-900 hover:border-ink-400 transition-colors"
             aria-label="Instagram"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
           </a>
-          <a href="#precos" className="hidden sm:inline-flex btn-ghost rounded-full px-4 py-2 text-[13px] font-display font-medium">
-            Ver Planos
-          </a>
-          <Link to="/login" className="btn-primary rounded-full px-4 py-2 text-[13px] font-display font-medium inline-flex items-center gap-1.5">
+          <Link to="/login" className="inline-flex btn-ghost rounded-full px-3 sm:px-4 py-2 text-[13px] font-display font-medium items-center gap-1.5">
             <LogIn size={14} />
-            Entrar
+            <span className="hidden sm:inline">Entrar</span>
           </Link>
+          <a href={getRegisterHref(refCode)} className="btn-primary rounded-full px-4 py-2 text-[13px] font-display font-medium inline-flex items-center gap-1.5">
+            Criar Loja Grátis
+          </a>
         </div>
       </div>
     </header>
@@ -262,13 +263,13 @@ function Hero({ refCode }: { refCode: string | null }) {
         <div className="stagger max-w-4xl">
           <div className="inline-flex items-center gap-2 border hairline bg-white rounded-full px-3 py-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="font-mono-label uppercase text-[11px] text-ink-700">VitrineTurbo — v3.0</span>
+            <span className="font-mono-label uppercase text-[11px] text-ink-700">+3.000 lojas criadas no Brasil</span>
           </div>
           <h1 className="font-display font-semibold text-[44px] sm:text-[64px] lg:text-[84px] leading-[1.02] tracking-[-0.035em] text-ink-900 mt-6">
-            A Plataforma Completa para Vender Online.
+            Sua loja online pronta em minutos. Sem taxa sobre vendas.
           </h1>
           <p className="text-ink-500 text-[18px] lg:text-[20px] max-w-2xl mt-6 leading-[1.5]">
-            Catálogo, estoque, pedidos, cupons, domínio próprio e API de integração. Tudo que você precisa em um único lugar, sem taxa sobre vendas.
+            Catálogo profissional, estoque, pedidos e domínio próprio. Você fica com 100% de cada venda, nós não cobramos comissão.
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-8">
             <a href={getRegisterHref(refCode)} className="btn-primary rounded-full px-7 py-4 font-display font-medium text-[15px] inline-flex items-center gap-2">
@@ -280,21 +281,11 @@ function Hero({ refCode }: { refCode: string | null }) {
               <ArrowRight size={16} />
             </a>
           </div>
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 mt-10">
-            {[
-              { label: '+3.000 lojas ativas', icon: Users },
-              { label: '0% taxas em vendas', icon: Percent },
-              { label: 'Suporte Humanizado', icon: MessageCircle },
-              { label: 'Plano free inicial', icon: Gift },
-            ].map(({ label, icon: Icon }) => (
-              <div key={label} className="inline-flex items-center gap-1.5 border hairline bg-white rounded-full px-3 py-1.5">
-                <Icon size={11} className="text-ink-400" strokeWidth={2} />
-                <span className="font-mono-label uppercase text-[11px] text-ink-700">{label}</span>
-              </div>
-            ))}
-          </div>
+          <p className="font-mono-label uppercase text-[11px] text-ink-400 mt-4">
+            Grátis até 20 produtos · Sem cartão de crédito
+          </p>
         </div>
-        <div className="reveal mt-16 lg:mt-20">
+        <div className="reveal mt-8 lg:mt-10">
           <HeroPhoneCarousel />
         </div>
       </div>
@@ -313,6 +304,71 @@ function SectionHeading({ id, kicker, title }: { id?: string; kicker: string; ti
         {title}
       </h2>
     </div>
+  );
+}
+
+function HowItWorksSection({ refCode }: { refCode: string | null }) {
+  const steps = [
+    { n: '01', title: 'Crie sua conta grátis', desc: 'Sem cartão de crédito. Leva menos de 2 minutos.' },
+    { n: '02', title: 'Adicione seus produtos', desc: 'Fotos, preços, variações e estoque em um painel simples.' },
+    { n: '03', title: 'Compartilhe seu link e venda', desc: 'No WhatsApp, Instagram, Google e onde seu cliente estiver.' },
+  ];
+
+  return (
+    <section className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 500px' }}>
+      <div className="max-w-7xl mx-auto px-6 lg:px-10">
+        <SectionHeading kicker="/ como funciona" title="Do zero à primeira venda em minutos" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-14">
+          {steps.map((step) => (
+            <div key={step.n} className="reveal card-hover rounded-2xl border hairline bg-surface p-6 lg:p-7">
+              <span className="font-display font-semibold text-[15px] text-ink-400">{step.n}</span>
+              <h3 className="font-display font-semibold text-[20px] lg:text-[22px] text-ink-900 tracking-[-0.02em] mt-4">
+                {step.title}
+              </h3>
+              <p className="text-[14px] text-ink-500 leading-[1.5] mt-2">{step.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="reveal mt-10">
+          <a href={getRegisterHref(refCode)} className="btn-primary rounded-full px-7 py-3.5 font-display font-medium text-[14px] inline-flex items-center gap-2">
+            Criar Minha Loja Agora
+            <ArrowRight size={14} />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FeeComparisonSection({ refCode }: { refCode: string | null }) {
+  return (
+    <section className="py-24 lg:py-32 bg-surface border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 500px' }}>
+      <div className="max-w-7xl mx-auto px-6 lg:px-10">
+        <SectionHeading kicker="/ sem comissão" title="Quanto você deixa de perder em taxas?" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-14">
+          <div className="reveal rounded-2xl border hairline bg-white p-7 lg:p-8">
+            <span className="font-mono-label uppercase text-[10px] text-ink-400">Marketplaces tradicionais</span>
+            <div className="font-display font-semibold text-[40px] lg:text-[48px] text-ink-900 tracking-[-0.03em] mt-3">
+              R$ 1.200<span className="text-[24px] text-ink-400">–1.600</span>
+            </div>
+            <p className="text-[13px] text-ink-500 mt-2">de comissão a cada R$ 10 mil vendidos (12% a 16%)</p>
+          </div>
+          <div className="reveal rounded-2xl border-2 border-ink-900 bg-ink-900 text-white p-7 lg:p-8">
+            <span className="font-mono-label uppercase text-[10px] text-white/60">Com VitrineTurbo</span>
+            <div className="font-display font-semibold text-[40px] lg:text-[48px] tracking-[-0.03em] mt-3">
+              R$ 0<span className="text-[24px] text-white/60"> de comissão</span>
+            </div>
+            <p className="text-[13px] text-white/70 mt-2">Você paga só o plano fixo — a partir de R$ 57/mês, vendendo o quanto quiser.</p>
+          </div>
+        </div>
+        <div className="reveal mt-10">
+          <a href={getRegisterHref(refCode)} className="btn-primary rounded-full px-7 py-3.5 font-display font-medium text-[14px] inline-flex items-center gap-2">
+            Parar de Pagar Comissão
+            <ArrowRight size={14} />
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -823,14 +879,18 @@ function AnalyticsSection() {
 function PricingCard({
   tag,
   name,
-  price,
+  priceSuffix,
+  billedNote,
+  savingsBadge,
   featured = false,
   benefits,
   refCode,
 }: {
   tag: string;
   name: string;
-  price: string;
+  priceSuffix: string;
+  billedNote: string;
+  savingsBadge?: string;
   featured?: boolean;
   benefits: string[];
   refCode: string | null;
@@ -854,7 +914,16 @@ function PricingCard({
         </span>
       </div>
       <div className="mt-8">
-        <span className="font-display font-semibold text-[44px] lg:text-[52px] tracking-[-0.03em] leading-none">{price}</span>
+        <span className="font-display font-semibold text-[44px] lg:text-[52px] tracking-[-0.03em] leading-none">R$ {priceSuffix}</span>
+        <span className={`text-[14px] ml-1 ${featured ? 'text-white/60' : 'text-ink-500'}`}>/mês</span>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <p className={`text-[12px] ${featured ? 'text-white/60' : 'text-ink-400'}`}>{billedNote}</p>
+        {savingsBadge && (
+          <span className="font-mono-label uppercase text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+            {savingsBadge}
+          </span>
+        )}
       </div>
       <ul className="mt-8 space-y-3 flex-1">
         {benefits.map((b) => (
@@ -878,7 +947,7 @@ function PricingCard({
             : 'btn-primary'
         }`}
       >
-        Assinar Agora
+        Começar agora
         <ArrowRight size={14} />
       </a>
     </div>
@@ -890,18 +959,6 @@ function SocialProofSection() {
     <section id="usuarios" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}>
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker="/ usuários" title="Junte-se a milhares de usuários do VitrineTurbo" />
-        <Suspense fallback={<div className="mt-14 min-h-[140px] rounded-2xl border hairline bg-surface animate-pulse" />}>
-          <LandingSocialProof />
-        </Suspense>
-      </div>
-    </section>
-  );
-}
-
-function TopSocialProofSection() {
-  return (
-    <section className="pb-24 lg:pb-32 bg-white" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 260px' }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-10">
         <Suspense fallback={<div className="mt-14 min-h-[140px] rounded-2xl border hairline bg-surface animate-pulse" />}>
           <LandingSocialProof />
         </Suspense>
@@ -994,21 +1051,26 @@ function PricingSection({ refCode }: { refCode: string | null }) {
           <PricingCard
             tag="Flexível"
             name="Mensal"
-            price="R$ 57,00"
+            priceSuffix="57,00"
+            billedNote="Cobrado mensalmente"
             benefits={allPaidBenefits}
             refCode={refCode}
           />
           <PricingCard
             tag="Mais escolhido"
             name="Semestral"
-            price="R$ 229,00"
+            priceSuffix="38,17"
+            billedNote="R$ 229 a cada 6 meses"
+            savingsBadge="Economize 33%"
             benefits={allPaidBenefits}
             refCode={refCode}
           />
           <PricingCard
-            tag="Melhor valor"
+            tag="Recomendado"
             name="Anual"
-            price="R$ 336,00"
+            priceSuffix="28,00"
+            billedNote="R$ 336 cobrados por ano"
+            savingsBadge="Economize 51%"
             featured
             benefits={anualBenefits}
             refCode={refCode}
@@ -1212,9 +1274,37 @@ function FooterLanding() {
 const MemoizedBentoGrid = memo(BentoGrid);
 const MemoizedAnalyticsSection = memo(AnalyticsSection);
 const MemoizedSocialProofSection = memo(SocialProofSection);
-const MemoizedTopSocialProofSection = memo(TopSocialProofSection);
 const MemoizedFaqSection = memo(FaqSection);
 const MemoizedFooterLanding = memo(FooterLanding);
+
+function MobileStickyCTA({ refCode }: { refCode: string | null }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const isVisible = window.scrollY > 600;
+      setVisible((prev) => prev === isVisible ? prev : isVisible);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <div
+      className={`md:hidden fixed bottom-0 inset-x-0 z-50 p-3 glass-light border-t hairline transition-transform duration-300 ${
+        visible ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      <a
+        href={getRegisterHref(refCode)}
+        className="btn-primary rounded-full w-full py-3.5 font-display font-medium text-[14px] inline-flex items-center justify-center gap-2"
+      >
+        Criar Loja Grátis
+        <ArrowRight size={14} />
+      </a>
+    </div>
+  );
+}
 
 export default function LandingPage() {
   useReveal();
@@ -1224,16 +1314,21 @@ export default function LandingPage() {
     <div className="vt-root min-h-screen bg-white text-ink-900">
       <Header refCode={refCode} />
       <Hero refCode={refCode} />
-      <MemoizedTopSocialProofSection />
+      <HowItWorksSection refCode={refCode} />
+      <FeeComparisonSection refCode={refCode} />
       <MemoizedBentoGrid />
       <ProFeaturesSection refCode={refCode} />
       <DifferentiationSection refCode={refCode} />
       <MemoizedAnalyticsSection />
       <MemoizedSocialProofSection />
+      <Suspense fallback={null}>
+        <LandingTestimonials />
+      </Suspense>
       <PricingSection refCode={refCode} />
       <MemoizedFaqSection />
       <FinalCTA refCode={refCode} />
       <MemoizedFooterLanding />
+      <MobileStickyCTA refCode={refCode} />
     </div>
   );
 }
