@@ -196,7 +196,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
         maxPrice: settings?.priceRange?.maxPrice ?? 5000,
       };
 
-      searchProducts(corretorId, filtersSnapshot, priceDefaults).then((results) => {
+      searchProducts(corretorId, filtersSnapshot, priceDefaults, inventoryEnabled).then((results) => {
         setAllServerSearchResults(results);
 
         if (restoredSearchPageRef.current !== null) {
@@ -214,7 +214,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
         searchDebounceRef.current = null;
       }
     };
-  }, [isSearchActive, filters, corretor?.id, searchProducts, resetToFirstCategory, settings?.priceRange?.minPrice, settings?.priceRange?.maxPrice]);
+  }, [isSearchActive, filters, corretor?.id, searchProducts, resetToFirstCategory, settings?.priceRange?.minPrice, settings?.priceRange?.maxPrice, inventoryEnabled]);
 
   // Apply pagination to server search results
   useEffect(() => {

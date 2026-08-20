@@ -148,6 +148,52 @@ export async function getAvailableVariantStock(
   }));
 }
 
+/**
+ * For catalog-level size filtering: which sizes actually have stock available
+ * (summed across colors/flavors) for each of the given products. Mirrors the
+ * per-product `getSizeAvailable` sum used on the product detail page, just
+ * batched across products with a single `.in()` query.
+ *
+ * A product only appears as a key when it has at least one variant-stock row
+ * (i.e. it actually participates in the color/size grid) — even if every row
+ * nets to zero, it still gets an entry (possibly an empty set). Products with
+ * `track_inventory` on but no variant rows at all (simple flat-quantity
+ * tracking, no size grid) are absent from the map entirely, so callers can
+ * tell "confirmed zero for this size" apart from "no size-level stock data
+ * exists" and fall back to the declared `sizes` list for those — same
+ * unknown-vs-zero distinction `getVariantAvailable` already makes.
+ */
+export async function getAvailableSizesByProduct(
+  productIds: string[]
+): Promise<Map<string, Set<string>>> {
+  const result = new Map<string, Set<string>>();
+  if (productIds.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from('product_variant_stock')
+    .select('product_id, size, quantity, reserved_quantity')
+    .in('product_id', productIds);
+
+  if (error || !data) return result;
+
+  const availableByProductSize = new Map<string, number>();
+  for (const row of data) {
+    if (!result.has(row.product_id)) result.set(row.product_id, new Set());
+    if (!row.size) continue;
+    const key = `${row.product_id}::${row.size}`;
+    const available = Math.max(0, row.quantity - row.reserved_quantity);
+    availableByProductSize.set(key, (availableByProductSize.get(key) || 0) + available);
+  }
+
+  for (const [key, total] of availableByProductSize) {
+    if (total <= 0) continue;
+    const [productId, size] = key.split('::');
+    result.get(productId)!.add(size);
+  }
+
+  return result;
+}
+
 export async function cleanExpiredReservations(): Promise<number> {
   const { data: expired } = await supabase
     .from('stock_reservations')

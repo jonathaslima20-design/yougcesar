@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logCategoryOperation, sanitizeCategoryName, normalizeCategoryNameForComparison } from '@/lib/categoryUtils';
+import { getAvailableSizesByProduct } from '@/lib/stockReservationService';
 import type { Product } from '@/types';
 import type { ProductFilters } from '@/components/product/ProductSearch';
 
@@ -10,7 +11,7 @@ interface PriceRangeDefaults {
 }
 
 interface UseServerSideProductSearchReturn {
-  searchProducts: (userId: string, filters: ProductFilters, priceDefaults?: PriceRangeDefaults) => Promise<Product[]>;
+  searchProducts: (userId: string, filters: ProductFilters, priceDefaults?: PriceRangeDefaults, inventoryEnabled?: boolean) => Promise<Product[]>;
   loading: boolean;
   error: string | null;
 }
@@ -20,7 +21,7 @@ export function useServerSideProductSearch(): UseServerSideProductSearchReturn {
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const searchProducts = useCallback(async (userId: string, filters: ProductFilters, priceDefaults?: PriceRangeDefaults): Promise<Product[]> => {
+  const searchProducts = useCallback(async (userId: string, filters: ProductFilters, priceDefaults?: PriceRangeDefaults, inventoryEnabled = false): Promise<Product[]> => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -185,13 +186,35 @@ export function useServerSideProductSearch(): UseServerSideProductSearchReturn {
         console.log(`[Search] Após filtro de gênero: ${filteredProducts.length} (era ${before})`);
       }
 
-      // Apply size filter
+      // Apply size filter — stock-aware for products that track inventory,
+      // so a declared size with zero stock left doesn't still match.
       if (filters.sizes && filters.sizes !== 'todos') {
         const before = filteredProducts.length;
-        filteredProducts = filteredProducts.filter(product =>
-          product.sizes && Array.isArray(product.sizes) &&
-          product.sizes.some(size => size === filters.sizes)
-        );
+        const targetSize = filters.sizes;
+
+        const hasDeclaredSize = (product: (typeof filteredProducts)[number]) =>
+          !!product.sizes && Array.isArray(product.sizes) && product.sizes.some(size => size === targetSize);
+
+        const trackedIds = inventoryEnabled
+          ? filteredProducts.filter(p => p.track_inventory && hasDeclaredSize(p)).map(p => p.id)
+          : [];
+
+        const availableSizesByProduct = trackedIds.length > 0
+          ? await getAvailableSizesByProduct(trackedIds)
+          : new Map<string, Set<string>>();
+
+        filteredProducts = filteredProducts.filter(product => {
+          if (!hasDeclaredSize(product)) return false;
+          const variantSizes = availableSizesByProduct.get(product.id);
+          if (inventoryEnabled && product.track_inventory && variantSizes) {
+            // Product participates in the size grid — trust actual stock over the declared list.
+            return variantSizes.has(targetSize);
+          }
+          // No size-level stock data for this product (not tracked, or tracks
+          // via flat quantity only) — fall back to the declared sizes check.
+          return true;
+        });
+
         console.log(`[Search] Após filtro de tamanho: ${filteredProducts.length} (era ${before})`);
       }
 
