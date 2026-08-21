@@ -500,12 +500,12 @@ export default function CheckoutSettingsContent() {
                   <CurrencyInput
                     id="min-purchase-value"
                     value={settings.minimumPurchase?.value ?? 0}
-                    onValueChange={(vals) =>
+                    onChange={(value) =>
                       save({
                         ...settings,
                         minimumPurchase: {
                           ...(settings.minimumPurchase ?? { enabled: true, type: 'value' }),
-                          value: vals.floatValue ?? 0,
+                          value,
                         },
                       })
                     }
