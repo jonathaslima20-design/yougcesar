@@ -7,6 +7,18 @@ import './index.css';
 import { validateSession } from '@/lib/auth/simpleAuth';
 import { CustomDomainProvider } from '@/contexts/CustomDomainContext';
 
+// After a new deploy, a tab left open from before it can still try to lazy-load
+// a JS chunk whose hashed filename no longer exists in the current build. That
+// throws here as a plain error, not something worth showing the user — a single
+// reload fetches the current index.html and fixes it. Bounded to one silent
+// retry per tab (via sessionStorage) so a genuinely broken chunk still falls
+// through to the manual "Recarregar" button instead of reload-looping forever.
+const CHUNK_RELOAD_KEY = 'vt_chunk_reload_attempted';
+
+function isChunkLoadError(message: string): boolean {
+  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(message);
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; message: string }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -19,6 +31,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, info);
+
+    if (isChunkLoadError(error.message) && !sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+      window.location.reload();
+    }
   }
 
   render() {
