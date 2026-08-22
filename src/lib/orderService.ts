@@ -21,8 +21,9 @@ interface CreateOrderData {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
-  delivery_scope?: 'local' | 'national' | null;
+  delivery_scope?: 'local' | 'national' | 'pickup' | null;
   delivery_is_quote?: boolean;
+  pickup_instructions?: string | null;
   insurance_fee?: number;
   affiliate_id?: string | null;
   buyer_id?: string | null;
@@ -94,6 +95,7 @@ export async function createOrder(
     p_delivery_option: orderData.delivery_option || null,
     p_delivery_scope: orderData.delivery_scope || null,
     p_delivery_is_quote: orderData.delivery_is_quote || false,
+    p_pickup_instructions: orderData.pickup_instructions || null,
     p_insurance_fee: orderData.insurance_fee || 0,
     p_affiliate_id: orderData.affiliate_id || null,
     p_items: orderItems,
@@ -244,6 +246,28 @@ export async function updateOrderStatus(
 
   if (error) {
     console.error('Error updating order status:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Rastreio é preenchido manualmente pelo lojista — não há integração com
+// API de transportadora neste projeto (SuperFrete aqui é só cotação de
+// frete). Desacoplada da troca de status para o lojista poder preencher
+// depois de já ter marcado como enviado, ou corrigir um código digitado
+// errado.
+export async function updateOrderTracking(
+  orderId: string,
+  tracking: { carrier: string | null; tracking_code: string | null }
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('orders')
+    .update(tracking)
+    .eq('id', orderId);
+
+  if (error) {
+    console.error('Error updating order tracking:', error);
     return false;
   }
 

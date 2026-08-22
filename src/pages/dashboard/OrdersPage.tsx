@@ -72,7 +72,7 @@ export default function OrdersPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const showPaymentUI =
-    checkoutSettings.checkoutMode !== 'whatsapp' ||
+    !!checkoutSettings.onlinePaymentEnabled ||
     (stats?.ecommerceCount ?? 0) > 0 ||
     hadPaymentsEverActive;
 
@@ -141,6 +141,15 @@ export default function OrdersPage() {
       setSelectedOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
     }
     loadStats();
+  };
+
+  const handleTrackingUpdate = (orderId: string, tracking: { carrier: string | null; tracking_code: string | null }) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, ...tracking } : o))
+    );
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder((prev) => (prev ? { ...prev, ...tracking } : null));
+    }
   };
 
   return (
@@ -362,6 +371,7 @@ export default function OrdersPage() {
                             {order.delivery_is_quote && ' (A combinar)'}
                             {!order.delivery_is_quote && order.delivery_scope === 'local' && ' (Local)'}
                             {!order.delivery_is_quote && order.delivery_scope === 'national' && ' (Nacional)'}
+                            {!order.delivery_is_quote && order.delivery_scope === 'pickup' && ' (Retirada)'}
                           </Badge>
                         )}
                       </div>
@@ -417,6 +427,7 @@ export default function OrdersPage() {
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
         onStatusUpdate={handleStatusUpdate}
+        onTrackingUpdate={handleTrackingUpdate}
       />
     </div>
   );

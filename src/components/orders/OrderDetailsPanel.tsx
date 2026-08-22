@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Sheet,
   SheetContent,
@@ -14,7 +16,9 @@ import OrderStatusBadge from './OrderStatusBadge';
 import PaymentStatusBadge from './PaymentStatusBadge';
 import InventoryDeductionDialog from './InventoryDeductionDialog';
 import type { InventoryItemInfo } from './InventoryDeductionDialog';
-import { updateOrderStatus, fetchOrderInventoryInfo } from '@/lib/orderService';
+import { updateOrderStatus, updateOrderTracking, fetchOrderInventoryInfo } from '@/lib/orderService';
+import { OrderShippingAddress } from '@/components/buyer/OrderShippingAddress';
+import { OrderPickupInfo } from '@/components/buyer/OrderPickupInfo';
 import { deductStockForOrder, restoreStockForOrder } from '@/lib/stockUtils';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
 import { generateWhatsAppUrl } from '@/lib/utils';
@@ -40,6 +44,7 @@ interface OrderDetailsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusUpdate: (orderId: string, newStatus: OrderStatus) => void;
+  onTrackingUpdate?: (orderId: string, tracking: { carrier: string | null; tracking_code: string | null }) => void;
 }
 
 const STATUS_TRANSITIONS: Record<string, { label: string; next: OrderStatus }[]> = {
@@ -70,6 +75,7 @@ export default function OrderDetailsPanel({
   open,
   onOpenChange,
   onStatusUpdate,
+  onTrackingUpdate,
 }: OrderDetailsPanelProps) {
   const [updating, setUpdating] = useState(false);
   const { user } = useAuth();
@@ -82,11 +88,30 @@ export default function OrderDetailsPanel({
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<OrderPaymentRow[] | null>(null);
   const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
+  const [carrier, setCarrier] = useState('');
+  const [trackingCode, setTrackingCode] = useState('');
+  const [savingTracking, setSavingTracking] = useState(false);
 
   useEffect(() => {
     setPaymentHistoryOpen(false);
     setPaymentHistory(null);
+    setCarrier(order?.carrier || '');
+    setTrackingCode(order?.tracking_code || '');
   }, [order?.id]);
+
+  const handleSaveTracking = async () => {
+    if (!order) return;
+    setSavingTracking(true);
+    const tracking = { carrier: carrier.trim() || null, tracking_code: trackingCode.trim() || null };
+    const success = await updateOrderTracking(order.id, tracking);
+    if (success) {
+      toast.success('Rastreio salvo');
+      onTrackingUpdate?.(order.id, tracking);
+    } else {
+      toast.error('Erro ao salvar rastreio');
+    }
+    setSavingTracking(false);
+  };
 
   const togglePaymentHistory = async () => {
     if (!order) return;
@@ -271,7 +296,8 @@ export default function OrderDetailsPanel({
   ];
 
   const isEcommerce = order.order_type === 'ecommerce';
-  const hasShippingAddress = !!(order.shipping_street || order.shipping_city);
+  const isPickupOrder = order.delivery_scope === 'pickup';
+  const hasShippingAddress = !isPickupOrder && !!(order.shipping_street || order.shipping_city);
   const paymentNeedsAttention = isEcommerce && (order.payment_status === 'pending' || order.payment_status === 'rejected');
 
   return (
@@ -533,6 +559,21 @@ export default function OrderDetailsPanel({
               </div>
             </div>
 
+            {isPickupOrder && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    Retirada na loja
+                  </h4>
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <OrderPickupInfo order={order} store={{ city: user?.city, state: user?.state }} />
+                  </div>
+                </div>
+              </>
+            )}
+
             {hasShippingAddress && (
               <>
                 <Separator />
@@ -541,18 +582,44 @@ export default function OrderDetailsPanel({
                     <MapPin className="h-3.5 w-3.5" />
                     Endereço de entrega
                   </h4>
-                  <div className="bg-muted/30 rounded-lg p-4 text-sm space-y-0.5">
-                    <p>
-                      {order.shipping_street}
-                      {order.shipping_number ? `, ${order.shipping_number}` : ''}
-                      {order.shipping_complement ? ` - ${order.shipping_complement}` : ''}
-                    </p>
-                    <p>
-                      {order.shipping_neighborhood ? `${order.shipping_neighborhood}, ` : ''}
-                      {order.shipping_city} - {order.shipping_state}
-                    </p>
-                    {order.shipping_zip_code && <p>CEP {order.shipping_zip_code}</p>}
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <OrderShippingAddress address={order} />
                   </div>
+                </div>
+              </>
+            )}
+
+            {(order.status === 'shipped' || order.status === 'delivered') && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Truck className="h-3.5 w-3.5" />
+                    Rastreio
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="carrier" className="text-xs text-muted-foreground">Transportadora</Label>
+                      <Input
+                        id="carrier"
+                        placeholder="Ex: Correios"
+                        value={carrier}
+                        onChange={(e) => setCarrier(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="trackingCode" className="text-xs text-muted-foreground">Código de rastreio</Label>
+                      <Input
+                        id="trackingCode"
+                        placeholder="Ex: BR123456789BR"
+                        value={trackingCode}
+                        onChange={(e) => setTrackingCode(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleSaveTracking} disabled={savingTracking}>
+                    {savingTracking ? 'Salvando...' : 'Salvar rastreio'}
+                  </Button>
                 </div>
               </>
             )}
