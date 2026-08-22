@@ -7,6 +7,7 @@ import { AffiliateAuthProvider } from '@/contexts/AffiliateAuthContext';
 import { AffiliateNotificationProvider } from '@/contexts/AffiliateNotificationContext';
 import { BuyerNotificationProvider } from '@/contexts/BuyerNotificationContext';
 import { CartProvider } from '@/contexts/CartContext';
+import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import { SubscriptionModalProvider } from '@/contexts/SubscriptionModalContext';
 import { CorretorPageStateProvider } from '@/contexts/CorretorPageStateContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -31,6 +32,7 @@ import { captureAttributionParams } from '@/lib/attribution';
 import PublicLayout from '@/components/layouts/PublicLayout';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import BuyerAccountLayout from '@/components/layouts/BuyerAccountLayout';
 
 // Public Pages
 import LandingPage from '@/pages/LandingPage.tsx';
@@ -66,6 +68,8 @@ import BuyerAuthCallbackPage from '@/pages/buyer/BuyerAuthCallbackPage.tsx';
 import BuyerProfilePage from '@/pages/buyer/BuyerProfilePage.tsx';
 import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
 import BuyerOrderDetailPage from '@/pages/buyer/BuyerOrderDetailPage.tsx';
+import BuyerFavoritesPage from '@/pages/buyer/BuyerFavoritesPage.tsx';
+import BuyerCouponsPage from '@/pages/buyer/BuyerCouponsPage.tsx';
 import OrderPaymentPage from '@/pages/storefront/OrderPaymentPage.tsx';
 import CheckoutAddressPage from '@/pages/storefront/CheckoutAddressPage.tsx';
 
@@ -266,10 +270,14 @@ function AppContent() {
           <Route path="/conta/entrar" element={<BuyerLoginPage />} />
           <Route path="/conta/cadastro" element={<BuyerRegisterPage />} />
           <Route path="/conta/auth/callback" element={<BuyerAuthCallbackPage />} />
-          <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
-          <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
-          <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
-          <Route path="/conta/perfil" element={<BuyerProfilePage />} />
+          <Route element={<BuyerAccountLayout />}>
+            <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
+            <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
+            <Route path="/conta/favoritos" element={<BuyerFavoritesPage />} />
+            <Route path="/conta/cupons" element={<BuyerCouponsPage />} />
+            <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
+            <Route path="/conta/perfil" element={<BuyerProfilePage />} />
+          </Route>
 
           {/* Affiliate login (separate from merchant and buyer auth) */}
           <Route path="/afiliado/entrar" element={<AffiliateLoginPage />} />
@@ -404,13 +412,15 @@ export default function App() {
                     <SubscriptionModalProvider>
                       <PromotionalOffersProvider>
                         <CartProvider>
-                          <CorretorPageStateProvider>
-                            <AppContent />
-                            <OfferDisplayManager />
-                            <Toaster />
-                            <FloatingWhatsAppButton />
-                            <CookieConsentBanner />
-                          </CorretorPageStateProvider>
+                          <FavoritesProvider>
+                            <CorretorPageStateProvider>
+                              <AppContent />
+                              <OfferDisplayManager />
+                              <Toaster />
+                              <FloatingWhatsAppButton />
+                              <CookieConsentBanner />
+                            </CorretorPageStateProvider>
+                          </FavoritesProvider>
                         </CartProvider>
                       </PromotionalOffersProvider>
                     </SubscriptionModalProvider>
