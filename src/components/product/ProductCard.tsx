@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, MessageCircle } from 'lucide-react';
+import { ShoppingCart, MessageCircle, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrencyI18n, useTranslation, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
 import { useCart } from '@/contexts/CartContext';
+import { useFavorites } from '@/contexts/FavoritesContext';
 import { useCustomDomain } from '@/contexts/CustomDomainContext';
+import { cn } from '@/lib/utils';
 import ProductVariantModal from './ProductVariantModal';
 import type { Product } from '@/types';
 import { fetchProductPriceTiers, getMinimumPriceFromTiers, getFirstTierPrices } from '@/lib/tieredPricingUtils';
@@ -42,6 +44,7 @@ function ProductCardComponent({
 }: ProductCardProps) {
   const { t } = useTranslation(language);
   const { addToCart, isInCart, getItemQuantity } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const { isCustomDomain } = useCustomDomain();
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [variantStockData, setVariantStockData] = useState<Array<{ id: string; color: string | null; size: string | null; flavor: string | null; weight_variant_id: string | null; quantity: number; reserved_quantity: number; available: number }>>([]);
@@ -178,6 +181,12 @@ function ProductCardComponent({
     }
   };
 
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite(product);
+  };
+
   const handleProductClick = (e: React.MouseEvent) => {
     const currentScrollPosition = window.scrollY || document.documentElement.scrollTop;
     console.log('📌 ProductCard clicked - saving scroll position:', currentScrollPosition);
@@ -235,6 +244,21 @@ function ProductCardComponent({
               </div>
             </div>
             
+            {/* Favorite toggle - Top Left */}
+            <button
+              type="button"
+              onClick={handleToggleFavorite}
+              aria-label={isFavorite(product.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+              className="absolute top-3 left-3 md:top-5 md:left-5 z-10 h-7 w-7 md:h-8 md:w-8 rounded-full bg-white/90 dark:bg-black/60 backdrop-blur-sm shadow-sm flex items-center justify-center hover:scale-110 transition-transform"
+            >
+              <Heart
+                className={cn(
+                  'h-4 w-4 md:h-4.5 md:w-4.5 transition-colors',
+                  isFavorite(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-500'
+                )}
+              />
+            </button>
+
             {/* Badges - Top Right */}
             <div className="absolute top-3 right-3 md:top-5 md:right-5 flex flex-col gap-1.5">
               {(hasDiscount && discountPercentage || (isTieredPricing && firstTierPrices?.discountPercentage)) && (

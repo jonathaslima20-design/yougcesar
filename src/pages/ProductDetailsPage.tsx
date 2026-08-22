@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Share2, ArrowLeft, Loader, Package, ShoppingCart, MessageCircle, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { Share2, ArrowLeft, Loader, Package, ShoppingCart, MessageCircle, Heart, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, getColorValue, getWhatsAppContactUrl } from '@/lib/utils';
+import { formatCurrency, getColorValue, getWhatsAppContactUrl, cn } from '@/lib/utils';
+import { useFavorites } from '@/contexts/FavoritesContext';
 import { loadTrackingSettings, injectMetaPixel, injectGoogleAnalytics, trackView } from '@/lib/tracking';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
@@ -51,6 +52,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const [currency, setCurrency] = useState<SupportedCurrency>('BRL');
   const { t } = useTranslation(language);
   const { addToCart, getItemQuantity, cart } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [showCart, setShowCart] = useState(false);
 
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
@@ -436,13 +438,23 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                   <h1 className="text-2xl md:text-3xl font-bold">{product.title}</h1>
                 </div>
 
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={handleShareClick}
-                >
-                  <Share2 className="h-5 w-5" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toggleFavorite(product)}
+                    aria-label={isFavorite(product.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                  >
+                    <Heart className={cn('h-5 w-5', isFavorite(product.id) ? 'fill-red-500 text-red-500' : '')} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleShareClick}
+                  >
+                    <Share2 className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
               
               {/* Price information */}
