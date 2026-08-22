@@ -22,7 +22,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { formatCurrencyI18n } from '@/lib/i18n';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import {
@@ -33,19 +32,41 @@ import {
   type OrderPixPaymentResult,
   type OrderCardPaymentResult,
 } from '@/lib/merchantPayments';
+import { OrderStatusTimeline } from '@/components/buyer/OrderStatusTimeline';
+import { OrderItemsSummary, type OrderItemRow } from '@/components/buyer/OrderItemsSummary';
+import { OrderShippingAddress, hasShippingAddress } from '@/components/buyer/OrderShippingAddress';
+import { OrderPickupInfo } from '@/components/buyer/OrderPickupInfo';
+import type { OrderStatus } from '@/types';
 
 type PaymentTab = 'pix' | 'card';
 
 interface OrderInfo {
   id: string;
   store_owner_id: string;
+  status: OrderStatus;
   total: number;
   payment_status: string;
+  subtotal: number;
+  delivery_fee: number | null;
+  delivery_option: string | null;
+  delivery_scope: string | null;
+  pickup_instructions: string | null;
+  insurance_fee: number | null;
+  discount_amount: number | null;
+  shipping_street: string | null;
+  shipping_number: string | null;
+  shipping_complement: string | null;
+  shipping_neighborhood: string | null;
+  shipping_city: string | null;
+  shipping_state: string | null;
+  shipping_zip_code: string | null;
 }
 
 interface StoreInfo {
   name: string;
   slug: string;
+  city?: string | null;
+  state?: string | null;
 }
 
 function formatCpf(value: string): string {
@@ -63,24 +84,59 @@ function formatCpf(value: string): string {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }
 
-function PaymentSuccess({ storeSlug }: { storeSlug: string }) {
+// Não repete a lista de itens aqui: a coluna de resumo (à esquerda no
+// desktop) já mostra isso o tempo todo, antes e depois do pagamento.
+function PaymentSuccess({ storeSlug, order, store }: { storeSlug: string; order: OrderInfo; store: StoreInfo | null }) {
+  const isPickup = order.delivery_scope === 'pickup';
+  const hasAddress = !isPickup && hasShippingAddress(order);
+
   return (
-    <div className="text-center space-y-4 py-8">
-      <div className="flex justify-center">
-        <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center animate-in zoom-in duration-300">
-          <CheckCircle2 className="h-8 w-8 text-green-600" />
+    <div className="space-y-6">
+      <div className="text-center space-y-4 py-4">
+        <div className="flex justify-center">
+          <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center animate-in zoom-in duration-300">
+            <CheckCircle2 className="h-8 w-8 text-green-600" />
+          </div>
         </div>
+        <h3 className="text-xl font-semibold">Pagamento aprovado!</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+          Seu pedido foi confirmado. O vendedor já foi notificado.
+        </p>
       </div>
-      <h3 className="text-xl font-semibold">Pagamento aprovado!</h3>
-      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-        Seu pedido foi confirmado. O vendedor já foi notificado.
-      </p>
-      <div className="flex gap-2 justify-center">
+
+      <Separator />
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Status do pedido</p>
+        <OrderStatusTimeline status={order.status} />
+      </div>
+
+      {isPickup && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Retirada na loja</p>
+            <OrderPickupInfo order={order} store={store || undefined} />
+          </div>
+        </>
+      )}
+
+      {hasAddress && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Endereço de entrega</p>
+            <OrderShippingAddress address={order} />
+          </div>
+        </>
+      )}
+
+      <div className="flex gap-2 justify-center pt-2">
         <Button asChild variant="outline">
           <Link to={`/${storeSlug}`}>Voltar à loja</Link>
         </Button>
         <Button asChild>
-          <Link to="/conta/pedidos">Meus pedidos</Link>
+          <Link to={`/conta/pedidos/${order.id}`}>Ver pedido</Link>
         </Button>
       </div>
     </div>
@@ -356,6 +412,7 @@ export default function OrderPaymentPage() {
   const navigate = useNavigate();
   const { customer, loading: authLoading } = useBuyerAuth();
   const [order, setOrder] = useState<OrderInfo | null>(null);
+  const [items, setItems] = useState<OrderItemRow[]>([]);
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [orderLoading, setOrderLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PaymentTab>('pix');
@@ -374,7 +431,9 @@ export default function OrderPaymentPage() {
     (async () => {
       const { data } = await supabaseBuyer
         .from('orders')
-        .select('id, store_owner_id, total, payment_status')
+        .select(
+          'id, store_owner_id, status, total, payment_status, subtotal, delivery_fee, delivery_option, delivery_scope, pickup_instructions, insurance_fee, discount_amount, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code'
+        )
         .eq('id', orderId)
         .maybeSingle();
 
@@ -385,11 +444,19 @@ export default function OrderPaymentPage() {
       }
 
       setOrder(data);
+
+      const { data: itemRows } = await supabaseBuyer
+        .from('order_items')
+        .select(
+          'id, product_id, product_title, product_image_url, quantity, unit_price, selected_color, selected_size, selected_flavor, selected_variant_label, subtotal'
+        )
+        .eq('order_id', orderId);
+      setItems(itemRows || []);
       if (data.payment_status === 'approved') setPaymentComplete(true);
 
       const { data: storeData } = await supabaseBuyer
         .from('users')
-        .select('name, slug')
+        .select('name, slug, city, state')
         .eq('id', data.store_owner_id)
         .maybeSingle();
       if (storeData) setStore(storeData);
@@ -440,94 +507,102 @@ export default function OrderPaymentPage() {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
-      <div className="max-w-lg mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(`/${slug}`)} className="text-muted-foreground">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Voltar à loja
         </Button>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{store?.name || 'Pedido'}</p>
-                <p className="text-sm text-muted-foreground">Pedido #{order.id.slice(0, 8)}</p>
-              </div>
-              <p className="text-2xl font-bold text-primary">{formatCurrencyI18n(order.total)}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
+        {/* Coluna de pagamento: no mobile fica em cima (ordem 1); no desktop
+            passa para a direita, com o resumo assumindo a esquerda. */}
+        <div className="order-1 lg:order-2 space-y-6">
+          {paymentComplete ? (
+            <Card>
+              <CardContent className="p-6">
+                <PaymentSuccess storeSlug={slug || ''} order={order} store={store} />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Forma de pagamento</CardTitle>
+                <CardDescription>Escolha como deseja pagar</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setActiveTab('pix')}
+                    className={cn(
+                      'flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
+                      activeTab === 'pix'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-muted hover:border-muted-foreground/30 text-muted-foreground'
+                    )}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    <span className="text-sm font-medium">Pix</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('card')}
+                    className={cn(
+                      'flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
+                      activeTab === 'card'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-muted hover:border-muted-foreground/30 text-muted-foreground'
+                    )}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    <span className="text-sm font-medium">Cartão</span>
+                  </button>
+                </div>
 
-        {paymentComplete ? (
-          <Card>
-            <CardContent className="p-6">
-              <PaymentSuccess storeSlug={slug || ''} />
-            </CardContent>
-          </Card>
-        ) : (
+                <Separator />
+
+                {sdkError ? (
+                  <div className="text-center space-y-4 py-8">
+                    <div className="flex justify-center">
+                      <div className="h-14 w-14 rounded-full bg-red-500/10 flex items-center justify-center">
+                        <AlertCircle className="h-7 w-7 text-red-500" />
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-semibold">Pagamento online indisponível</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                      Não foi possível carregar o sistema de pagamento desta loja no momento.
+                    </p>
+                  </div>
+                ) : activeTab === 'pix' ? (
+                  <PixSection order={order} onSuccess={handleSuccess} />
+                ) : !sdkReady ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <CardSection order={order} onSuccess={handleSuccess} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4" />
+            <span>Pagamento seguro processado por Mercado Pago</span>
+          </div>
+        </div>
+
+        {/* Coluna de resumo: no mobile fica embaixo (ordem 2); no desktop
+            vira a esquerda e acompanha a rolagem (sticky). */}
+        <div className="order-2 lg:order-1 lg:sticky lg:top-6">
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Forma de pagamento</CardTitle>
-              <CardDescription>Escolha como deseja pagar</CardDescription>
+              <CardTitle className="text-lg">Resumo do pedido</CardTitle>
+              <CardDescription>{store?.name || 'Pedido'} · #{order.id.slice(0, 8)}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setActiveTab('pix')}
-                  className={cn(
-                    'flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
-                    activeTab === 'pix'
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-muted hover:border-muted-foreground/30 text-muted-foreground'
-                  )}
-                >
-                  <QrCode className="h-4 w-4" />
-                  <span className="text-sm font-medium">Pix</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('card')}
-                  className={cn(
-                    'flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
-                    activeTab === 'card'
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-muted hover:border-muted-foreground/30 text-muted-foreground'
-                  )}
-                >
-                  <CreditCard className="h-4 w-4" />
-                  <span className="text-sm font-medium">Cartão</span>
-                </button>
-              </div>
-
-              <Separator />
-
-              {sdkError ? (
-                <div className="text-center space-y-4 py-8">
-                  <div className="flex justify-center">
-                    <div className="h-14 w-14 rounded-full bg-red-500/10 flex items-center justify-center">
-                      <AlertCircle className="h-7 w-7 text-red-500" />
-                    </div>
-                  </div>
-                  <h3 className="text-lg font-semibold">Pagamento online indisponível</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    Não foi possível carregar o sistema de pagamento desta loja no momento.
-                  </p>
-                </div>
-              ) : activeTab === 'pix' ? (
-                <PixSection order={order} onSuccess={handleSuccess} />
-              ) : !sdkReady ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <CardSection order={order} onSuccess={handleSuccess} />
-              )}
+            <CardContent>
+              <OrderItemsSummary items={items} totals={order} />
             </CardContent>
           </Card>
-        )}
-
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <ShieldCheck className="h-4 w-4" />
-          <span>Pagamento seguro processado por Mercado Pago</span>
+        </div>
         </div>
       </div>
     </div>

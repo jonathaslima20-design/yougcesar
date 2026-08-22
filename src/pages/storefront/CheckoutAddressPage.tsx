@@ -32,6 +32,7 @@ import { getShippingQuote } from '@/lib/merchantShipping';
 import { fetchProductShippingDims, fetchVariantShippingWeights, buildSuperFreteProducts } from '@/lib/shippingUtils';
 import type { ShippingQuote } from '@/types';
 import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption } from '@/lib/localDelivery';
+import { OrderItemsSummary } from '@/components/buyer/OrderItemsSummary';
 
 interface ManualAddress {
   street: string;
@@ -112,12 +113,21 @@ export default function CheckoutAddressPage() {
       .finally(() => setAddressesLoading(false));
   }, [buyerAccount]);
 
-  const handleCepBlur = async () => {
-    if (manualAddress.zipCode.replace(/\D/g, '').length !== 8) return;
+  // Looks up the address automatically as soon as the CEP reaches 8 digits,
+  // instead of waiting for the field to lose focus — matches how
+  // professional checkouts behave and doesn't require an extra tap on
+  // mobile. Re-fetching a value the buyer already edited manually is a
+  // non-issue: this only fires when the digit count changes, and the
+  // lookup result only fills fields, never overwrites zipCode itself.
+  useEffect(() => {
+    const digits = manualAddress.zipCode.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+
+    let cancelled = false;
     setCepLoading(true);
-    try {
-      const result = await fetchAddressByCep(manualAddress.zipCode);
-      if (result) {
+    fetchAddressByCep(digits)
+      .then((result) => {
+        if (cancelled || !result) return;
         setManualAddress((prev) => ({
           ...prev,
           street: result.street || prev.street,
@@ -125,11 +135,15 @@ export default function CheckoutAddressPage() {
           city: result.city || prev.city,
           state: result.state || prev.state,
         }));
-      }
-    } finally {
-      setCepLoading(false);
-    }
-  };
+      })
+      .finally(() => {
+        if (!cancelled) setCepLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [manualAddress.zipCode]);
 
   const selectedSavedAddress = savedAddresses.find((a) => a.id === selectedAddressId) || null;
 
@@ -146,12 +160,13 @@ export default function CheckoutAddressPage() {
     () =>
       filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
         merchantCity: corretor?.city,
+        merchantState: corretor?.state,
         buyerCity: currentCity,
         buyerState: currentState,
         skipLocationMatch,
         excludeQuoteOnRequest: true,
       }),
-    [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city, skipLocationMatch]
+    [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city, corretor?.state, skipLocationMatch]
   );
 
   const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
@@ -219,15 +234,20 @@ export default function CheckoutAddressPage() {
   // manual national option(s) entirely — showing a flat manual rate next to
   // real per-carrier quotes for the same destination is confusing (the buyer
   // can't tell which "R$" is actually calculated for their address). Local
-  // options are unaffected: they're a separate scope decided by city match,
-  // not by carrier availability.
+  // and pickup options are unaffected: they're independent buckets decided
+  // by city match / always-on, not by carrier availability. Pickup must stay
+  // in its own bucket rather than falling into "everything that isn't local"
+  // — otherwise it would silently disappear whenever a live SuperFrete quote
+  // replaces the national bucket.
   const nationalDeliveryOptions = superFreteOptions.length > 0
     ? superFreteOptions
-    : enabledDeliveryOptions.filter((d) => d.scope !== 'local');
+    : enabledDeliveryOptions.filter((d) => d.scope !== 'local' && d.scope !== 'pickup');
   const localDeliveryOptions = enabledDeliveryOptions.filter((d) => d.scope === 'local');
-  const allDeliveryOptions = [...localDeliveryOptions, ...nationalDeliveryOptions];
+  const pickupDeliveryOptions = enabledDeliveryOptions.filter((d) => d.scope === 'pickup');
+  const allDeliveryOptions = [...localDeliveryOptions, ...pickupDeliveryOptions, ...nationalDeliveryOptions];
 
   const selectedDeliveryConfig = allDeliveryOptions.find((d) => d.id === selectedDeliveryOption);
+  const isPickupSelected = selectedDeliveryConfig?.scope === 'pickup';
 
   const discountAmount = appliedCoupon?.calculatedDiscount || 0;
   const subtotalAfterDiscount = Math.max(0, cart.total - discountAmount);
@@ -270,9 +290,15 @@ export default function CheckoutAddressPage() {
     setCouponCode('');
   };
 
+  // Doubles as both the order-creation payload (orderService.createOrder
+  // whitelist-maps only the fields it knows, so the extra `id` here is
+  // harmlessly dropped there) and the on-screen OrderItemRow[] for
+  // OrderItemsSummary in the order-summary column — one mapping, no
+  // parallel display-only copy to keep in sync.
   const buildOrderItems = () => [
     ...cart.distributions.flatMap((dist) =>
       dist.items.map((distItem) => ({
+        id: `dist:${dist.distribution.id}:${distItem.id}`,
         product_id: dist.product.id,
         product_title: dist.product.title,
         product_image_url: dist.product.featured_image_url || '',
@@ -280,10 +306,13 @@ export default function CheckoutAddressPage() {
         unit_price: dist.distribution.applied_tier_price,
         selected_color: distItem.color || null,
         selected_size: distItem.size || null,
+        selected_flavor: null,
+        selected_variant_label: null,
         subtotal: dist.distribution.applied_tier_price * distItem.quantity,
       }))
     ),
     ...cart.items.map((item) => ({
+      id: item.variantId || item.id,
       product_id: item.id,
       product_title: item.title,
       product_image_url: item.featured_image_url || '',
@@ -299,20 +328,23 @@ export default function CheckoutAddressPage() {
   ];
 
   const validateAddress = (): boolean => {
-    if (showManualForm) {
-      if (
-        !manualAddress.street.trim() ||
-        !manualAddress.number.trim() ||
-        !manualAddress.city.trim() ||
-        !manualAddress.state.trim() ||
-        !manualAddress.zipCode.trim()
-      ) {
-        toast.error('Preencha o endereço de entrega completo');
+    // Pickup has no shipping destination — nothing to validate here.
+    if (!isPickupSelected) {
+      if (showManualForm) {
+        if (
+          !manualAddress.street.trim() ||
+          !manualAddress.number.trim() ||
+          !manualAddress.city.trim() ||
+          !manualAddress.state.trim() ||
+          !manualAddress.zipCode.trim()
+        ) {
+          toast.error('Preencha o endereço de entrega completo');
+          return false;
+        }
+      } else if (!selectedSavedAddress) {
+        toast.error('Selecione um endereço de entrega');
         return false;
       }
-    } else if (!selectedSavedAddress) {
-      toast.error('Selecione um endereço de entrega');
-      return false;
     }
 
     if (checkoutSettings.requireDeliveryOption && allDeliveryOptions.length > 0 && !selectedDeliveryOption) {
@@ -334,35 +366,37 @@ export default function CheckoutAddressPage() {
 
     setSubmitting(true);
     try {
-      let finalAddress: ManualAddress;
+      let finalAddress: ManualAddress = EMPTY_ADDRESS;
 
-      if (showManualForm) {
-        finalAddress = manualAddress;
-        try {
-          await createCustomerAddress(buyerAccount.id, {
-            label: 'Endereço',
-            street: manualAddress.street.trim(),
-            number: manualAddress.number.trim(),
-            complement: manualAddress.complement.trim() || null,
-            neighborhood: manualAddress.neighborhood.trim(),
-            city: manualAddress.city.trim(),
-            state: manualAddress.state.trim(),
-            zip_code: manualAddress.zipCode.trim(),
-            is_default: savedAddresses.length === 0,
-          });
-        } catch (err) {
-          console.error('Error saving address:', err);
+      if (!isPickupSelected) {
+        if (showManualForm) {
+          finalAddress = manualAddress;
+          try {
+            await createCustomerAddress(buyerAccount.id, {
+              label: 'Endereço',
+              street: manualAddress.street.trim(),
+              number: manualAddress.number.trim(),
+              complement: manualAddress.complement.trim() || null,
+              neighborhood: manualAddress.neighborhood.trim(),
+              city: manualAddress.city.trim(),
+              state: manualAddress.state.trim(),
+              zip_code: manualAddress.zipCode.trim(),
+              is_default: savedAddresses.length === 0,
+            });
+          } catch (err) {
+            console.error('Error saving address:', err);
+          }
+        } else {
+          finalAddress = {
+            street: selectedSavedAddress!.street,
+            number: selectedSavedAddress!.number,
+            complement: selectedSavedAddress!.complement || '',
+            neighborhood: selectedSavedAddress!.neighborhood,
+            city: selectedSavedAddress!.city,
+            state: selectedSavedAddress!.state,
+            zipCode: selectedSavedAddress!.zip_code,
+          };
         }
-      } else {
-        finalAddress = {
-          street: selectedSavedAddress!.street,
-          number: selectedSavedAddress!.number,
-          complement: selectedSavedAddress!.complement || '',
-          neighborhood: selectedSavedAddress!.neighborhood,
-          city: selectedSavedAddress!.city,
-          state: selectedSavedAddress!.state,
-          zipCode: selectedSavedAddress!.zip_code,
-        };
       }
 
       const orderItems = buildOrderItems();
@@ -434,18 +468,19 @@ export default function CheckoutAddressPage() {
           discount_amount: discountAmount,
           delivery_fee: deliveryFee,
           delivery_option: selectedDeliveryConfig?.name || null,
-          delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope === 'local' ? 'local' : 'national') : null,
+          delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
+          pickup_instructions: isPickupSelected ? selectedDeliveryConfig?.pickupInstructions || null : null,
           insurance_fee: insuranceFee,
           affiliate_id: affiliateId,
           buyer_id: buyerAccount.id,
           payment_status: 'pending',
-          shipping_street: finalAddress.street.trim(),
-          shipping_number: finalAddress.number.trim(),
-          shipping_complement: finalAddress.complement.trim() || null,
-          shipping_neighborhood: finalAddress.neighborhood.trim() || null,
-          shipping_city: finalAddress.city.trim(),
-          shipping_state: finalAddress.state.trim(),
-          shipping_zip_code: finalAddress.zipCode.trim(),
+          shipping_street: isPickupSelected ? null : finalAddress.street.trim(),
+          shipping_number: isPickupSelected ? null : finalAddress.number.trim(),
+          shipping_complement: isPickupSelected ? null : finalAddress.complement.trim() || null,
+          shipping_neighborhood: isPickupSelected ? null : finalAddress.neighborhood.trim() || null,
+          shipping_city: isPickupSelected ? null : finalAddress.city.trim(),
+          shipping_state: isPickupSelected ? null : finalAddress.state.trim(),
+          shipping_zip_code: isPickupSelected ? null : finalAddress.zipCode.trim(),
         },
         orderItems,
         // Sem baixa de estoque aqui: este pedido nasce com payment_status
@@ -482,24 +517,44 @@ export default function CheckoutAddressPage() {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
-      <div className="max-w-lg mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(`/${slug}`)} className="text-muted-foreground">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Voltar à loja
         </Button>
 
+        <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
+        {/* Coluna do formulário: no mobile fica em cima (ordem 1); no desktop
+            passa para a direita, com o resumo assumindo a esquerda. */}
+        <div className="order-1 lg:order-2 space-y-6">
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Endereço de entrega
+              {isPickupSelected ? 'Retirada' : 'Endereço de entrega'}
             </CardTitle>
-            <CardDescription>Para onde devemos enviar seu pedido?</CardDescription>
+            <CardDescription>
+              {isPickupSelected ? 'Você vai retirar seu pedido pessoalmente' : 'Para onde devemos enviar seu pedido?'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {addressesLoading ? (
               <div className="flex justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : isPickupSelected ? (
+              <div className="rounded-lg border p-3 text-sm space-y-1">
+                <p className="font-medium">{selectedDeliveryConfig?.name}</p>
+                {(corretor?.city || corretor?.state) && (
+                  <p className="text-muted-foreground">
+                    {[corretor?.city, corretor?.state].filter(Boolean).join(' - ')}
+                  </p>
+                )}
+                {selectedDeliveryConfig?.pickupInstructions && (
+                  <p className="text-muted-foreground whitespace-pre-line">
+                    {selectedDeliveryConfig.pickupInstructions}
+                  </p>
+                )}
               </div>
             ) : (
               <>
@@ -568,7 +623,6 @@ export default function CheckoutAddressPage() {
                           placeholder="00000-000"
                           value={manualAddress.zipCode}
                           onChange={(e) => setManualAddress((p) => ({ ...p, zipCode: e.target.value }))}
-                          onBlur={handleCepBlur}
                         />
                         {cepLoading && (
                           <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -614,18 +668,17 @@ export default function CheckoutAddressPage() {
                     </div>
                   </div>
                 )}
-
-                {!buyerAccount.whatsapp && (
-                  <div className="space-y-1.5 pt-2">
-                    <Label className="text-xs text-muted-foreground">WhatsApp para contato</Label>
-                    <Input
-                      placeholder="(00) 00000-0000"
-                      value={whatsappFallback}
-                      onChange={(e) => setWhatsappFallback(e.target.value)}
-                    />
-                  </div>
-                )}
               </>
+            )}
+            {!addressesLoading && !buyerAccount.whatsapp && (
+              <div className="space-y-1.5 pt-2">
+                <Label className="text-xs text-muted-foreground">WhatsApp para contato</Label>
+                <Input
+                  placeholder="(00) 00000-0000"
+                  value={whatsappFallback}
+                  onChange={(e) => setWhatsappFallback(e.target.value)}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
@@ -685,7 +738,11 @@ export default function CheckoutAddressPage() {
             </CardContent>
           </Card>
         )}
+        </div>
 
+        {/* Coluna de resumo: no mobile fica embaixo do formulário (ordem 2);
+            no desktop vira a esquerda e acompanha a rolagem (sticky). */}
+        <div className="order-2 lg:order-1 lg:sticky lg:top-6">
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Resumo do pedido</CardTitle>
@@ -749,42 +806,16 @@ export default function CheckoutAddressPage() {
               </>
             )}
 
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal ({cart.itemCount} {cart.itemCount === 1 ? 'item' : 'itens'})</span>
-                <span>{formatCurrencyI18n(cart.total)}</span>
-              </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-green-600 dark:text-green-400">
-                  <span>Cupom</span>
-                  <span>-{formatCurrencyI18n(discountAmount)}</span>
-                </div>
-              )}
-              {selectedDeliveryConfig && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{selectedDeliveryConfig.name}</span>
-                  <span className={deliveryFee === 0 ? 'text-green-600 dark:text-green-400' : ''}>
-                    {deliveryFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(deliveryFee)}`}
-                  </span>
-                </div>
-              )}
-              {insuranceFee > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    Seguro de frete
-                  </span>
-                  <span>+{formatCurrencyI18n(insuranceFee)}</span>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            <div className="flex justify-between items-center">
-              <span className="font-semibold">Total</span>
-              <span className="text-lg font-bold text-primary">{formatCurrencyI18n(finalTotal)}</span>
-            </div>
+            <OrderItemsSummary
+              items={buildOrderItems()}
+              totals={{
+                subtotal: cart.total,
+                delivery_fee: deliveryFee,
+                insurance_fee: insuranceFee,
+                discount_amount: discountAmount,
+                total: finalTotal,
+              }}
+            />
 
             <Button onClick={handleContinue} disabled={submitting} className="w-full" size="lg">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -792,6 +823,8 @@ export default function CheckoutAddressPage() {
             </Button>
           </CardContent>
         </Card>
+        </div>
+        </div>
       </div>
     </div>
   );

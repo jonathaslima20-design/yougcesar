@@ -107,15 +107,7 @@ export default function CartModal({
 
   const navigate = useNavigate();
   const { customer: buyerAccount } = useBuyerAuth();
-  const checkoutMode = checkoutSettings.checkoutMode || 'whatsapp';
-  const [orderMode, setOrderMode] = useState<'whatsapp' | 'ecommerce'>(
-    checkoutMode === 'ecommerce_only' ? 'ecommerce' : 'whatsapp'
-  );
-
-  useEffect(() => {
-    if (checkoutMode === 'ecommerce_only') setOrderMode('ecommerce');
-    else if (checkoutMode === 'whatsapp') setOrderMode('whatsapp');
-  }, [checkoutMode]);
+  const orderMode: 'whatsapp' | 'ecommerce' = checkoutSettings.onlinePaymentEnabled ? 'ecommerce' : 'whatsapp';
 
   const enabledPaymentMethods = checkoutSettings.paymentMethods.filter(m => m.enabled);
   // A lightweight CEP field (see below) resolves buyer city/state so local-scope
@@ -129,6 +121,7 @@ export default function CartModal({
   // tab does. This is what keeps flow 3 (WhatsApp) local-only.
   const enabledDeliveryOptions = filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
     merchantCity: corretor.city,
+    merchantState: corretor.state,
     buyerCity: customerCity,
     buyerState: customerState,
     restrictToLocal: orderMode === 'whatsapp',
@@ -144,12 +137,6 @@ export default function CartModal({
     checkoutSettings.deliveryOptions,
     skipLocationMatch
   );
-
-  const requiresCityForDelivery =
-    !skipLocationMatch &&
-    checkoutSettings.requireDeliveryOption &&
-    checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local') &&
-    !buyerCity;
 
   // Live SuperFrete quotes are merged alongside the manual delivery-option
   // list into one combined selectable set — the buyer doesn't need to know
@@ -260,53 +247,67 @@ export default function CartModal({
     );
   };
 
-  const handleCepBlur = async () => {
+  // Resolves city/state (and, on the e-commerce tab, shipping quotes)
+  // automatically as soon as the CEP reaches 8 digits, instead of waiting
+  // for the field to lose focus — matches how professional checkouts
+  // behave and doesn't require an extra tap on mobile. handleSendOrder
+  // below still has its own synchronous fallback for a buyer who taps
+  // Confirm before this effect's fetch resolves.
+  useEffect(() => {
     const zipDigits = customerCep.replace(/\D/g, '');
     if (zipDigits.length !== 8) return;
+
+    let cancelled = false;
     setCepLoading(true);
-    let resolvedCity = '';
-    let resolvedState = '';
-    try {
-      const result = await fetchAddressByCep(customerCep);
-      if (result) {
-        resolvedCity = result.city || '';
-        resolvedState = result.state || '';
-        setCustomerCity(resolvedCity);
-        setCustomerState(resolvedState);
+
+    (async () => {
+      try {
+        const result = await fetchAddressByCep(customerCep);
+        if (cancelled) return;
+        if (result) {
+          setCustomerCity(result.city || '');
+          setCustomerState(result.state || '');
+        }
+      } finally {
+        if (!cancelled) setCepLoading(false);
       }
-    } finally {
-      setCepLoading(false);
-    }
 
-    // National shipping quotes are irrelevant on the WhatsApp tab (flow 3 is
-    // local-only) — skip the edge-function call entirely rather than fetch
-    // and discard.
-    if (orderMode === 'whatsapp') return;
+      // National shipping quotes are irrelevant on the WhatsApp tab (flow 3
+      // is local-only) — skip the edge-function call entirely rather than
+      // fetch and discard.
+      if (cancelled || orderMode === 'whatsapp') return;
 
-    const superFreteEnabled = checkoutSettings.superFrete?.enabled;
-    const serviceIds = checkoutSettings.superFrete?.serviceIds || [];
-    if (!superFreteEnabled || serviceIds.length === 0) return;
+      const superFreteEnabled = checkoutSettings.superFrete?.enabled;
+      const serviceIds = checkoutSettings.superFrete?.serviceIds || [];
+      if (!superFreteEnabled || serviceIds.length === 0) return;
 
-    setShippingQuotes([]);
-    setShippingQuotesError(false);
-    setShippingQuotesLoading(true);
-    try {
-      const productIds = cart.items.map((item) => item.id);
-      const variantIds = cart.items.map((item) => item.selectedVariantId).filter((id): id is string => !!id);
-      const [dims, variantWeights] = await Promise.all([
-        fetchProductShippingDims(productIds),
-        fetchVariantShippingWeights(variantIds),
-      ]);
-      const products = buildSuperFreteProducts(cart.items, cart.distributions, dims, variantWeights);
-      const { quotes } = await getShippingQuote(corretor.id, zipDigits, products, serviceIds);
-      setShippingQuotes(quotes);
-      setShippingQuotesError(quotes.length === 0);
-    } catch {
-      setShippingQuotesError(true);
-    } finally {
-      setShippingQuotesLoading(false);
-    }
-  };
+      setShippingQuotes([]);
+      setShippingQuotesError(false);
+      setShippingQuotesLoading(true);
+      try {
+        const productIds = cart.items.map((item) => item.id);
+        const variantIds = cart.items.map((item) => item.selectedVariantId).filter((id): id is string => !!id);
+        const [dims, variantWeights] = await Promise.all([
+          fetchProductShippingDims(productIds),
+          fetchVariantShippingWeights(variantIds),
+        ]);
+        const products = buildSuperFreteProducts(cart.items, cart.distributions, dims, variantWeights);
+        const { quotes } = await getShippingQuote(corretor.id, zipDigits, products, serviceIds);
+        if (cancelled) return;
+        setShippingQuotes(quotes);
+        setShippingQuotesError(quotes.length === 0);
+      } catch {
+        if (!cancelled) setShippingQuotesError(true);
+      } finally {
+        if (!cancelled) setShippingQuotesLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerCep]);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -356,7 +357,7 @@ export default function CartModal({
       }
       return;
     }
-    if (checkoutMode === 'ecommerce_only') {
+    if (orderMode === 'ecommerce') {
       goToOnlineCheckout();
       return;
     }
@@ -384,29 +385,39 @@ export default function CartModal({
     }
     const hasAnyDeliverySource = checkoutSettings.deliveryOptions.some((d) => d.enabled) || !!checkoutSettings.superFrete?.enabled;
     if (checkoutSettings.requireDeliveryOption && hasAnyDeliverySource) {
-      const resolvedCity = cityOverride ?? customerCity;
-      const resolvedState = stateOverride ?? customerState;
-      const freshEnabledOptions = filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
-        merchantCity: corretor.city,
-        buyerCity: resolvedCity,
-        buyerState: resolvedState,
-        restrictToLocal: orderMode === 'whatsapp',
-        skipLocationMatch,
-      });
-      const freshAllOptions = orderMode === 'whatsapp'
-        ? freshEnabledOptions
-        : [...freshEnabledOptions, ...superFreteOptions];
-      const freshRequiresCity =
-        !skipLocationMatch &&
-        checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local') &&
-        !(resolvedCity ? normalizeCityName(resolvedCity) : null);
+      // Pickup is already a complete, valid choice with no shipping
+      // destination — it needs neither CEP nor a city match, unlike every
+      // other check below. A merchant with both local and pickup options
+      // enabled must not have a buyer who already picked pickup blocked by
+      // "informe seu CEP" just because a *different*, unselected option
+      // happens to be local-scoped.
+      const selectedScope = checkoutSettings.deliveryOptions.find((d) => d.id === selectedDeliveryOption)?.scope;
+      if (selectedScope !== 'pickup') {
+        const resolvedCity = cityOverride ?? customerCity;
+        const resolvedState = stateOverride ?? customerState;
+        const freshEnabledOptions = filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
+          merchantCity: corretor.city,
+          merchantState: corretor.state,
+          buyerCity: resolvedCity,
+          buyerState: resolvedState,
+          restrictToLocal: orderMode === 'whatsapp',
+          skipLocationMatch,
+        });
+        const freshAllOptions = orderMode === 'whatsapp'
+          ? freshEnabledOptions
+          : [...freshEnabledOptions, ...superFreteOptions];
+        const freshRequiresCity =
+          !skipLocationMatch &&
+          checkoutSettings.deliveryOptions.some((d) => d.enabled && d.scope === 'local') &&
+          !(resolvedCity ? normalizeCityName(resolvedCity) : null);
 
-      if (freshRequiresCity) {
-        newErrors.delivery = 'Informe seu CEP para ver as opcoes de entrega';
-      } else if (freshAllOptions.length === 0) {
-        newErrors.delivery = 'Nao ha opcoes de entrega disponiveis para sua cidade';
-      } else if (!selectedDeliveryOption) {
-        newErrors.delivery = 'Selecione uma opcao de entrega';
+        if (freshRequiresCity) {
+          newErrors.delivery = 'Informe seu CEP para ver as opcoes de entrega';
+        } else if (freshAllOptions.length === 0) {
+          newErrors.delivery = 'Nao ha opcoes de entrega disponiveis para sua cidade';
+        } else if (!selectedDeliveryOption) {
+          newErrors.delivery = 'Selecione uma opcao de entrega';
+        }
       }
     }
     setFormErrors(newErrors);
@@ -464,7 +475,7 @@ export default function CartModal({
 
   const handleSendOrder = async () => {
     // A buyer who finishes typing the CEP and immediately taps Confirm can
-    // beat handleCepBlur's async lookup to the punch, since React hasn't
+    // beat the auto-lookup effect's fetch to the punch, since React hasn't
     // re-rendered with the resolved city yet. Resolve it here first so
     // validateCustomerInfo always sees an up-to-date city for this click.
     let resolvedCity = customerCity;
@@ -595,12 +606,13 @@ export default function CartModal({
             payment_method_discount: paymentMethodDiscount,
             delivery_fee: deliveryFee,
             delivery_option: selectedDeliveryConfig?.name || null,
-            delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope === 'local' ? 'local' : 'national') : null,
+            delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
             delivery_is_quote: selectedDeliveryConfig?.quoteOnRequest || false,
+            pickup_instructions: selectedDeliveryConfig?.scope === 'pickup' ? selectedDeliveryConfig.pickupInstructions || null : null,
             insurance_fee: insuranceFee,
             affiliate_id: affiliateId,
-            shipping_city: customerCity.trim() || null,
-            shipping_state: customerState.trim() || null,
+            shipping_city: selectedDeliveryConfig?.scope === 'pickup' ? null : customerCity.trim() || null,
+            shipping_state: selectedDeliveryConfig?.scope === 'pickup' ? null : customerState.trim() || null,
           },
           orderItems,
           inventoryEnabled && autoDeductStock
@@ -1173,23 +1185,23 @@ export default function CartModal({
                     Limpar Carrinho
                   </Button>
 
-                  {(corretor.whatsapp || checkoutMode !== 'whatsapp') && (
+                  {(corretor.whatsapp || orderMode !== 'whatsapp') && (
                     <Button
                       onClick={handleGoToCheckout}
                       disabled={minPurchaseActive && !minPurchaseMet}
                       className="flex-1"
                     >
-                      {checkoutMode === 'ecommerce_only' ? (
+                      {orderMode === 'ecommerce' ? (
                         <CreditCard className="h-4 w-4 mr-2" />
                       ) : (
                         <MessageCircle className="h-4 w-4 mr-2" />
                       )}
-                      {checkoutMode === 'ecommerce_only' ? 'Continuar' : 'Enviar Pedido'}
+                      {orderMode === 'ecommerce' ? 'Continuar' : 'Enviar Pedido'}
                     </Button>
                   )}
                 </div>
 
-                {!corretor.whatsapp && checkoutMode === 'whatsapp' && (
+                {!corretor.whatsapp && orderMode === 'whatsapp' && (
                   <p className="text-xs text-muted-foreground text-center">
                     WhatsApp nao configurado para este vendedor
                   </p>
@@ -1198,27 +1210,6 @@ export default function CartModal({
             ) : (
               <div className="flex flex-col gap-0 -mb-2">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[calc(85vh-200px)]">
-                  {checkoutMode === 'ecommerce_optional' && (
-                    <div className="flex gap-1 text-xs bg-muted/40 rounded-lg p-1">
-                      <button
-                        type="button"
-                        onClick={() => setOrderMode('whatsapp')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'whatsapp' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        Finalizar por WhatsApp
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOrderMode('ecommerce')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${orderMode === 'ecommerce' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
-                      >
-                        <CreditCard className="h-3.5 w-3.5" />
-                        Pagar Agora
-                      </button>
-                    </div>
-                  )}
-
                   {orderMode === 'whatsapp' && (
                     <>
                       {/* Customer Info */}
@@ -1287,7 +1278,6 @@ export default function CartModal({
                                     }
                                   }
                                 }}
-                                onBlur={handleCepBlur}
                                 className="h-9 text-xs px-3"
                               />
                               {cepLoading && (
