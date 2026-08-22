@@ -794,7 +794,7 @@ export default function UserDetailPage() {
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Impede que o item "Afiliados" com o destaque pulsante e a mensagem promocional (com CTA para o WhatsApp) apareçam no menu desse lojista, mesmo sem o módulo liberado. Use para usuários que já recusaram ou que não devem receber essa oferta.
+                          Impede que o item "Afiliados" com o destaque pulsante e a mensagem promocional (com CTA para o WhatsApp) apareçam no menu desse lojista, mesmo sem o módulo liberado. Ativado por padrão para todo mundo sem o módulo — desative aqui só para os usuários que devem receber essa oferta.
                         </p>
                       </div>
                     </>
