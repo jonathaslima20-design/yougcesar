@@ -20,9 +20,23 @@ export function citiesMatch(
   return normalizeCityName(merchantCity) === normalizeCityName(buyerCity);
 }
 
+// Same-named cities in different states are common in Brazil (Bom Jesus,
+// Santa Rita, ...) — city name alone isn't enough to call a buyer "local".
+// Empty-safe on either side: city+state are always written together by the
+// store-CEP lookup flow (CheckoutSettingsContent.tsx), so a missing state
+// only happens on legacy data, and we don't want to suddenly block a
+// merchant's working local delivery over that.
+export function statesMatch(
+  merchantState: string | null | undefined,
+  buyerState: string | null | undefined
+): boolean {
+  if (!merchantState || !buyerState) return true;
+  return merchantState.trim().toLowerCase() === buyerState.trim().toLowerCase();
+}
+
 interface DeliveryOptionLike {
   enabled: boolean;
-  scope?: 'local' | 'national';
+  scope?: 'local' | 'national' | 'pickup';
   calculationType?: string;
   regions?: string[];
   quoteOnRequest?: boolean;
@@ -30,6 +44,7 @@ interface DeliveryOptionLike {
 
 interface FilterEligibleDeliveryOptionsParams {
   merchantCity?: string | null;
+  merchantState?: string | null;
   buyerCity?: string | null;
   buyerState?: string | null;
   // WhatsApp checkout must never offer national delivery — only local options
@@ -48,15 +63,19 @@ interface FilterEligibleDeliveryOptionsParams {
 
 export function filterEligibleDeliveryOptions<T extends DeliveryOptionLike>(
   options: T[],
-  { merchantCity, buyerCity, buyerState, restrictToLocal = false, skipLocationMatch = false, excludeQuoteOnRequest = false }: FilterEligibleDeliveryOptionsParams
+  { merchantCity, merchantState, buyerCity, buyerState, restrictToLocal = false, skipLocationMatch = false, excludeQuoteOnRequest = false }: FilterEligibleDeliveryOptionsParams
 ): T[] {
   return options.filter((d) => {
     if (!d.enabled) return false;
     if (excludeQuoteOnRequest && d.quoteOnRequest) return false;
+    // Pickup has no shipping destination to validate — the buyer travels to
+    // the store regardless of where they live, so it's always eligible and
+    // exempt from every location gate below (CEP requirement, WhatsApp-tab
+    // local-only restriction, city/state match).
+    if (d.scope === 'pickup') return true;
     if (skipLocationMatch) return true;
-    const scope = d.scope === 'local' ? 'local' : 'national';
-    if (scope === 'local') {
-      return citiesMatch(merchantCity, buyerCity);
+    if (d.scope === 'local') {
+      return citiesMatch(merchantCity, buyerCity) && statesMatch(merchantState, buyerState);
     }
     if (restrictToLocal) return false;
     if (d.calculationType === 'region' && buyerState) {

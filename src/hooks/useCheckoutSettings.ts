@@ -6,9 +6,6 @@ import type { CheckoutSettings, PaymentMethodConfig, DeliveryOption, MinimumPurc
 const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   { id: 'pix', name: 'PIX', enabled: false },
   { id: 'credit_card', name: 'Cartão de Crédito', enabled: false },
-  { id: 'debit_card', name: 'Cartão de Débito', enabled: false },
-  { id: 'cash', name: 'Dinheiro', enabled: false },
-  { id: 'bank_transfer', name: 'Transferência Bancária', enabled: false },
 ];
 
 const DEFAULT_MINIMUM_PURCHASE: MinimumPurchaseConfig = {
@@ -34,11 +31,18 @@ const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   requireDeliveryOption: true,
   cartEnabled: true,
   minimumPurchase: DEFAULT_MINIMUM_PURCHASE,
-  checkoutMode: 'whatsapp',
+  onlinePaymentEnabled: false,
   shippingInsurance: DEFAULT_SHIPPING_INSURANCE,
   superFrete: DEFAULT_SUPER_FRETE,
   requireDeliveryCep: true,
 };
+
+// Back-compat: old records stored a 3-way `checkoutMode` string instead of a
+// boolean. Both non-whatsapp values ('ecommerce_only' and the retired
+// 'ecommerce_optional') map to online payment being enabled.
+function deriveOnlinePaymentEnabled(checkout: any): boolean {
+  return checkout.onlinePaymentEnabled ?? (!!checkout.checkoutMode && checkout.checkoutMode !== 'whatsapp');
+}
 
 interface UseCheckoutSettingsReturn {
   settings: CheckoutSettings;
@@ -78,7 +82,7 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
             requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
             cartEnabled: data.settings.checkout.cartEnabled ?? true,
             minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
-            checkoutMode: data.settings.checkout.checkoutMode ?? 'whatsapp',
+            onlinePaymentEnabled: deriveOnlinePaymentEnabled(data.settings.checkout),
             shippingInsurance: data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE,
             superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,
             requireDeliveryCep: data.settings.checkout.requireDeliveryCep ?? true,
@@ -174,7 +178,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
         (platformSettings?.online_payments_enabled ?? false) || !!storeOwner?.payments_test_override;
 
       if (!error && data?.settings?.checkout) {
-        const storeCheckoutMode = data.settings.checkout.checkoutMode ?? 'whatsapp';
+        const storeOnlinePaymentEnabled = deriveOnlinePaymentEnabled(data.settings.checkout);
         const rawShippingInsurance = data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE;
         setSettings({
           paymentMethods: data.settings.checkout.paymentMethods ?? DEFAULT_PAYMENT_METHODS,
@@ -183,7 +187,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
           minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
-          checkoutMode: paymentsEnabledForStore ? storeCheckoutMode : 'whatsapp',
+          onlinePaymentEnabled: paymentsEnabledForStore ? storeOnlinePaymentEnabled : false,
           // Admin gate: never leak a stale insurance opt-in to buyers if the
           // merchant's access was revoked after they configured a rate.
           shippingInsurance: storeOwner?.insurance_enabled ? rawShippingInsurance : DEFAULT_SHIPPING_INSURANCE,

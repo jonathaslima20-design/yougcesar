@@ -34,16 +34,18 @@ export function getMerchantPaymentConfig() {
 
 export function saveMerchantPaymentConfig(payload: {
   environment: string;
-  public_key: string;
-  access_token: string;
+  public_key_test: string;
+  access_token_test: string;
+  public_key_prod: string;
+  access_token_prod: string;
   webhook_secret: string;
   is_active: boolean;
 }) {
   return callMerchantPaymentSettings('saveConfig', payload);
 }
 
-export function testMerchantPaymentCredentials(access_token?: string) {
-  return callMerchantPaymentSettings('testCredentials', access_token ? { access_token } : undefined);
+export function testMerchantPaymentCredentials() {
+  return callMerchantPaymentSettings('testCredentials');
 }
 
 // Storefront/checkout calls authenticate as the logged-in BUYER, using the

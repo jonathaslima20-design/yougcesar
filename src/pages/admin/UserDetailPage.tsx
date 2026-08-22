@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award, MessageCircle, ShieldCheck, Handshake } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award, MessageCircle, ShieldCheck, Handshake, Truck } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditImageLimitDialog } from '@/components/admin/EditImageLimitDialog';
@@ -315,6 +315,22 @@ export default function UserDetailPage() {
     } catch (error) {
       console.error('Error toggling payments test override:', error);
       toast.error('Erro ao atualizar liberação de pagamento online');
+    }
+  };
+
+  const handleToggleShippingTestOverride = async (enabled: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ shipping_test_override: enabled })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, shipping_test_override: enabled });
+      toast.success(enabled ? 'Integrações de frete liberadas para este usuário' : 'Integrações de frete (teste) desativadas');
+    } catch (error) {
+      console.error('Error toggling shipping test override:', error);
+      toast.error('Erro ao atualizar liberação de integrações de frete');
     }
   };
 
@@ -709,6 +725,23 @@ export default function UserDetailPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Libera pagamento online (aba Pagamento, ativação de credenciais e checkout na vitrine) só para esse usuário, mesmo com a chave geral da plataforma desligada. Use para finalizar e testar a funcionalidade em uma conta real.
+                    </p>
+                  </div>
+
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">Integrações de frete (teste)</span>
+                      </div>
+                      <Switch
+                        checked={!!user.shipping_test_override}
+                        onCheckedChange={handleToggleShippingTestOverride}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Libera a seção "Transportadoras" (aba Frete, ex.: SuperFrete) só para esse usuário. Não afeta entrega local, retirada ou frete fixo nacional, que já ficam disponíveis para todos. Use para finalizar e testar integrações de frete em uma conta real.
                     </p>
                   </div>
 
