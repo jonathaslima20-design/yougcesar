@@ -39,9 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BuyerAccountNav } from '@/components/buyer/BuyerAccountNav';
 
 const BR_STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -164,15 +162,13 @@ export default function BuyerAddressesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="fixed top-4 right-4 z-50">
-        <ThemeToggle />
+    <div className="container mx-auto p-4 md:p-6 max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl md:text-3xl page-title">Meus Endereços</h1>
+        <p className="text-sm text-muted-foreground mt-1">Gerencie os endereços usados nas suas entregas</p>
       </div>
-      <div className="max-w-2xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-center mb-6">Minha Conta</h1>
-        <BuyerAccountNav />
 
-        <Card>
+      <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Meus Endereços</CardTitle>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -408,7 +404,6 @@ export default function BuyerAddressesPage() {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }

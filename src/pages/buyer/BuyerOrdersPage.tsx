@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { Loader, Package, RotateCcw, Search } from 'lucide-react';
+import { Loader, Package, RotateCcw, Search, ShoppingBag, Wallet, Store } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -8,7 +8,6 @@ import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { reorderItems } from '@/lib/buyerReorder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BuyerAccountNav } from '@/components/buyer/BuyerAccountNav';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import type { OrderStatus } from '@/types';
 
@@ -158,16 +156,75 @@ export default function BuyerOrdersPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="fixed top-4 right-4 z-50">
-        <ThemeToggle />
-      </div>
-      <div className="max-w-2xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-center mb-6">Minha Conta</h1>
-        <BuyerAccountNav />
+  const totalSpent = orders
+    .filter((o) => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + o.total, 0);
 
-        <Card>
+  const favoriteStoreName = (() => {
+    const counts: Record<string, number> = {};
+    orders.forEach((o) => {
+      counts[o.store_owner_id] = (counts[o.store_owner_id] || 0) + 1;
+    });
+    const topId = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    return topId ? stores[topId]?.name || null : null;
+  })();
+
+  return (
+    <div className="container mx-auto p-4 md:p-6 max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl md:text-3xl page-title">Meus Pedidos</h1>
+        <p className="text-sm text-muted-foreground mt-1">Acompanhe seus pedidos e repita compras anteriores</p>
+      </div>
+
+      {!loading && orders.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="pt-4 pb-3 px-3 md:px-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <ShoppingBag className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold">{orders.length}</p>
+                  <p className="text-[11px] md:text-xs text-muted-foreground truncate">Pedidos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-3 px-3 md:px-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Wallet className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold truncate">
+                    {totalSpent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] md:text-xs text-muted-foreground truncate">Total gasto</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-3 px-3 md:px-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Store className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm md:text-base font-bold truncate">{favoriteStoreName || '—'}</p>
+                  <p className="text-[11px] md:text-xs text-muted-foreground truncate">Loja favorita</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Card>
           <CardHeader>
             <CardTitle>Meus Pedidos</CardTitle>
           </CardHeader>
@@ -273,7 +330,6 @@ export default function BuyerOrdersPage() {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
