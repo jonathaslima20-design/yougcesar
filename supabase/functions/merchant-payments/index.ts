@@ -54,7 +54,15 @@ async function getActiveCredentials(
     .eq("provider", "mercadopago")
     .eq("is_active", true)
     .maybeSingle();
-  return data;
+  if (!data) return null;
+  // Same env-pair resolution as mercadopago/index.ts's getAccessToken/
+  // getPublicKeyFromConfig — every other spot in this file keeps reading
+  // credentials.public_key/access_token exactly as before.
+  return {
+    ...data,
+    public_key: data.environment === "production" ? data.public_key_prod : data.public_key_test,
+    access_token: data.environment === "production" ? data.access_token_prod : data.access_token_test,
+  };
 }
 
 // Platform-wide kill switch, checked per store: a merchant with an

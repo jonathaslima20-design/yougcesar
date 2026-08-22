@@ -13,6 +13,20 @@ function maskToken(token: string): string {
   return "****" + token.slice(-8);
 }
 
+// Mercado Pago credentials are self-describing by prefix: production public
+// keys/access tokens always start with "APP_USR-", sandbox ones with
+// "TEST-". Catches the classic "pasted the wrong credential in the wrong
+// slot" mistake before it reaches checkout — same check used in the admin's
+// own Mercado Pago settings (supabase/functions/mp-admin/index.ts).
+function validateCredentialPrefix(label: string, value: string, expectedPrefix: string): string | null {
+  if (!value) return null;
+  if (!value.startsWith(expectedPrefix)) {
+    const envLabel = expectedPrefix === "TEST-" ? "teste" : "produção";
+    return `${label} não parece ser uma credencial de ${envLabel} (deveria começar com "${expectedPrefix}")`;
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -79,8 +93,10 @@ Deno.serve(async (req: Request) => {
               ? {
                   id: config.id,
                   environment: config.environment,
-                  public_key: config.public_key,
-                  access_token: maskToken(config.access_token),
+                  public_key_test: config.public_key_test,
+                  access_token_test: maskToken(config.access_token_test),
+                  public_key_prod: config.public_key_prod,
+                  access_token_prod: maskToken(config.access_token_prod),
                   webhook_secret: config.webhook_secret ? "****configurado" : "",
                   mp_account_id: config.mp_account_id,
                   mp_account_email: config.mp_account_email,
@@ -98,35 +114,47 @@ Deno.serve(async (req: Request) => {
       case "saveConfig": {
         const {
           environment,
-          public_key,
-          access_token,
+          public_key_test,
+          access_token_test,
+          public_key_prod,
+          access_token_prod,
           webhook_secret,
           is_active,
         } = payload as {
           environment: string;
-          public_key: string;
-          access_token: string;
+          public_key_test: string;
+          access_token_test: string;
+          public_key_prod: string;
+          access_token_prod: string;
           webhook_secret: string;
           is_active: boolean;
         };
 
         const { data: existing } = await admin
           .from("merchant_payment_credentials")
-          .select("id, access_token, webhook_secret")
+          .select("id, access_token_test, access_token_prod, webhook_secret")
           .eq("user_id", user.id)
           .eq("provider", "mercadopago")
           .maybeSingle();
 
+        const resolvedEnvironment = environment === "test" ? "test" : "production";
         const updateData: Record<string, unknown> = {
-          environment: environment === "test" ? "test" : "production",
-          public_key: public_key || "",
+          environment: resolvedEnvironment,
+          public_key_test: public_key_test || "",
+          public_key_prod: public_key_prod || "",
           updated_at: new Date().toISOString(),
         };
 
-        if (access_token && !access_token.startsWith("****")) {
-          updateData.access_token = access_token;
+        if (access_token_test && !access_token_test.startsWith("****")) {
+          updateData.access_token_test = access_token_test;
         } else if (existing) {
-          updateData.access_token = existing.access_token;
+          updateData.access_token_test = existing.access_token_test;
+        }
+
+        if (access_token_prod && !access_token_prod.startsWith("****")) {
+          updateData.access_token_prod = access_token_prod;
+        } else if (existing) {
+          updateData.access_token_prod = existing.access_token_prod;
         }
 
         if (webhook_secret && !webhook_secret.startsWith("****")) {
@@ -135,8 +163,28 @@ Deno.serve(async (req: Request) => {
           updateData.webhook_secret = existing.webhook_secret;
         }
 
-        const finalAccessToken = (updateData.access_token as string) || "";
-        const finalPublicKey = (updateData.public_key as string) || "";
+        // Same "wrong credential in the wrong slot" guard as the admin's own
+        // Mercado Pago settings (mp-admin/index.ts).
+        const credentialErrors = [
+          validateCredentialPrefix("Public Key de teste", updateData.public_key_test as string, "TEST-"),
+          validateCredentialPrefix("Access Token de teste", updateData.access_token_test as string, "TEST-"),
+          validateCredentialPrefix("Public Key de produção", updateData.public_key_prod as string, "APP_USR-"),
+          validateCredentialPrefix("Access Token de produção", updateData.access_token_prod as string, "APP_USR-"),
+        ].filter((e): e is string => !!e);
+
+        if (credentialErrors.length > 0) {
+          return new Response(
+            JSON.stringify({ error: credentialErrors.join(" | ") }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const finalAccessToken = resolvedEnvironment === "production"
+          ? (updateData.access_token_prod as string) || ""
+          : (updateData.access_token_test as string) || "";
+        const finalPublicKey = resolvedEnvironment === "production"
+          ? (updateData.public_key_prod as string) || ""
+          : (updateData.public_key_test as string) || "";
         const finalWebhookSecret = (updateData.webhook_secret as string) || "";
         const storeCurrency = (merchant.currency || "BRL").toUpperCase();
 
@@ -197,17 +245,16 @@ Deno.serve(async (req: Request) => {
       }
 
       case "testCredentials": {
-        let accessToken: string | undefined = (payload as { access_token?: string } | undefined)?.access_token;
+        const { data: existing } = await admin
+          .from("merchant_payment_credentials")
+          .select("environment, access_token_test, access_token_prod")
+          .eq("user_id", user.id)
+          .eq("provider", "mercadopago")
+          .maybeSingle();
 
-        if (!accessToken || accessToken.startsWith("****")) {
-          const { data: existing } = await admin
-            .from("merchant_payment_credentials")
-            .select("access_token")
-            .eq("user_id", user.id)
-            .eq("provider", "mercadopago")
-            .maybeSingle();
-          accessToken = existing?.access_token;
-        }
+        const accessToken = existing?.environment === "production"
+          ? existing?.access_token_prod
+          : existing?.access_token_test;
 
         if (!accessToken) {
           return new Response(

@@ -57,6 +57,19 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, supabaseServiceKey);
 
+    const { data: merchant } = await admin
+      .from("users")
+      .select("id, shipping_test_override")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!merchant) {
+      return new Response(
+        JSON.stringify({ error: "Usuário não encontrado" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { action, payload } = await req.json();
 
     switch (action) {
@@ -116,6 +129,12 @@ Deno.serve(async (req: Request) => {
         const finalOriginZip = (updateData.origin_zip_code as string) || "";
 
         if (is_active) {
+          if (!merchant.shipping_test_override) {
+            return new Response(
+              JSON.stringify({ error: "Integrações de frete estão disponíveis apenas para contas de teste no momento." }),
+              { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
           if (!finalApiToken) {
             return new Response(
               JSON.stringify({ error: "Configure o Token da API antes de ativar." }),
