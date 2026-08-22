@@ -70,6 +70,7 @@ export interface User {
   fbclid?: string;
   max_images_per_product?: number;
   payments_test_override?: boolean;
+  shipping_test_override?: boolean;
   insurance_enabled?: boolean;
   affiliate_program_enabled?: boolean;
   affiliate_teaser_hidden?: boolean;
@@ -521,8 +522,9 @@ export interface Order {
   payment_method_discount?: number;
   delivery_fee?: number;
   delivery_option?: string | null;
-  delivery_scope?: 'local' | 'national' | null;
+  delivery_scope?: DeliveryScope | null;
   delivery_is_quote?: boolean | null;
+  pickup_instructions?: string | null;
   insurance_fee?: number;
   affiliate_id?: string | null;
   buyer_id?: string | null;
@@ -534,6 +536,8 @@ export interface Order {
   shipping_city?: string | null;
   shipping_state?: string | null;
   shipping_zip_code?: string | null;
+  carrier?: string | null;
+  tracking_code?: string | null;
 }
 
 export interface OrderItem {
@@ -725,7 +729,7 @@ export interface PaymentMethodConfig {
 
 export type ShippingCalculationType = 'flat' | 'free_above' | 'region' | 'carrier';
 
-export type DeliveryScope = 'local' | 'national';
+export type DeliveryScope = 'local' | 'national' | 'pickup';
 
 export interface DeliveryOption {
   id: string;
@@ -743,6 +747,10 @@ export interface DeliveryOption {
   // the option is excluded from every online-payment flow since those require
   // a closed amount to charge.
   quoteOnRequest?: boolean;
+  // Only meaningful when scope === 'pickup' — free-text address/hours shown to
+  // the buyer instead of a shipping-address form. Optional: the buyer always
+  // sees the store's city/state regardless, this just adds detail.
+  pickupInstructions?: string | null;
 }
 
 export interface MinimumPurchaseConfig {
@@ -769,8 +777,6 @@ export interface ShippingQuote {
   companyName?: string;
 }
 
-export type CheckoutMode = 'whatsapp' | 'ecommerce_optional' | 'ecommerce_only';
-
 export interface CheckoutSettings {
   paymentMethods: PaymentMethodConfig[];
   deliveryOptions: DeliveryOption[];
@@ -778,7 +784,7 @@ export interface CheckoutSettings {
   requireDeliveryOption: boolean;
   cartEnabled?: boolean;
   minimumPurchase?: MinimumPurchaseConfig;
-  checkoutMode?: CheckoutMode; // missing = treated as 'whatsapp' (back-compat)
+  onlinePaymentEnabled?: boolean; // missing = treated as false (back-compat via legacy checkoutMode)
   shippingInsurance?: ShippingInsuranceConfig;
   superFrete?: SuperFreteConfig;
   requireDeliveryCep?: boolean; // missing = treated as true (back-compat) — false skips CEP/city matching entirely and shows every enabled delivery option, for merchants who ship nationwide and don't need geographic filtering
