@@ -972,11 +972,20 @@ export default function ProductVariantModal({
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {product.flavors!.map((flavor: string) => (
-                    <SelectItem key={flavor} value={flavor}>
-                      <span className="capitalize">{flavor}</span>
-                    </SelectItem>
-                  ))}
+                  {product.flavors!.map((flavor: string) => {
+                    const flavorAvailable = getVariantAvailable(selectedColor, selectedSize, flavor);
+                    const flavorOutOfStock = blockZeroStock && flavorAvailable !== null && flavorAvailable <= 0;
+                    return (
+                      <SelectItem key={flavor} value={flavor} disabled={flavorOutOfStock}>
+                        <div className="flex items-center gap-2">
+                          <span className="capitalize">{flavor}</span>
+                          {flavorOutOfStock && (
+                            <Badge variant="destructive" className="text-xs">Esgotado</Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

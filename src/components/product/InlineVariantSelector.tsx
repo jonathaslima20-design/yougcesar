@@ -231,27 +231,44 @@ export default function InlineVariantSelector({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {flavors.map((flavor) => (
-                  <SelectItem key={flavor} value={flavor}>
-                    <span className="capitalize">{flavor}</span>
-                  </SelectItem>
-                ))}
+                {flavors.map((flavor) => {
+                  const available = availableFor(hasColors ? selectedColor : undefined, hasSizes ? selectedSize : undefined, flavor);
+                  const outOfStock = available !== null && available <= 0;
+                  return (
+                    <SelectItem key={flavor} value={flavor} disabled={outOfStock}>
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize">{flavor}</span>
+                        {outOfStock && <Badge variant="destructive" className="text-[10px] px-1 py-0">Esgotado</Badge>}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           ) : (
             <div className="flex flex-wrap gap-3">
               {flavors.map((flavor) => {
                 const isSelected = selectedFlavor === flavor;
+                const available = availableFor(hasColors ? selectedColor : undefined, hasSizes ? selectedSize : undefined, flavor);
+                const outOfStock = available !== null && available <= 0;
                 return (
                   <button
                     key={flavor}
                     type="button"
                     onClick={() => setSelectedFlavor(flavor)}
-                    className={`flex items-center px-4 py-2 rounded-full border-2 bg-background shadow-sm transition-all duration-200 ${
+                    disabled={outOfStock}
+                    className={`relative flex items-center px-4 py-2 rounded-full border-2 bg-background shadow-sm transition-all duration-200 ${
                       isSelected ? 'border-primary bg-primary/10' : 'border-primary/20 hover:border-primary/40'
-                    }`}
+                    } ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    <span className="text-sm font-semibold text-foreground capitalize">{flavor}</span>
+                    <span className={`text-sm font-semibold capitalize ${outOfStock ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                      {flavor}
+                    </span>
+                    {outOfStock && (
+                      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-medium leading-none text-white">
+                        Esgotado
+                      </span>
+                    )}
                   </button>
                 );
               })}
