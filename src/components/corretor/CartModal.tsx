@@ -626,11 +626,12 @@ export default function CartModal({
       // O pedido ja esta gravado (ou falhou de forma conhecida) — so agora o
       // WhatsApp entra em cena. Se a gravacao falhou, o comprador ainda
       // consegue enviar pelo chat, mas e avisado de que a confirmacao vem
-      // pelo WhatsApp: melhor um pedido avisado do que um pedido fantasma.
+      // pelo WhatsApp — e o carrinho fica intacto (nao limpo abaixo) caso
+      // ele prefira tentar de novo em vez de so confiar no chat.
       if (createdOrder?.id) {
         toast.success('Pedido registrado! Abrindo WhatsApp...');
       } else {
-        toast.warning('Nao conseguimos registrar seu pedido automaticamente. Envie pelo WhatsApp que o vendedor confirma por la.');
+        toast.warning('Nao conseguimos registrar seu pedido automaticamente. Envie pelo WhatsApp que o vendedor confirma por la — seu carrinho foi mantido caso prefira tentar novamente.');
       }
 
       await trackWhatsAppClick('storefront', 'product', 'cart_checkout');
@@ -643,23 +644,25 @@ export default function CartModal({
         window.location.href = whatsappUrl;
       }
 
-      clearCart();
-      clearCoupon();
-      setCouponCode('');
-      setSelectedPaymentMethod(null);
-      setSelectedDeliveryOption(null);
-      setInsuranceOptIn(false);
-      setStep('cart');
-      setCustomerName('');
-      setCustomerPhone('');
-      setCustomerCountryCode(corretor.country_code || '55');
-      setCustomerCep('');
-      setCustomerCity('');
-      setCustomerState('');
-      setShippingQuotes([]);
-      setShippingQuotesError(false);
-      setFormErrors({});
-      onOpenChange(false);
+      if (createdOrder?.id) {
+        clearCart();
+        clearCoupon();
+        setCouponCode('');
+        setSelectedPaymentMethod(null);
+        setSelectedDeliveryOption(null);
+        setInsuranceOptIn(false);
+        setStep('cart');
+        setCustomerName('');
+        setCustomerPhone('');
+        setCustomerCountryCode(corretor.country_code || '55');
+        setCustomerCep('');
+        setCustomerCity('');
+        setCustomerState('');
+        setShippingQuotes([]);
+        setShippingQuotesError(false);
+        setFormErrors({});
+        onOpenChange(false);
+      }
     } catch (error) {
       console.error('Error sending order:', error);
       // Nao deixa a aba em branco orfa se algo estourou antes de aponta-la.
