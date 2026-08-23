@@ -34,7 +34,10 @@ const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   onlinePaymentEnabled: false,
   shippingInsurance: DEFAULT_SHIPPING_INSURANCE,
   superFrete: DEFAULT_SUPER_FRETE,
-  requireDeliveryCep: true,
+  // Untouched merchants default to not asking for CEP — it only pays off
+  // once online payment needs a precise delivery-option/insurance quote per
+  // buyer city; WhatsApp-only stores can just ask the buyer directly.
+  requireDeliveryCep: false,
 };
 
 // Back-compat: old records stored a 3-way `checkoutMode` string instead of a
@@ -85,7 +88,9 @@ export function useCheckoutSettings(): UseCheckoutSettingsReturn {
             onlinePaymentEnabled: deriveOnlinePaymentEnabled(data.settings.checkout),
             shippingInsurance: data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE,
             superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,
-            requireDeliveryCep: data.settings.checkout.requireDeliveryCep ?? true,
+            // Only a fallback for stores that never touched this toggle —
+            // once saved, the explicit value always wins regardless of mode.
+            requireDeliveryCep: data.settings.checkout.requireDeliveryCep ?? deriveOnlinePaymentEnabled(data.settings.checkout),
           });
         }
       }
@@ -179,6 +184,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
 
       if (!error && data?.settings?.checkout) {
         const storeOnlinePaymentEnabled = deriveOnlinePaymentEnabled(data.settings.checkout);
+        const effectiveOnlinePaymentEnabled = paymentsEnabledForStore ? storeOnlinePaymentEnabled : false;
         const rawShippingInsurance = data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE;
         setSettings({
           paymentMethods: data.settings.checkout.paymentMethods ?? DEFAULT_PAYMENT_METHODS,
@@ -187,14 +193,16 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           requireDeliveryOption: data.settings.checkout.requireDeliveryOption ?? true,
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
           minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
-          onlinePaymentEnabled: paymentsEnabledForStore ? storeOnlinePaymentEnabled : false,
+          onlinePaymentEnabled: effectiveOnlinePaymentEnabled,
           // Admin gate: never leak a stale insurance opt-in to buyers if the
           // merchant's access was revoked after they configured a rate.
           shippingInsurance: storeOwner?.insurance_enabled ? rawShippingInsurance : DEFAULT_SHIPPING_INSURANCE,
           // No admin gate needed here (unlike insurance) — merchant-shipping-quote
           // always re-verifies is_active server-side regardless of this value.
           superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,
-          requireDeliveryCep: data.settings.checkout.requireDeliveryCep ?? true,
+          // Only a fallback for stores that never touched this toggle — once
+          // saved, the explicit value always wins regardless of mode.
+          requireDeliveryCep: data.settings.checkout.requireDeliveryCep ?? effectiveOnlinePaymentEnabled,
         });
       }
       setLoading(false);
