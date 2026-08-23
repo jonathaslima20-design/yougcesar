@@ -141,6 +141,20 @@ export default function PaymentSettingsContent() {
     setTesting(true);
     setConnectionStatus('unknown');
     try {
+      // Test always reads what's saved in the DB, not the live form — save
+      // first so "Testar Conexão" can't fail on a merchant who typed
+      // credentials but hasn't scrolled down to "Salvar Configurações" yet.
+      const values = form.getValues();
+      await saveMerchantPaymentConfig({
+        environment: values.environment,
+        public_key_test: values.public_key_test || '',
+        access_token_test: values.access_token_test || '',
+        public_key_prod: values.public_key_prod || '',
+        access_token_prod: values.access_token_prod || '',
+        webhook_secret: values.webhook_secret || '',
+        is_active: values.is_active,
+      });
+
       const result = await testMerchantPaymentCredentials();
       if (result.success) {
         setConnectionStatus('connected');
@@ -151,6 +165,7 @@ export default function PaymentSettingsContent() {
         setAccountInfo(null);
         toast.error(result.error || 'Credenciais inválidas');
       }
+      await loadConfig();
     } catch (error: any) {
       setConnectionStatus('failed');
       setAccountInfo(null);
@@ -264,10 +279,10 @@ export default function PaymentSettingsContent() {
           )}
           <Button variant="outline" size="sm" onClick={handleTestCredentials} disabled={testing}>
             {testing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Testar Conexão
+            Salvar e Testar Conexão
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
-            Testa as credenciais já salvas do ambiente selecionado abaixo — salve antes de testar.
+            Salva as credenciais preenchidas abaixo para o ambiente selecionado e testa a conexão com o Mercado Pago.
           </p>
         </CardContent>
       </Card>
