@@ -57,11 +57,13 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: merchant } = await admin
+    const { data: merchant, error: merchantError } = await admin
       .from("users")
       .select("id, shipping_test_override")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (merchantError) throw new Error(merchantError.message);
 
     if (!merchant) {
       return new Response(
@@ -74,12 +76,14 @@ Deno.serve(async (req: Request) => {
 
     switch (action) {
       case "getConfig": {
-        const { data: config } = await admin
+        const { data: config, error: configError } = await admin
           .from("merchant_shipping_credentials")
           .select("*")
           .eq("user_id", user.id)
           .eq("provider", "superfrete")
           .maybeSingle();
+
+        if (configError) throw new Error(configError.message);
 
         return new Response(
           JSON.stringify({
@@ -106,12 +110,14 @@ Deno.serve(async (req: Request) => {
           is_active: boolean;
         };
 
-        const { data: existing } = await admin
+        const { data: existing, error: existingError } = await admin
           .from("merchant_shipping_credentials")
           .select("id, api_token")
           .eq("user_id", user.id)
           .eq("provider", "superfrete")
           .maybeSingle();
+
+        if (existingError) throw new Error(existingError.message);
 
         const updateData: Record<string, unknown> = {
           environment: environment === "production" ? "production" : "sandbox",
@@ -178,12 +184,14 @@ Deno.serve(async (req: Request) => {
           | undefined;
         let apiToken: string | undefined = testPayload?.api_token;
 
-        const { data: existing } = await admin
+        const { data: existing, error: existingError } = await admin
           .from("merchant_shipping_credentials")
           .select("api_token, environment, origin_zip_code")
           .eq("user_id", user.id)
           .eq("provider", "superfrete")
           .maybeSingle();
+
+        if (existingError) throw new Error(existingError.message);
 
         if (!apiToken || apiToken.startsWith("****")) {
           apiToken = existing?.api_token;

@@ -63,11 +63,13 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: merchant } = await admin
+    const { data: merchant, error: merchantError } = await admin
       .from("users")
       .select("id, currency, plan_status, payments_test_override")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (merchantError) throw new Error(merchantError.message);
 
     if (!merchant) {
       return new Response(
@@ -80,12 +82,14 @@ Deno.serve(async (req: Request) => {
 
     switch (action) {
       case "getConfig": {
-        const { data: config } = await admin
+        const { data: config, error: configError } = await admin
           .from("merchant_payment_credentials")
           .select("*")
           .eq("user_id", user.id)
           .eq("provider", "mercadopago")
           .maybeSingle();
+
+        if (configError) throw new Error(configError.message);
 
         return new Response(
           JSON.stringify({
@@ -130,12 +134,14 @@ Deno.serve(async (req: Request) => {
           is_active: boolean;
         };
 
-        const { data: existing } = await admin
+        const { data: existing, error: existingError } = await admin
           .from("merchant_payment_credentials")
           .select("id, access_token_test, access_token_prod, webhook_secret")
           .eq("user_id", user.id)
           .eq("provider", "mercadopago")
           .maybeSingle();
+
+        if (existingError) throw new Error(existingError.message);
 
         const resolvedEnvironment = environment === "test" ? "test" : "production";
         const updateData: Record<string, unknown> = {
@@ -189,10 +195,12 @@ Deno.serve(async (req: Request) => {
         const storeCurrency = (merchant.currency || "BRL").toUpperCase();
 
         if (is_active) {
-          const { data: platformSettings } = await admin
+          const { data: platformSettings, error: platformError } = await admin
             .from("platform_payment_settings")
             .select("online_payments_enabled")
             .maybeSingle();
+
+          if (platformError) throw new Error(platformError.message);
 
           if (!platformSettings?.online_payments_enabled && !merchant.payments_test_override) {
             return new Response(
@@ -245,12 +253,14 @@ Deno.serve(async (req: Request) => {
       }
 
       case "testCredentials": {
-        const { data: existing } = await admin
+        const { data: existing, error: existingError } = await admin
           .from("merchant_payment_credentials")
           .select("environment, access_token_test, access_token_prod")
           .eq("user_id", user.id)
           .eq("provider", "mercadopago")
           .maybeSingle();
+
+        if (existingError) throw new Error(existingError.message);
 
         const accessToken = existing?.environment === "production"
           ? existing?.access_token_prod

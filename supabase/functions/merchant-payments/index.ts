@@ -47,13 +47,14 @@ async function getActiveCredentials(
   admin: ReturnType<typeof createClient>,
   storeOwnerId: string
 ) {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("merchant_payment_credentials")
     .select("*")
     .eq("user_id", storeOwnerId)
     .eq("provider", "mercadopago")
     .eq("is_active", true)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   if (!data) return null;
   // Same env-pair resolution as mercadopago/index.ts's getAccessToken/
   // getPublicKeyFromConfig — every other spot in this file keeps reading
@@ -72,10 +73,12 @@ async function isPaymentsEnabledForStore(
   admin: ReturnType<typeof createClient>,
   storeOwnerId: string
 ): Promise<boolean> {
-  const [{ data: platformSettings }, { data: storeOwner }] = await Promise.all([
+  const [{ data: platformSettings, error: platformError }, { data: storeOwner, error: storeOwnerError }] = await Promise.all([
     admin.from("platform_payment_settings").select("online_payments_enabled").maybeSingle(),
     admin.from("users").select("payments_test_override").eq("id", storeOwnerId).maybeSingle(),
   ]);
+  if (platformError) throw new Error(platformError.message);
+  if (storeOwnerError) throw new Error(storeOwnerError.message);
   return !!platformSettings?.online_payments_enabled || !!storeOwner?.payments_test_override;
 }
 
@@ -131,11 +134,13 @@ Deno.serve(async (req: Request) => {
 
         const orderId = (payload as { order_id: string }).order_id;
 
-        const { data: order } = await admin
+        const { data: order, error: orderError } = await admin
           .from("orders")
           .select("id, store_owner_id, buyer_id, order_type, payment_status, total")
           .eq("id", orderId)
           .maybeSingle();
+
+        if (orderError) throw new Error(orderError.message);
 
         if (!order || order.buyer_id !== buyerId) {
           return new Response(
@@ -302,11 +307,12 @@ Deno.serve(async (req: Request) => {
 
         const docType = cardPayer.doc.replace(/\D/g, "").length > 11 ? "CNPJ" : "CPF";
 
-        const { data: buyerProfile } = await admin
+        const { data: buyerProfile, error: buyerProfileError } = await admin
           .from("customers")
           .select("full_name")
           .eq("id", buyerId)
           .maybeSingle();
+        if (buyerProfileError) throw new Error(buyerProfileError.message);
         const fullName = (buyerProfile?.full_name || "").trim();
         const [payerFirstName, ...payerLastNameParts] = fullName ? fullName.split(/\s+/) : [""];
         const payerLastName = payerLastNameParts.join(" ");
@@ -395,11 +401,13 @@ Deno.serve(async (req: Request) => {
 
         const { order_payment_id } = payload as { order_payment_id: string };
 
-        const { data: payment } = await admin
+        const { data: payment, error: paymentError } = await admin
           .from("order_payments")
           .select("id, order_id, status, status_detail, mp_payment_id, pix_qr_code, pix_qr_code_base64, pix_expires_at, card_last4, card_brand, payment_method, store_owner_id, updated_at")
           .eq("id", order_payment_id)
           .maybeSingle();
+
+        if (paymentError) throw new Error(paymentError.message);
 
         if (!payment) {
           return new Response(
@@ -408,11 +416,13 @@ Deno.serve(async (req: Request) => {
           );
         }
 
-        const { data: order } = await admin
+        const { data: order, error: orderError } = await admin
           .from("orders")
           .select("buyer_id")
           .eq("id", payment.order_id)
           .maybeSingle();
+
+        if (orderError) throw new Error(orderError.message);
 
         if (!order || order.buyer_id !== buyerId) {
           return new Response(
