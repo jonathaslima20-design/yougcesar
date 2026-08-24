@@ -35,6 +35,7 @@ interface CreateOrderData {
   shipping_city?: string | null;
   shipping_state?: string | null;
   shipping_zip_code?: string | null;
+  customer_cpf?: string | null;
 }
 
 interface CreateOrderItemData {
@@ -108,6 +109,7 @@ export async function createOrder(
     p_shipping_city: orderData.shipping_city || null,
     p_shipping_state: orderData.shipping_state || null,
     p_shipping_zip_code: orderData.shipping_zip_code || null,
+    p_customer_cpf: orderData.customer_cpf || null,
   });
 
   if (rpcError || !data?.success) {

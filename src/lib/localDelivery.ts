@@ -85,6 +85,27 @@ export function filterEligibleDeliveryOptions<T extends DeliveryOptionLike>(
   });
 }
 
+interface PickupDetailsLike {
+  pickupInstructions?: string | null;
+  pickupHours?: string | null;
+  pickupMapUrl?: string | null;
+}
+
+// Folds the pickup option's live-editable fields into the single free-text
+// snapshot stored on the order (orders.pickup_instructions) at order-creation
+// time. Avoids a DB migration for pickupHours/pickupMapUrl — order history
+// already only ever shows this one text column (see OrderPickupInfo), and
+// like the rest of the order it must survive the merchant later editing or
+// deleting the delivery option.
+export function buildPickupInstructionsSnapshot(option: PickupDetailsLike | null | undefined): string | null {
+  if (!option) return null;
+  const parts: string[] = [];
+  if (option.pickupInstructions?.trim()) parts.push(option.pickupInstructions.trim());
+  if (option.pickupHours?.trim()) parts.push(`Horário: ${option.pickupHours.trim()}`);
+  if (option.pickupMapUrl?.trim()) parts.push(`Ver no mapa: ${option.pickupMapUrl.trim()}`);
+  return parts.length > 0 ? parts.join('\n') : null;
+}
+
 export function hasNoMatchingLocalOption(
   eligibleCount: number,
   buyerCity: string | null | undefined,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, Truck, Plus, Trash2, MapPin, Info, AlertTriangle, Store, Navigation, Globe, ShieldCheck, Percent, Settings } from 'lucide-react';
+import { Loader as Loader2, Truck, Plus, Trash2, MapPin, Info, AlertTriangle, Store, Navigation, Globe, ShieldCheck, Percent, Settings, Bike, Handshake, Clock, Link as LinkIcon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,14 @@ const NEW_OPTION_TYPES: { value: DeliveryScope; label: string; icon: typeof Glob
   { value: 'national', label: 'Nacional', icon: Globe },
   { value: 'local', label: 'Local', icon: Navigation },
   { value: 'pickup', label: 'Retirada', icon: Store },
+];
+
+type PresetKind = 'moto' | 'pickup' | 'quote';
+
+const PRESETS: { kind: PresetKind; label: string; icon: typeof Bike; description: string }[] = [
+  { kind: 'moto', label: 'Moto Entrega', icon: Bike, description: 'Entrega local, feita por você ou um motoboy' },
+  { kind: 'pickup', label: 'Retirada no Local', icon: Store, description: 'Cliente busca o pedido na sua loja' },
+  { kind: 'quote', label: 'Frete a Combinar', icon: Handshake, description: 'Valor combinado com o cliente depois do pedido' },
 ];
 
 function Hint({ text }: { text: string }) {
@@ -115,6 +123,14 @@ export default function DeliveryOptionsSettingsContent() {
     save({ ...settings, deliveryOptions: settings.deliveryOptions.map(d => d.id === id ? { ...d, pickupInstructions: pickupInstructions || null } : d) });
   };
 
+  const updateDeliveryPickupHours = (id: string, pickupHours: string) => {
+    save({ ...settings, deliveryOptions: settings.deliveryOptions.map(d => d.id === id ? { ...d, pickupHours: pickupHours || null } : d) });
+  };
+
+  const updateDeliveryPickupMapUrl = (id: string, pickupMapUrl: string) => {
+    save({ ...settings, deliveryOptions: settings.deliveryOptions.map(d => d.id === id ? { ...d, pickupMapUrl: pickupMapUrl || null } : d) });
+  };
+
   const updateDeliveryScope = (id: string, scope: DeliveryScope) => {
     if (scope === 'local' && !hasMerchantCity) {
       toast.error('Defina o CEP da sua loja acima antes de criar uma opção de entrega local');
@@ -171,6 +187,25 @@ export default function DeliveryOptionsSettingsContent() {
     setNewDeliveryName('');
     setNewDeliveryFee(0);
     setNewDeliveryType('national');
+  };
+
+  const addPresetOption = (kind: PresetKind) => {
+    // Only 'pickup' has no notion of a matching city — 'moto' and 'quote'
+    // both default to a local-scope option, same guard as the manual flow.
+    if (kind !== 'pickup' && !hasMerchantCity) {
+      toast.error('Defina o CEP da sua loja acima antes de criar essa opção de entrega');
+      return;
+    }
+
+    const base: Omit<DeliveryOption, 'id'> =
+      kind === 'moto'
+        ? { name: 'Moto Entrega', fee: 0, enabled: true, scope: 'local', calculationType: 'flat' }
+        : kind === 'pickup'
+        ? { name: 'Retirada no Local', fee: 0, enabled: true, scope: 'pickup' }
+        : { name: 'Frete a Combinar', fee: 0, enabled: true, scope: 'local', calculationType: 'flat', quoteOnRequest: true };
+
+    const newOption: DeliveryOption = { id: uuidv4(), ...base };
+    save({ ...settings, deliveryOptions: [...settings.deliveryOptions, newOption] });
   };
 
   const removeDeliveryOption = (id: string) => {
@@ -293,6 +328,8 @@ export default function DeliveryOptionsSettingsContent() {
                   onUpdateScope={(scope) => updateDeliveryScope(option.id, scope)}
                   onUpdateQuoteOnRequest={(val) => updateDeliveryQuoteOnRequest(option.id, val)}
                   onUpdatePickupInstructions={(val) => updateDeliveryPickupInstructions(option.id, val)}
+                  onUpdatePickupHours={(val) => updateDeliveryPickupHours(option.id, val)}
+                  onUpdatePickupMapUrl={(val) => updateDeliveryPickupMapUrl(option.id, val)}
                   onRemove={() => removeDeliveryOption(option.id)}
                 />
               ))}
@@ -302,7 +339,31 @@ export default function DeliveryOptionsSettingsContent() {
           <Separator />
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Adicionar opção de entrega</Label>
+            <Label className="text-sm font-medium">Modelos prontos</Label>
+            <p className="text-xs text-muted-foreground">Um clique já cria a opção pronta pra usar — depois é só ajustar o valor.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {PRESETS.map(({ kind, label, icon: Icon, description }) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => addPresetOption(kind)}
+                  disabled={saving}
+                  className="flex items-start gap-2.5 rounded-lg border p-3 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors disabled:opacity-50"
+                >
+                  <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <span>
+                    <span className="text-sm font-medium block">{label}</span>
+                    <span className="text-xs text-muted-foreground">{description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Ou crie uma opção personalizada</Label>
             <div className="flex gap-1 text-xs bg-muted/40 rounded-lg p-1 max-w-sm">
               {NEW_OPTION_TYPES.map(({ value, label, icon: Icon }) => (
                 <button
@@ -395,14 +456,18 @@ interface DeliveryOptionRowProps {
   onUpdateScope: (scope: DeliveryScope) => void;
   onUpdateQuoteOnRequest: (quoteOnRequest: boolean) => void;
   onUpdatePickupInstructions: (pickupInstructions: string) => void;
+  onUpdatePickupHours: (pickupHours: string) => void;
+  onUpdatePickupMapUrl: (pickupMapUrl: string) => void;
   onRemove: () => void;
 }
 
-function DeliveryOptionRow({ option, saving, onToggle, onUpdatePrice, onUpdateCalculationType, onUpdateRegions, onUpdateScope, onUpdateQuoteOnRequest, onUpdatePickupInstructions, onRemove }: DeliveryOptionRowProps) {
+function DeliveryOptionRow({ option, saving, onToggle, onUpdatePrice, onUpdateCalculationType, onUpdateRegions, onUpdateScope, onUpdateQuoteOnRequest, onUpdatePickupInstructions, onUpdatePickupHours, onUpdatePickupMapUrl, onRemove }: DeliveryOptionRowProps) {
   const [editingPrice, setEditingPrice] = useState(false);
   const [feeValue, setFeeValue] = useState(option.fee);
   const [freeAboveValue, setFreeAboveValue] = useState(option.freeAbove || 0);
   const [pickupInstructionsValue, setPickupInstructionsValue] = useState(option.pickupInstructions || '');
+  const [pickupHoursValue, setPickupHoursValue] = useState(option.pickupHours || '');
+  const [pickupMapUrlValue, setPickupMapUrlValue] = useState(option.pickupMapUrl || '');
   const calculationType = option.calculationType || 'flat';
   const selectedRegions = option.regions || [];
   const scope: DeliveryScope = option.scope === 'local' ? 'local' : option.scope === 'pickup' ? 'pickup' : 'national';
@@ -497,11 +562,47 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdatePrice, onUpdateCa
           </Label>
           <Textarea
             id={`pickup-instructions-${option.id}`}
-            placeholder="Ex: Rua Exemplo, 123 - Centro. Seg a sex, 9h às 18h."
+            placeholder="Ex: Rua Exemplo, 123 - Centro. Toque a campainha do portão azul."
             value={pickupInstructionsValue}
             onChange={(e) => setPickupInstructionsValue(e.target.value)}
             onBlur={() => onUpdatePickupInstructions(pickupInstructionsValue)}
             className="text-xs min-h-16"
+            disabled={saving}
+          />
+        </div>
+      )}
+
+      {option.enabled && scope === 'pickup' && (
+        <div className="space-y-1 pt-1">
+          <Label htmlFor={`pickup-hours-${option.id}`} className="text-xs flex items-center gap-1.5">
+            <Clock className="h-3 w-3" /> Horários de retirada (opcional)
+          </Label>
+          <Input
+            id={`pickup-hours-${option.id}`}
+            placeholder="Ex: Seg a Sex, 9h às 18h"
+            value={pickupHoursValue}
+            onChange={(e) => setPickupHoursValue(e.target.value)}
+            onBlur={() => onUpdatePickupHours(pickupHoursValue)}
+            className="text-xs h-8"
+            disabled={saving}
+          />
+        </div>
+      )}
+
+      {option.enabled && scope === 'pickup' && (
+        <div className="space-y-1 pt-1">
+          <Label htmlFor={`pickup-map-${option.id}`} className="text-xs flex items-center gap-1.5">
+            <LinkIcon className="h-3 w-3" /> Link do Google Maps (opcional)
+            <Hint text="Cole o link de compartilhamento do Google Maps da loja. O comprador verá um botão para abrir a localização." />
+          </Label>
+          <Input
+            id={`pickup-map-${option.id}`}
+            type="url"
+            placeholder="https://maps.google.com/..."
+            value={pickupMapUrlValue}
+            onChange={(e) => setPickupMapUrlValue(e.target.value)}
+            onBlur={() => onUpdatePickupMapUrl(pickupMapUrlValue)}
+            className="text-xs h-8"
             disabled={saving}
           />
         </div>

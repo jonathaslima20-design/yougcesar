@@ -538,6 +538,7 @@ export interface Order {
   shipping_zip_code?: string | null;
   carrier?: string | null;
   tracking_code?: string | null;
+  customer_cpf?: string | null;
 }
 
 export interface OrderItem {
@@ -751,6 +752,10 @@ export interface DeliveryOption {
   // the buyer instead of a shipping-address form. Optional: the buyer always
   // sees the store's city/state regardless, this just adds detail.
   pickupInstructions?: string | null;
+  // Only meaningful when scope === 'pickup'. Free-text opening hours and a
+  // Google Maps share link, shown to the buyer alongside pickupInstructions.
+  pickupHours?: string | null;
+  pickupMapUrl?: string | null;
 }
 
 export interface MinimumPurchaseConfig {

@@ -22,6 +22,7 @@ import { OrderPickupInfo } from '@/components/buyer/OrderPickupInfo';
 import { deductStockForOrder, restoreStockForOrder } from '@/lib/stockUtils';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
 import { generateWhatsAppUrl } from '@/lib/utils';
+import { formatCpfCnpj } from '@/lib/document';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLogger';
 import { format } from 'date-fns';
@@ -367,6 +368,9 @@ export default function OrderDetailsPanel({
                 <p className="text-sm text-muted-foreground">
                   +{order.customer_country_code} {order.customer_whatsapp}
                 </p>
+                {order.customer_cpf && (
+                  <p className="text-sm text-muted-foreground">CPF: {formatCpfCnpj(order.customer_cpf)}</p>
+                )}
                 {whatsappUrl && (
                   <Button variant="outline" size="sm" className="mt-2 gap-1.5" asChild>
                     <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">

@@ -6,6 +6,7 @@ export interface Customer {
   full_name: string;
   whatsapp: string | null;
   country_code: string;
+  cpf: string | null;
   avatar_url?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -113,7 +114,7 @@ export async function authenticateBuyer(
 
 export async function updateBuyerProfile(
   customerId: string,
-  data: { full_name: string; whatsapp?: string | null; country_code?: string }
+  data: { full_name: string; whatsapp?: string | null; country_code?: string; cpf?: string | null }
 ): Promise<{ customer: Customer | null; error: string | null }> {
   const { data: customer, error } = await supabaseBuyer
     .from('customers')
@@ -121,6 +122,7 @@ export async function updateBuyerProfile(
       full_name: data.full_name,
       whatsapp: data.whatsapp || null,
       country_code: data.country_code || '55',
+      ...(data.cpf !== undefined ? { cpf: data.cpf } : {}),
     })
     .eq('id', customerId)
     .select()
@@ -132,6 +134,22 @@ export async function updateBuyerProfile(
 
   storeCustomer(customer);
   return { customer, error: null };
+}
+
+// Lighter-weight than updateBuyerProfile: the checkout page only has the
+// CPF on hand (not the buyer's full profile), and saving it there is a
+// best-effort convenience so the next purchase can skip asking again.
+export async function updateBuyerCpf(customerId: string, cpf: string): Promise<Customer | null> {
+  const { data: customer, error } = await supabaseBuyer
+    .from('customers')
+    .update({ cpf })
+    .eq('id', customerId)
+    .select()
+    .single();
+
+  if (error || !customer) return null;
+  storeCustomer(customer);
+  return customer;
 }
 
 export async function logoutBuyer(): Promise<void> {

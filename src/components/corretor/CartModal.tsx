@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet, Check, Info, CreditCard, ShieldCheck } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingCart, MessageCircle, CreditCard as Edit3, Palette, Ruler, TrendingDown, Package, ChevronDown, ChevronUp, ArrowLeft, Ticket, Loader as Loader2, Truck, Wallet, Check, Info, CreditCard, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -51,7 +51,7 @@ import { fetchAddressByCep } from '@/lib/viaCep';
 import { getShippingQuote } from '@/lib/merchantShipping';
 import { fetchProductShippingDims, fetchVariantShippingWeights, buildSuperFreteProducts } from '@/lib/shippingUtils';
 import type { ShippingQuote } from '@/types';
-import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption } from '@/lib/localDelivery';
+import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption, buildPickupInstructionsSnapshot } from '@/lib/localDelivery';
 
 
 interface CartModalProps {
@@ -608,7 +608,7 @@ export default function CartModal({
             delivery_option: selectedDeliveryConfig?.name || null,
             delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
             delivery_is_quote: selectedDeliveryConfig?.quoteOnRequest || false,
-            pickup_instructions: selectedDeliveryConfig?.scope === 'pickup' ? selectedDeliveryConfig.pickupInstructions || null : null,
+            pickup_instructions: selectedDeliveryConfig?.scope === 'pickup' ? buildPickupInstructionsSnapshot(selectedDeliveryConfig) : null,
             insurance_fee: insuranceFee,
             affiliate_id: affiliateId,
             shipping_city: selectedDeliveryConfig?.scope === 'pickup' ? null : customerCity.trim() || null,
@@ -1453,6 +1453,30 @@ export default function CartModal({
                               </Select>
                               {formErrors.delivery && (
                                 <p className="text-xs text-destructive">{formErrors.delivery}</p>
+                              )}
+                              {selectedDeliveryConfig?.scope === 'pickup' && (selectedDeliveryConfig.pickupInstructions || selectedDeliveryConfig.pickupHours || selectedDeliveryConfig.pickupMapUrl) && (
+                                <div className="rounded-lg border p-2.5 text-xs space-y-1">
+                                  {selectedDeliveryConfig.pickupInstructions && (
+                                    <p className="text-muted-foreground whitespace-pre-line">{selectedDeliveryConfig.pickupInstructions}</p>
+                                  )}
+                                  {selectedDeliveryConfig.pickupHours && (
+                                    <p className="text-muted-foreground flex items-center gap-1.5">
+                                      <Clock className="h-3 w-3 shrink-0" />
+                                      {selectedDeliveryConfig.pickupHours}
+                                    </p>
+                                  )}
+                                  {selectedDeliveryConfig.pickupMapUrl && (
+                                    <a
+                                      href={selectedDeliveryConfig.pickupMapUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                      Ver no mapa
+                                    </a>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}

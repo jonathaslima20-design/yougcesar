@@ -7,6 +7,7 @@ import {
   resolveBuyerSession,
   signInWithGoogleBuyer,
   updateBuyerProfile,
+  updateBuyerCpf,
   type Customer,
 } from '@/lib/auth/buyerAuth';
 
@@ -27,6 +28,7 @@ interface BuyerAuthContextType {
     whatsapp?: string | null;
     country_code?: string;
   }) => Promise<{ error: string | null }>;
+  saveCpf: (cpf: string) => Promise<void>;
 }
 
 const BuyerAuthContext = createContext<BuyerAuthContextType | undefined>(undefined);
@@ -100,6 +102,12 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
+  const saveCpf = async (cpf: string) => {
+    if (!customer || customer.cpf === cpf) return;
+    const updated = await updateBuyerCpf(customer.id, cpf);
+    if (updated) setCustomer(updated);
+  };
+
   const value = {
     customer,
     loading,
@@ -109,6 +117,7 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
     signOut,
     refreshCustomer,
     updateProfile,
+    saveCpf,
   };
 
   return <BuyerAuthContext.Provider value={value}>{children}</BuyerAuthContext.Provider>;

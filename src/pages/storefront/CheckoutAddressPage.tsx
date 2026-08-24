@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck } from 'lucide-react';
+import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,13 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCorretorData } from '@/hooks/useCorretorData';
 import { useCart } from '@/contexts/CartContext';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
@@ -31,7 +24,8 @@ import { cn } from '@/lib/utils';
 import { getShippingQuote } from '@/lib/merchantShipping';
 import { fetchProductShippingDims, fetchVariantShippingWeights, buildSuperFreteProducts } from '@/lib/shippingUtils';
 import type { ShippingQuote } from '@/types';
-import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption } from '@/lib/localDelivery';
+import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption, buildPickupInstructionsSnapshot } from '@/lib/localDelivery';
+import { formatCpfCnpj, isValidCpfCnpj } from '@/lib/document';
 import { OrderItemsSummary } from '@/components/buyer/OrderItemsSummary';
 
 interface ManualAddress {
@@ -59,7 +53,7 @@ export default function CheckoutAddressPage() {
   const navigate = useNavigate();
   const { corretor, loading: corretorLoading } = useCorretorData({ slug });
   const { cart, clearCart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon, updateVariantQuantity, removeCartVariant } = useCart();
-  const { customer: buyerAccount, loading: authLoading } = useBuyerAuth();
+  const { customer: buyerAccount, loading: authLoading, saveCpf } = useBuyerAuth();
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
   // autoDeductStock nao e lido aqui: a baixa deste fluxo acontece no webhook
   // de pagamento, na aprovacao. inventoryEnabled ainda serve para revalidar
@@ -74,6 +68,7 @@ export default function CheckoutAddressPage() {
   const [manualAddress, setManualAddress] = useState<ManualAddress>(EMPTY_ADDRESS);
   const [cepLoading, setCepLoading] = useState(false);
   const [whatsappFallback, setWhatsappFallback] = useState('');
+  const [cpf, setCpf] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string | null>(null);
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
@@ -96,6 +91,10 @@ export default function CheckoutAddressPage() {
       navigate(`/${slug}`);
     }
   }, [corretorLoading, hasItems, navigate, slug]);
+
+  useEffect(() => {
+    if (buyerAccount?.cpf) setCpf(formatCpfCnpj(buyerAccount.cpf));
+  }, [buyerAccount?.cpf]);
 
   useEffect(() => {
     if (!buyerAccount) return;
@@ -357,6 +356,11 @@ export default function CheckoutAddressPage() {
       return false;
     }
 
+    if (!isValidCpfCnpj(cpf)) {
+      toast.error('Informe um CPF válido');
+      return false;
+    }
+
     return true;
   };
 
@@ -452,6 +456,8 @@ export default function CheckoutAddressPage() {
       }
 
       const affiliateId = await resolveAttributedAffiliateId(corretor.id);
+      const cleanCpf = cpf.replace(/\D/g, '');
+      saveCpf(cleanCpf);
 
       const order = await createOrder(
         {
@@ -469,7 +475,7 @@ export default function CheckoutAddressPage() {
           delivery_fee: deliveryFee,
           delivery_option: selectedDeliveryConfig?.name || null,
           delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
-          pickup_instructions: isPickupSelected ? selectedDeliveryConfig?.pickupInstructions || null : null,
+          pickup_instructions: isPickupSelected ? buildPickupInstructionsSnapshot(selectedDeliveryConfig) : null,
           insurance_fee: insuranceFee,
           affiliate_id: affiliateId,
           buyer_id: buyerAccount.id,
@@ -481,6 +487,7 @@ export default function CheckoutAddressPage() {
           shipping_city: isPickupSelected ? null : finalAddress.city.trim(),
           shipping_state: isPickupSelected ? null : finalAddress.state.trim(),
           shipping_zip_code: isPickupSelected ? null : finalAddress.zipCode.trim(),
+          customer_cpf: cleanCpf,
         },
         orderItems,
         // Sem baixa de estoque aqui: este pedido nasce com payment_status
@@ -527,6 +534,67 @@ export default function CheckoutAddressPage() {
         {/* Coluna do formulário: no mobile fica em cima (ordem 1); no desktop
             passa para a direita, com o resumo assumindo a esquerda. */}
         <div className="order-1 lg:order-2 space-y-6">
+        {(allDeliveryOptions.length > 0 || shippingQuotesLoading || shippingQuotesError) && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Entrega
+              </CardTitle>
+              <CardDescription>Como você quer receber seu pedido?</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {allDeliveryOptions.length > 0 && (
+                <div className="space-y-2">
+                  {allDeliveryOptions.map((option) => {
+                    const subtotalForFreeCheck = Math.max(0, cart.total - discountAmount);
+                    const isFreeDelivery = option.freeAbove && subtotalForFreeCheck >= option.freeAbove;
+                    const displayFee = isFreeDelivery ? 0 : option.fee;
+                    const isSelected = selectedDeliveryOption === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setSelectedDeliveryOption(option.id)}
+                        className={cn(
+                          'w-full text-left p-3 rounded-lg border-2 transition-colors',
+                          isSelected ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">{option.name}</p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={cn('text-sm', displayFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground')}>
+                              {displayFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(displayFee)}`}
+                            </span>
+                            {isSelected && <Check className="h-4 w-4 text-primary" />}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {shippingQuotesLoading && (
+                <p className="text-xs text-muted-foreground">Calculando frete...</p>
+              )}
+              {shippingQuotesError && !shippingQuotesLoading && (
+                <p className="text-xs text-muted-foreground">
+                  Não foi possível calcular frete automático agora. Use as opções de entrega acima.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {hasNoMatchingLocalOption && (
+          <Card>
+            <CardContent className="pt-6 text-sm text-muted-foreground">
+              Não há opções de entrega disponíveis para {currentCity}. Esta loja entrega localmente apenas em {corretor?.city}.
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -554,6 +622,23 @@ export default function CheckoutAddressPage() {
                   <p className="text-muted-foreground whitespace-pre-line">
                     {selectedDeliveryConfig.pickupInstructions}
                   </p>
+                )}
+                {selectedDeliveryConfig?.pickupHours && (
+                  <p className="text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    {selectedDeliveryConfig.pickupHours}
+                  </p>
+                )}
+                {selectedDeliveryConfig?.pickupMapUrl && (
+                  <a
+                    href={selectedDeliveryConfig.pickupMapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Ver no mapa
+                  </a>
                 )}
               </div>
             ) : (
@@ -680,64 +765,20 @@ export default function CheckoutAddressPage() {
                 />
               </div>
             )}
+            {!addressesLoading && (
+              <div className="space-y-1.5 pt-2">
+                <Label className="text-xs text-muted-foreground">CPF</Label>
+                <Input
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => setCpf(formatCpfCnpj(e.target.value))}
+                  maxLength={18}
+                />
+                <p className="text-xs text-muted-foreground">Necessário para emitir o pagamento.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {hasNoMatchingLocalOption && (
-          <Card>
-            <CardContent className="pt-6 text-sm text-muted-foreground">
-              Não há opções de entrega disponíveis para {currentCity}. Esta loja entrega localmente apenas em {corretor?.city}.
-            </CardContent>
-          </Card>
-        )}
-
-        {(allDeliveryOptions.length > 0 || shippingQuotesLoading || shippingQuotesError) && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Truck className="h-5 w-5" />
-                Entrega
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {allDeliveryOptions.length > 0 && (
-                <Select
-                  value={selectedDeliveryOption || ''}
-                  onValueChange={(value) => setSelectedDeliveryOption(value || null)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a opção de entrega" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allDeliveryOptions.map((option) => {
-                      const subtotalForFreeCheck = Math.max(0, cart.total - discountAmount);
-                      const isFreeDelivery = option.freeAbove && subtotalForFreeCheck >= option.freeAbove;
-                      const displayFee = isFreeDelivery ? 0 : option.fee;
-                      return (
-                        <SelectItem key={option.id} value={option.id}>
-                          <div className="flex items-center gap-1.5">
-                            <span>{option.name}</span>
-                            <span className={displayFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
-                              {displayFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(displayFee)}`}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              )}
-              {shippingQuotesLoading && (
-                <p className="text-xs text-muted-foreground">Calculando frete...</p>
-              )}
-              {shippingQuotesError && !shippingQuotesLoading && (
-                <p className="text-xs text-muted-foreground">
-                  Não foi possível calcular frete automático agora. Use as opções de entrega acima.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
         </div>
 
         {/* Coluna de resumo: no mobile fica embaixo do formulário (ordem 2);
