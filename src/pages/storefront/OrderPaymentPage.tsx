@@ -36,6 +36,7 @@ import { OrderStatusTimeline } from '@/components/buyer/OrderStatusTimeline';
 import { OrderItemsSummary, type OrderItemRow } from '@/components/buyer/OrderItemsSummary';
 import { OrderShippingAddress, hasShippingAddress } from '@/components/buyer/OrderShippingAddress';
 import { OrderPickupInfo } from '@/components/buyer/OrderPickupInfo';
+import { formatCpfCnpj } from '@/lib/document';
 import type { OrderStatus } from '@/types';
 
 type PaymentTab = 'pix' | 'card';
@@ -60,6 +61,7 @@ interface OrderInfo {
   shipping_city: string | null;
   shipping_state: string | null;
   shipping_zip_code: string | null;
+  customer_cpf: string | null;
 }
 
 interface StoreInfo {
@@ -67,21 +69,6 @@ interface StoreInfo {
   slug: string;
   city?: string | null;
   state?: string | null;
-}
-
-function formatCpf(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 14);
-  if (digits.length <= 11) {
-    return digits
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-  }
-  return digits
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }
 
 // Não repete a lista de itens aqui: a coluna de resumo (à esquerda no
@@ -144,24 +131,20 @@ function PaymentSuccess({ storeSlug, order, store }: { storeSlug: string; order:
 }
 
 function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => void }) {
-  const { customer } = useBuyerAuth();
+  // Every field here is typed fresh by the buyer at payment time — none of
+  // it is prefilled from the account or from the checkout step. Mixing an
+  // account-derived value into what's sent for this specific charge caused
+  // silent mismatches (e.g. a real CPF from checkout landing in a field the
+  // buyer had visibly retyped) that were hard to diagnose from the outside.
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState(customer?.email || '');
+  const [email, setEmail] = useState('');
   const [doc, setDoc] = useState('');
   const [loading, setLoading] = useState(false);
   const [pixResult, setPixResult] = useState<OrderPixPaymentResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [approved, setApproved] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (customer?.full_name) {
-      const parts = customer.full_name.split(' ');
-      setFirstName(parts[0] || '');
-      setLastName(parts.slice(1).join(' ') || '');
-    }
-  }, [customer]);
 
   useEffect(() => {
     return () => {
@@ -288,7 +271,7 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
       </div>
       <div className="space-y-2">
         <Label htmlFor="doc">CPF/CNPJ *</Label>
-        <Input id="doc" value={doc} onChange={(e) => setDoc(formatCpf(e.target.value))} placeholder="000.000.000-00" maxLength={18} />
+        <Input id="doc" value={doc} onChange={(e) => setDoc(formatCpfCnpj(e.target.value))} placeholder="000.000.000-00" maxLength={18} />
       </div>
       <Button onClick={handleSubmit} disabled={loading} className="w-full" size="lg">
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <QrCode className="h-4 w-4 mr-2" />}
@@ -300,15 +283,34 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
 }
 
 function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => void }) {
+  // Nome/Sobrenome and the card's own document field are typed fresh here —
+  // never inherited from the account or the checkout step. Mercado Pago's
+  // own charge decision (including its test-card simulation) is keyed off
+  // exactly what's submitted with the card, so silently substituting an
+  // account-derived value in for it produces mismatches that are invisible
+  // in the UI and hard to diagnose.
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [result, setResult] = useState<OrderCardPaymentResult | null>(null);
   const [brickReady, setBrickReady] = useState(false);
   const orderIdRef = useRef(order.id);
   orderIdRef.current = order.id;
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
+  // Refs (not state deps) so typing a name doesn't remount the Brick —
+  // handleSubmit is memoized with an empty dep array on purpose.
+  const firstNameRef = useRef(firstName);
+  firstNameRef.current = firstName;
+  const lastNameRef = useRef(lastName);
+  lastNameRef.current = lastName;
 
   const handleSubmit = useCallback(async (formData: any) => {
     return new Promise<void>(async (resolve, reject) => {
+      if (!firstNameRef.current.trim()) {
+        toast.error('Informe seu nome');
+        reject();
+        return;
+      }
       try {
         const cardResult = await createOrderCardPayment({
           order_id: orderIdRef.current,
@@ -318,6 +320,8 @@ function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => 
           issuer_id: formData.issuer_id || '',
           payer: {
             email: formData.payer?.email || '',
+            first_name: firstNameRef.current,
+            last_name: lastNameRef.current,
             doc: formData.payer?.identification?.number || '',
           },
         });
@@ -382,6 +386,16 @@ function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => 
 
   return (
     <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="cardFirstName">Nome *</Label>
+          <Input id="cardFirstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Nome" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="cardLastName">Sobrenome</Label>
+          <Input id="cardLastName" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Sobrenome" />
+        </div>
+      </div>
       {!brickReady && (
         <div className="flex flex-col items-center justify-center gap-3 py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -432,7 +446,7 @@ export default function OrderPaymentPage() {
       const { data } = await supabaseBuyer
         .from('orders')
         .select(
-          'id, store_owner_id, status, total, payment_status, subtotal, delivery_fee, delivery_option, delivery_scope, pickup_instructions, insurance_fee, discount_amount, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code'
+          'id, store_owner_id, status, total, payment_status, subtotal, delivery_fee, delivery_option, delivery_scope, pickup_instructions, insurance_fee, discount_amount, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code, customer_cpf'
         )
         .eq('id', orderId)
         .maybeSingle();

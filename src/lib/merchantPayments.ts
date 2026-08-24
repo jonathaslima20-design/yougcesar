@@ -119,7 +119,7 @@ export function createOrderCardPayment(args: {
   installments: number;
   payment_method_id: string;
   issuer_id: string;
-  payer: { email: string; doc: string };
+  payer: { email: string; first_name: string; last_name: string; doc: string };
 }): Promise<OrderCardPaymentResult> {
   return callMerchantPayments('createCardPayment', args);
 }

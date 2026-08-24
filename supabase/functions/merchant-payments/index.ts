@@ -26,7 +26,7 @@ interface CardPaymentPayload {
   installments: number;
   payment_method_id: string;
   issuer_id: string;
-  payer: { email: string; doc: string };
+  payer: { email: string; first_name: string; last_name: string; doc: string };
 }
 
 async function getBuyerId(
@@ -307,26 +307,30 @@ Deno.serve(async (req: Request) => {
 
         const docType = cardPayer.doc.replace(/\D/g, "").length > 11 ? "CNPJ" : "CPF";
 
-        const { data: buyerProfile, error: buyerProfileError } = await admin
-          .from("customers")
-          .select("full_name")
-          .eq("id", buyerId)
-          .maybeSingle();
-        if (buyerProfileError) throw new Error(buyerProfileError.message);
-        const fullName = (buyerProfile?.full_name || "").trim();
-        const [payerFirstName, ...payerLastNameParts] = fullName ? fullName.split(/\s+/) : [""];
-        const payerLastName = payerLastNameParts.join(" ");
-
+        // first_name/last_name come from the payment form itself (same as
+        // the Pix flow), not from the buyer's account profile — Mercado
+        // Pago's own test-card simulation (APRO/CONT/OTHE) keys off this
+        // exact field, so pulling it from a stale/unrelated account name
+        // silently breaks test payments. It's also more correct for real
+        // payments: the account name can differ from the card's actual
+        // holder.
         const mpBody = {
           transaction_amount: finalAmount,
           token,
           installments,
           payment_method_id,
           issuer_id,
+          // Without this, Mercado Pago is free to leave a card payment
+          // "in_process"/pending_contingency for extra async review instead
+          // of deciding immediately — including for the APRO test card,
+          // which is what caused pending results in testing. With it, the
+          // buyer always leaves this screen with a final approved/rejected
+          // result instead of an indefinite "em análise".
+          binary_mode: true,
           payer: {
             email: cardPayer.email,
-            first_name: payerFirstName || undefined,
-            last_name: payerLastName || undefined,
+            first_name: cardPayer.first_name || undefined,
+            last_name: cardPayer.last_name || undefined,
             identification: { type: docType, number: cardPayer.doc.replace(/\D/g, "") },
           },
           notification_url: notificationUrl,
