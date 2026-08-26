@@ -9,7 +9,7 @@ import { autoPopulateSizesForUser } from '@/lib/autoPopulateSizes';
 import { fetchProductPriceTiersBatch } from '@/lib/tieredPricingUtils';
 import type { PriceTier } from '@/types';
 
-const PAGINATION_THRESHOLD = 2000;
+const PAGINATION_THRESHOLD = 1500;
 const PAGE_SIZE = 100;
 
 const PRODUCTS_SELECT = `
@@ -428,7 +428,7 @@ export function useProductData({
       const count = await countProducts(userId);
       setTotalProducts(count);
 
-      if (count > PAGINATION_THRESHOLD) {
+      if (count >= PAGINATION_THRESHOLD) {
         setPaginatedMode(true);
         setTotalProductPages(Math.ceil(count / PAGE_SIZE));
 
