@@ -70,6 +70,7 @@ import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
 import BuyerOrderDetailPage from '@/pages/buyer/BuyerOrderDetailPage.tsx';
 import BuyerFavoritesPage from '@/pages/buyer/BuyerFavoritesPage.tsx';
 import BuyerCouponsPage from '@/pages/buyer/BuyerCouponsPage.tsx';
+import BuyerCartPage from '@/pages/buyer/BuyerCartPage.tsx';
 import OrderPaymentPage from '@/pages/storefront/OrderPaymentPage.tsx';
 import CheckoutAddressPage from '@/pages/storefront/CheckoutAddressPage.tsx';
 
@@ -109,6 +110,7 @@ import BlogManagementPage from '@/pages/admin/BlogManagementPage.tsx';
 import { OrphanedFilesPage } from '@/pages/admin/OrphanedFilesPage.tsx';
 import BannerClientsPage from '@/pages/admin/BannerClientsPage.tsx';
 import MercadoPagoPage from '@/pages/admin/MercadoPagoPage.tsx';
+import StripePage from '@/pages/admin/StripePage.tsx';
 import LegalCenterPage from '@/pages/admin/LegalCenterPage.tsx';
 import PrivacyRequestsPage from '@/pages/admin/PrivacyRequestsPage.tsx';
 import LandingHeroPage from '@/pages/admin/LandingHeroPage.tsx';
@@ -273,6 +275,7 @@ function AppContent() {
           <Route element={<BuyerAccountLayout />}>
             <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
             <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
+            <Route path="/conta/carrinho" element={<BuyerCartPage />} />
             <Route path="/conta/favoritos" element={<BuyerFavoritesPage />} />
             <Route path="/conta/cupons" element={<BuyerCouponsPage />} />
             <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
@@ -360,6 +363,7 @@ function AppContent() {
             <Route path="/admin/help" element={<HelpManagementPage />} />
             <Route path="/admin/blog" element={<BlogManagementPage />} />
             <Route path="/admin/mercadopago" element={<MercadoPagoPage />} />
+            <Route path="/admin/stripe" element={<StripePage />} />
             <Route path="/admin/banner-clients" element={<BannerClientsPage />} />
             <Route path="/admin/legal" element={<LegalCenterPage />} />
             <Route path="/admin/privacy-requests" element={<PrivacyRequestsPage />} />

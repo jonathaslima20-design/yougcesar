@@ -40,6 +40,7 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
         { name: 'Planos', href: '/admin/plans', icon: CreditCard, roles: ['admin'] },
         { name: 'Ofertas Promocionais', href: '/admin/offers', icon: Megaphone, roles: ['admin'] },
         { name: 'Mercado Pago', href: '/admin/mercadopago', icon: Wallet, roles: ['admin'] },
+        { name: 'Stripe (Internacional)', href: '/admin/stripe', icon: Globe, roles: ['admin'] },
         { name: 'Integrações (ERP)', href: '/admin/integrations', icon: Boxes, roles: ['admin'] },
         { name: 'Indicacoes', href: '/admin/referrals', icon: Gift, roles: ['admin', 'parceiro'] },
         { name: 'Partners', href: '/admin/partners', icon: Handshake, roles: ['admin'] },
