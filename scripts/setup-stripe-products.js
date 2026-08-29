@@ -4,13 +4,14 @@
  * VitrineTurbo na Stripe (MXN/CLP/EUR/USD x mensal/anual). Idempotente:
  * pode ser rodado várias vezes sem duplicar nada.
  *
- * Uso:
+ * Uso (rode uma vez com a chave de teste, outra com a de produção):
  *   STRIPE_SECRET_KEY=sk_test_... node scripts/setup-stripe-products.js
+ *   STRIPE_SECRET_KEY=sk_live_... node scripts/setup-stripe-products.js
  *
  * A chave nunca é lida daqui além de process.env — não roda em CI, não é
- * chamado pelo app, é para o dono do produto rodar localmente uma vez por
- * ambiente (test, depois live) e colar os price_id impressos no final como
- * Supabase Edge Function secrets.
+ * chamado pelo app, é para o dono do produto rodar localmente. Os price_id
+ * impressos no final vão colados no painel Admin do VitrineTurbo
+ * (Admin > Stripe > Preços por país), não em variável de ambiente.
  */
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -108,7 +109,7 @@ async function main() {
     }
   }
 
-  console.log("\nCole estas variáveis nos Secrets das Supabase Edge Functions:\n");
+  console.log("\nCole estes Price IDs no painel Admin do VitrineTurbo (Admin > Stripe > Preços por país):\n");
   for (const [name, value] of envVars) {
     console.log(`${name}=${value}`);
   }
