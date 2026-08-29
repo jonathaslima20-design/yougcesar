@@ -81,6 +81,7 @@ Deno.serve(async (req: Request) => {
       .from("users")
       .select("id, name, subscription_end_date, plan_status")
       .eq("plan_status", "active")
+      .neq("billing_provider", "stripe")
       .not("subscription_end_date", "is", null)
       .not("role", "in", '("admin","parceiro")')
       .gte("subscription_end_date", todayStr)
@@ -129,6 +130,7 @@ Deno.serve(async (req: Request) => {
       .from("users")
       .select("id, name, subscription_end_date, plan_status")
       .eq("plan_status", "active")
+      .neq("billing_provider", "stripe")
       .not("subscription_end_date", "is", null)
       .not("role", "in", '("admin","parceiro")')
       .lt("subscription_end_date", todayStr)
@@ -176,6 +178,7 @@ Deno.serve(async (req: Request) => {
       .from("users")
       .select("id, name, subscription_end_date")
       .eq("plan_status", "active")
+      .neq("billing_provider", "stripe")
       .not("subscription_end_date", "is", null)
       .not("role", "in", '("admin","parceiro")')
       .lt("subscription_end_date", graceCutoffStr);
