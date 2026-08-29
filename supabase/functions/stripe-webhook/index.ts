@@ -78,28 +78,58 @@ Deno.serve(async (req: Request) => {
   }
 
   const signature = req.headers.get("stripe-signature");
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-  const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-
-  if (!signature || !webhookSecret || !stripeSecretKey) {
-    console.error("stripe-webhook: missing signature or secrets");
-    return received({}, 400);
-  }
-
-  const rawBody = await req.text();
-  const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
-
-  let event: Stripe.Event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
-  } catch (err) {
-    console.error("stripe-webhook: invalid signature", err);
+  if (!signature) {
+    console.error("stripe-webhook: missing stripe-signature header");
     return received({}, 400);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, supabaseServiceKey);
+
+  const { data: stripeConfig } = await admin
+    .from("stripe_config")
+    .select("secret_key_test, secret_key_prod, webhook_secret_test, webhook_secret_prod")
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!stripeConfig) {
+    console.error("stripe-webhook: stripe_config not set up");
+    return received({}, 400);
+  }
+
+  const rawBody = await req.text();
+
+  // The same endpoint receives both test-mode and live-mode events, and the
+  // secret needed to verify the signature depends on which one it is — try
+  // both configured secrets rather than guessing from the payload.
+  const candidates: { secretKey: string; webhookSecret: string }[] = [
+    { secretKey: stripeConfig.secret_key_test, webhookSecret: stripeConfig.webhook_secret_test },
+    { secretKey: stripeConfig.secret_key_prod, webhookSecret: stripeConfig.webhook_secret_prod },
+  ].filter((c) => c.secretKey && c.webhookSecret);
+
+  let event: Stripe.Event | null = null;
+  let stripeSecretKey = "";
+
+  for (const candidate of candidates) {
+    try {
+      const stripeAttempt = new Stripe(candidate.secretKey, { apiVersion: "2024-06-20" });
+      event = await stripeAttempt.webhooks.constructEventAsync(rawBody, signature, candidate.webhookSecret);
+      stripeSecretKey = candidate.secretKey;
+      break;
+    } catch {
+      // try the next candidate
+    }
+  }
+
+  if (!event) {
+    console.error("stripe-webhook: invalid signature (no configured secret matched)");
+    return received({}, 400);
+  }
+
+  const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
 
   const { error: idempotencyError } = await admin
     .from("stripe_webhook_events")

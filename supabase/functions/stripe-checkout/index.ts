@@ -77,22 +77,40 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const priceEnvVar = `STRIPE_PRICE_${profile.billing_currency}_${cycle.toUpperCase()}`;
-    const priceId = Deno.env.get(priceEnvVar);
+    const { data: stripeConfig } = await admin
+      .from("stripe_config")
+      .select("environment, secret_key_test, secret_key_prod")
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (!priceId) {
-      console.error(`Missing Stripe price env var: ${priceEnvVar}`);
+    const stripeSecretKey =
+      stripeConfig?.environment === "production"
+        ? stripeConfig?.secret_key_prod
+        : stripeConfig?.secret_key_test;
+
+    if (!stripeSecretKey) {
+      console.error("Stripe not configured (stripe_config missing secret key)");
+      return jsonResponse({ error: "Pagamento internacional indisponível no momento" }, 502);
+    }
+
+    const { data: priceRow } = await admin
+      .from("stripe_prices")
+      .select("price_id")
+      .eq("environment", stripeConfig!.environment)
+      .eq("currency", profile.billing_currency)
+      .eq("cycle", cycle)
+      .maybeSingle();
+
+    if (!priceRow?.price_id) {
+      console.error(`Missing Stripe price for ${profile.billing_currency}/${cycle}/${stripeConfig!.environment}`);
       return jsonResponse(
         { error: `Plano ${cycle} em ${profile.billing_currency} não está configurado` },
         422
       );
     }
-
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeSecretKey) {
-      console.error("Missing STRIPE_SECRET_KEY");
-      return jsonResponse({ error: "Pagamento internacional indisponível no momento" }, 502);
-    }
+    const priceId = priceRow.price_id;
 
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
 
