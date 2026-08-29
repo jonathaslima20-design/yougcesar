@@ -21,6 +21,8 @@ import {
   type OfferCheckoutInfo,
 } from '@/lib/offerService';
 import { validateReferralCoupon, calculateReferralDiscount } from '@/lib/referralUtils';
+import { getProviderForCountry } from '@/lib/billing/provider';
+import StripeCheckoutRedirect from './StripeCheckoutRedirect';
 import { toast } from 'sonner';
 import { QrCode, CreditCard, Copy, Check, Loader as Loader2, ArrowLeft, ShieldCheck, Clock, CircleCheck as CheckCircle2, Circle as XCircle, CircleAlert as AlertCircle, CalendarClock, Tag, Ticket, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -810,6 +812,13 @@ export default function CheckoutPage() {
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  // Assinantes fora do Brasil pagam via Stripe — decisão única em
+  // src/lib/billing/provider.ts. O "plan" resolvido acima (subscription_plans,
+  // schema BR) não se aplica aqui, só o ciclo (mensal/anual) importa.
+  if (getProviderForCountry(user?.country).provider === 'stripe') {
+    return <StripeCheckoutRedirect rawCycle={cycle} />;
   }
 
   const renderCardContent = () => {

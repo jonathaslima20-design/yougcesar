@@ -59,6 +59,11 @@ export interface User {
   next_payment_date?: string;
   subscription_end_date?: string;
   subscription_plan_name?: string;
+  country?: string;
+  billing_provider?: 'mercadopago' | 'stripe';
+  billing_currency?: string;
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
   referral_code?: string;
   referred_by?: string;
   utm_source?: string;

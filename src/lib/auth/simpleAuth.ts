@@ -1,11 +1,31 @@
 import { supabase } from '../supabase';
 import type { User } from '@/types';
 import type { AttributionData } from '@/lib/attribution';
+import { getProviderForCountry } from '@/lib/billing/provider';
 
 // Logs informativos apenas em desenvolvimento; erros continuam sempre visíveis via console.error
 const devLog = (...args: unknown[]) => {
   if (import.meta.env.DEV) console.log(...args);
 };
+
+// País vem da geolocalização por IP (Netlify Edge Function). Falha ou
+// indisponibilidade cai para 'BR' — nunca deve travar o cadastro.
+// billing_currency é a moeda da ASSINATURA, não confundir com users.currency
+// (moeda de exibição da vitrine, campo pré-existente e não relacionado).
+async function resolveGeoBilling(): Promise<{ country: string; billing_currency: string; billing_provider: string }> {
+  let country = 'BR';
+  try {
+    const res = await fetch('/api/geo-country');
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.country) country = data.country;
+    }
+  } catch {
+    // geolocalização indisponível — segue com o fallback BR
+  }
+  const { provider, currency } = getProviderForCountry(country);
+  return { country, billing_currency: currency, billing_provider: provider };
+}
 
 // Pure localStorage authentication (no Supabase Auth)
 export interface StoredCredentials {
@@ -503,6 +523,7 @@ export async function registerUser(
     }
 
     const now = new Date().toISOString();
+    const geoBilling = await resolveGeoBilling();
     const { data: userProfile, error: createError } = await supabase
       .from('users')
       .upsert({
@@ -517,6 +538,7 @@ export async function registerUser(
         is_blocked: false,
         plan_status: 'free',
         created_at: now,
+        ...geoBilling,
         ...(referredBy ? { referred_by: referredBy } : {}),
         ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
         ...(userData.accepted_terms ? {
@@ -703,6 +725,7 @@ export async function completeGoogleProfile(
     }
 
     const now = new Date().toISOString();
+    const geoBilling = await resolveGeoBilling();
     const { data: userProfile, error: createError } = await supabase
       .from('users')
       .upsert({
@@ -717,6 +740,7 @@ export async function completeGoogleProfile(
         is_blocked: false,
         plan_status: 'free',
         created_at: now,
+        ...geoBilling,
         ...(referredBy ? { referred_by: referredBy } : {}),
         ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
         ...(userData.accepted_terms ? {
