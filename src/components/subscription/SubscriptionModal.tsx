@@ -68,7 +68,25 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
         .order('display_order', { ascending: true });
 
       if (error) throw error;
-      setPlans(data || []);
+
+      let result = data || [];
+
+      // Trimestral was retired for new subscribers, but existing subscribers on
+      // it must keep seeing it as a renewal option instead of Mensal, which
+      // never was and isn't meant to be a plan they can pick.
+      if (user?.billing_cycle === 'quarterly') {
+        const { data: legacyPlan } = await supabase
+          .from('subscription_plans')
+          .select('*')
+          .eq('duration', 'Trimestral')
+          .maybeSingle();
+
+        if (legacyPlan) {
+          result = [legacyPlan, ...result.filter((p) => p.duration !== 'Mensal')];
+        }
+      }
+
+      setPlans(result);
     } catch (error) {
       console.error('Error fetching plans:', error);
     } finally {
