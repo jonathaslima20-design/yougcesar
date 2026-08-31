@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { calculateDiscountedPrice } from '@/lib/offerService';
 import { useAuth } from '@/contexts/AuthContext';
+import { LEGACY_TRIMESTRAL_PLAN } from '@/lib/legacyTrimestralPlan';
 import type { SubscriptionPlan, LimitReason, PlanStatus } from '@/types';
 import type { OfferDiscountInfo } from '@/contexts/SubscriptionModalContext';
 import { FREE_PLAN_PRODUCT_LIMIT, FREE_PLAN_CATEGORY_LIMIT } from '@/hooks/usePlanLimits';
@@ -73,17 +74,11 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
 
       // Trimestral was retired for new subscribers, but existing subscribers on
       // it must keep seeing it as a renewal option instead of Mensal, which
-      // never was and isn't meant to be a plan they can pick.
+      // never was and isn't meant to be a plan they can pick. Its row is
+      // is_active = false, which RLS hides from non-admin users even by exact
+      // id, so it can't be fetched here — use the hardcoded reference instead.
       if (user?.billing_cycle === 'quarterly') {
-        const { data: legacyPlan } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('duration', 'Trimestral')
-          .maybeSingle();
-
-        if (legacyPlan) {
-          result = [legacyPlan, ...result.filter((p) => p.duration !== 'Mensal')];
-        }
+        result = [LEGACY_TRIMESTRAL_PLAN, ...result.filter((p) => p.duration !== 'Mensal')];
       }
 
       setPlans(result);
