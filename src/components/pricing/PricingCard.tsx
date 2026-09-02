@@ -10,7 +10,7 @@ export default function PricingCard({
   ctaHref?: string;
   ctaLabel?: string;
 }) {
-  const { tag, name, priceSuffix, billedNote, savingsBadge, featured = false, benefits } = plan;
+  const { tag, name, priceSuffix, priceUnit, billedNote, savingsBadge, featured = false, benefits } = plan;
 
   return (
     <div
@@ -32,7 +32,7 @@ export default function PricingCard({
       </div>
       <div className="mt-8">
         <span className="font-display font-semibold text-[44px] lg:text-[52px] tracking-[-0.03em] leading-none">R$ {priceSuffix}</span>
-        <span className={`text-[14px] ml-1 ${featured ? 'text-white/60' : 'text-ink-500'}`}>/mês</span>
+        <span className={`text-[14px] ml-1 ${featured ? 'text-white/60' : 'text-ink-500'}`}>{priceUnit ?? '/mês'}</span>
       </div>
       <div className="flex items-center gap-2 mt-2">
         <p className={`text-[12px] ${featured ? 'text-white/60' : 'text-ink-400'}`}>{billedNote}</p>
