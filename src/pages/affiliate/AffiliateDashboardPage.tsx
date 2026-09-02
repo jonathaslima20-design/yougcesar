@@ -77,7 +77,7 @@ export default function AffiliateDashboardPage() {
     load();
   }, [affiliate]);
 
-  const link = affiliate && storeSlug ? generateAffiliateLink(storeSlug, affiliate.affiliate_code) : '';
+  const link = affiliate && storeSlug ? generateAffiliateLink(storeSlug, affiliate.slug) : '';
 
   useEffect(() => {
     if (!link) {

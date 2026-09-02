@@ -19,8 +19,15 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { generateSlug } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { Affiliate, AffiliateCommissionRule, CreateAffiliateInput } from '@/hooks/useAffiliates';
+
+const RESERVED_SLUGS = new Set(['produtos', 'pedido', 'carrinho', 'checkout', 'afiliado', 'admin', 'dashboard', 'conta', 'partners', 'blog', 'login', 'register', 'planos']);
+
+function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(slug) && !RESERVED_SLUGS.has(slug);
+}
 
 interface AffiliateFormDialogProps {
   open: boolean;
@@ -28,7 +35,7 @@ interface AffiliateFormDialogProps {
   affiliate: Affiliate | null;
   existingRules: AffiliateCommissionRule[];
   onCreate: (input: CreateAffiliateInput) => Promise<unknown>;
-  onUpdate: (id: string, updates: Partial<Pick<Affiliate, 'name' | 'whatsapp' | 'default_commission_percentage' | 'commission_trigger' | 'attribution_window_days' | 'payment_frequency' | 'whatsapp_contact_mode'>>) => Promise<void>;
+  onUpdate: (id: string, updates: Partial<Pick<Affiliate, 'name' | 'slug' | 'whatsapp' | 'default_commission_percentage' | 'commission_trigger' | 'attribution_window_days' | 'payment_frequency' | 'whatsapp_contact_mode'>>) => Promise<void>;
   onSaveRules: (affiliateId: string, rules: { category_name: string; commission_percentage: number }[]) => Promise<void>;
 }
 
@@ -46,6 +53,8 @@ export default function AffiliateFormDialog({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugEditedManually, setSlugEditedManually] = useState(false);
   const [whatsapp, setWhatsapp] = useState('');
   const [defaultRate, setDefaultRate] = useState('10');
   const [commissionTrigger, setCommissionTrigger] = useState<'confirmed' | 'delivered'>('delivered');
@@ -61,6 +70,8 @@ export default function AffiliateFormDialog({
     setEmail(affiliate?.email || '');
     setPassword('');
     setName(affiliate?.name || '');
+    setSlug(affiliate?.slug || '');
+    setSlugEditedManually(!!affiliate);
     setWhatsapp(affiliate?.whatsapp || '');
     setDefaultRate(affiliate ? String(affiliate.default_commission_percentage) : '10');
     setCommissionTrigger(affiliate?.commission_trigger || 'delivered');
@@ -104,6 +115,12 @@ export default function AffiliateFormDialog({
       return;
     }
 
+    const normalizedSlug = slug.trim().toLowerCase();
+    if (!isValidSlug(normalizedSlug)) {
+      toast.error('Link inválido. Use apenas letras minúsculas, números e hífens (3-30 caracteres, sem começar/terminar com hífen).');
+      return;
+    }
+
     if (whatsappContactMode === 'own_whatsapp' && !whatsapp.trim()) {
       toast.error('Informe o WhatsApp do afiliado para usar o número dele na vitrine');
       return;
@@ -129,6 +146,7 @@ export default function AffiliateFormDialog({
       if (isEditing && affiliate) {
         await onUpdate(affiliate.id, {
           name,
+          slug: normalizedSlug,
           whatsapp: whatsapp || null,
           default_commission_percentage: rate,
           commission_trigger: commissionTrigger,
@@ -150,7 +168,7 @@ export default function AffiliateFormDialog({
           return;
         }
         const result = await onCreate({
-          email, password, name, whatsapp: whatsapp || undefined, default_commission_percentage: rate,
+          email, password, name, slug: normalizedSlug, whatsapp: whatsapp || undefined, default_commission_percentage: rate,
           commission_trigger: commissionTrigger,
           attribution_window_days: Number(attributionWindowDays) as 7 | 15 | 30,
           payment_frequency: paymentFrequency,
@@ -160,7 +178,7 @@ export default function AffiliateFormDialog({
           await onSaveRules(result.affiliateId, parsedRules);
         }
         toast.success('Afiliado criado com sucesso', {
-          description: `Login em ${window.location.origin}/afiliado/entrar (não é a mesma tela de login do lojista)`,
+          description: `Link da vitrine: vitrineturbo.com/${user?.slug}/${normalizedSlug} · Login em ${window.location.origin}/afiliado/entrar`,
           duration: 8000,
         });
       }
@@ -196,7 +214,38 @@ export default function AffiliateFormDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="aff-name">Nome</Label>
-            <Input id="aff-name" value={name} onChange={e => setName(e.target.value)} placeholder="Nome do afiliado" />
+            <Input
+              id="aff-name"
+              value={name}
+              onChange={e => {
+                const value = e.target.value;
+                setName(value);
+                if (!isEditing && !slugEditedManually) setSlug(generateSlug(value));
+              }}
+              placeholder="Nome do afiliado"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="aff-slug">Link da vitrine do afiliado</Label>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[40%]">
+                vitrineturbo.com/{user?.slug}/
+              </span>
+              <Input
+                id="aff-slug"
+                value={slug}
+                onChange={e => {
+                  setSlugEditedManually(true);
+                  setSlug(e.target.value.toLowerCase());
+                }}
+                placeholder="taina"
+                className="flex-1"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Só letras minúsculas, números e hífens. {isEditing ? 'Alterar quebra links já compartilhados por este afiliado.' : ''}
+            </p>
           </div>
 
           <div className="space-y-1.5">

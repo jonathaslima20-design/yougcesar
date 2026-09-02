@@ -13,8 +13,13 @@
       true — the admin-controlled gate is re-checked here server-side, not
       just hidden in the UI.
   2. Behavior
-    - Generates a unique affiliate_code scoped to the caller's store,
-      retrying on a rare collision.
+    - The store owner picks the affiliate's `slug` (validated here too, not
+      just client-side): it becomes the storefront link's path segment,
+      https://vitrineturbo.com/{storeSlug}/{slug} — checked for availability
+      within the store before the Auth user is even created.
+    - Still generates a random `affiliate_code` scoped to the caller's store
+      (retrying on a rare collision) — kept for backward compatibility with
+      the ?aff=CODE deep-link functions (per-product/category share links).
     - Rolls back the created Auth user if the `affiliates` profile insert
       fails, mirroring create-user's own rollback-on-failure behavior.
 */
@@ -31,6 +36,7 @@ interface CreateAffiliateRequest {
   email: string;
   password: string;
   name: string;
+  slug: string;
   whatsapp?: string;
   country_code?: string;
   default_commission_percentage: number;
@@ -41,6 +47,8 @@ interface CreateAffiliateRequest {
 }
 
 const AFFILIATE_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
+const RESERVED_SLUGS = new Set(['produtos', 'pedido', 'carrinho', 'checkout', 'afiliado', 'admin', 'dashboard', 'conta', 'partners', 'blog', 'login', 'register', 'planos']);
 
 function generateAffiliateCode(): string {
   let code = 'AF';
@@ -120,6 +128,7 @@ Deno.serve(async (req: Request) => {
       email: rawEmail,
       password,
       name,
+      slug: rawSlug,
       whatsapp,
       country_code,
       default_commission_percentage,
@@ -129,10 +138,18 @@ Deno.serve(async (req: Request) => {
       whatsapp_contact_mode,
     }: CreateAffiliateRequest = await req.json();
     const email = rawEmail?.trim().toLowerCase();
+    const slug = rawSlug?.trim().toLowerCase();
 
-    if (!email || !password || !name || default_commission_percentage === undefined || default_commission_percentage === null) {
+    if (!email || !password || !name || !slug || default_commission_percentage === undefined || default_commission_percentage === null) {
       return new Response(
-        JSON.stringify({ error: 'Campos obrigatórios: email, password, name, default_commission_percentage' }),
+        JSON.stringify({ error: 'Campos obrigatórios: email, password, name, slug, default_commission_percentage' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!SLUG_REGEX.test(slug) || RESERVED_SLUGS.has(slug)) {
+      return new Response(
+        JSON.stringify({ error: 'Slug inválido. Use apenas letras minúsculas, números e hífens (sem começar ou terminar com hífen).' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -198,6 +215,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const { data: existingSlug } = await supabaseAdmin
+      .from('affiliates')
+      .select('id')
+      .eq('store_owner_id', requestingUser.id)
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (existingSlug) {
+      return new Response(
+        JSON.stringify({ error: 'Esse link já está em uso por outro afiliado. Escolha outro.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -229,6 +260,7 @@ Deno.serve(async (req: Request) => {
         store_owner_id: requestingUser.id,
         email,
         name,
+        slug,
         whatsapp: whatsapp || null,
         country_code: country_code || '55',
         affiliate_code: affiliateCode,
@@ -261,7 +293,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, affiliateId, affiliateCode }),
+      JSON.stringify({ success: true, affiliateId, affiliateCode, slug }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
