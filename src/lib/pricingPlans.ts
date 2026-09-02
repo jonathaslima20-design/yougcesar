@@ -3,6 +3,7 @@ export interface PricingPlan {
   tag: string;
   name: string;
   priceSuffix: string;
+  priceUnit?: string;
   billedNote: string;
   savingsBadge?: string;
   featured?: boolean;
@@ -43,8 +44,9 @@ export const PAID_PLANS: PricingPlan[] = [
     id: 'semestral',
     tag: 'Mais escolhido',
     name: 'Semestral',
-    priceSuffix: '38,17',
-    billedNote: 'R$ 229 a cada 6 meses',
+    priceSuffix: '229,00',
+    priceUnit: '/semestre',
+    billedNote: 'Cobrado a cada 6 meses',
     savingsBadge: 'Economize 33%',
     benefits: allPaidBenefits,
   },
@@ -52,8 +54,9 @@ export const PAID_PLANS: PricingPlan[] = [
     id: 'anual',
     tag: 'Recomendado',
     name: 'Anual',
-    priceSuffix: '28,00',
-    billedNote: 'R$ 336 cobrados por ano',
+    priceSuffix: '336,00',
+    priceUnit: '/ano',
+    billedNote: 'Cobrado uma vez por ano',
     savingsBadge: 'Economize 51%',
     featured: true,
     benefits: anualBenefits,
