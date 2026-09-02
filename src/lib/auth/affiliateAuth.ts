@@ -8,6 +8,7 @@ export interface AffiliateProfile {
   whatsapp: string | null;
   country_code: string;
   affiliate_code: string;
+  slug: string;
   default_commission_percentage: number;
   commission_trigger: 'confirmed' | 'delivered';
   attribution_window_days: 7 | 15 | 30;

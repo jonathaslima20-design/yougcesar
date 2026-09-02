@@ -117,7 +117,7 @@ export default function AffiliatesPage() {
 
   const handleCopyLink = (affiliate: Affiliate) => {
     if (!user?.slug) return;
-    navigator.clipboard.writeText(generateAffiliateLink(user.slug, affiliate.affiliate_code));
+    navigator.clipboard.writeText(generateAffiliateLink(user.slug, affiliate.slug));
     toast.success('Link copiado');
   };
 
@@ -283,7 +283,7 @@ export default function AffiliatesPage() {
                         <Badge variant={affiliate.status === 'active' ? 'default' : 'secondary'} className="text-xs">
                           {affiliate.status === 'active' ? 'Ativo' : 'Inativo'}
                         </Badge>
-                        <span className="font-mono text-xs text-muted-foreground">{affiliate.affiliate_code}</span>
+                        <span className="font-mono text-xs text-muted-foreground">/{user?.slug}/{affiliate.slug}</span>
                       </div>
                       <p className="text-sm text-muted-foreground truncate">{affiliate.email}</p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">

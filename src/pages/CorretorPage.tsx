@@ -28,7 +28,7 @@ import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { generateReferralLink } from '@/lib/referralUtils';
-import { captureAffiliateClick } from '@/lib/affiliateUtils';
+import { captureAffiliateClick, captureAffiliateClickBySlug } from '@/lib/affiliateUtils';
 import { saveLastVisitedStore } from '@/lib/lastVisitedStore';
 
 const PromotionalBanner = lazy(() => import('@/components/corretor/PromotionalBanner'));
@@ -38,7 +38,7 @@ interface CorretorPageProps {
 }
 
 export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {}) {
-  const { slug: paramSlug } = useParams();
+  const { slug: paramSlug, affiliateSlug } = useParams();
   const slug = customDomainSlug || paramSlug;
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -88,12 +88,17 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     if (corretor?.slug) saveLastVisitedStore(corretor.slug);
   }, [corretor?.slug]);
 
-  // Resolve ?aff=CODE against this store's affiliates and persist attribution.
+  // Resolve affiliate attribution: the /:slug/:affiliateSlug path segment takes
+  // priority over the legacy ?aff=CODE query param (both can't attribute at once).
   useEffect(() => {
     if (!corretor?.id || !corretor.affiliate_program_enabled) return;
+    if (affiliateSlug) {
+      captureAffiliateClickBySlug(corretor.id, affiliateSlug, location.pathname);
+      return;
+    }
     const affCode = searchParams.get('aff');
     if (affCode) captureAffiliateClick(corretor.id, affCode, location.pathname);
-  }, [corretor?.id, corretor?.affiliate_program_enabled, searchParams, location.pathname]);
+  }, [corretor?.id, corretor?.affiliate_program_enabled, affiliateSlug, searchParams, location.pathname]);
 
   const {
     allProducts,

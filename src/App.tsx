@@ -394,6 +394,9 @@ function AppContent() {
         {/* Corretor Public Profile Routes - MUST be last to avoid catching /admin, /dashboard, etc. */}
         <Route element={<PublicLayout />}>
           <Route path="/:slug" element={<CorretorPage />} />
+          {/* Affiliate storefront link: /{storeSlug}/{affiliateSlug} (e.g. /sneakerhouse/taina) —
+              same CorretorPage, attribution resolved from the 2nd path segment instead of ?aff=. */}
+          <Route path="/:slug/:affiliateSlug" element={<CorretorPage />} />
           <Route path="/:slug/produtos/:productId" element={<ProductDetailsPage />} />
           <Route path="/:slug/pedido/endereco" element={<CheckoutAddressPage />} />
           <Route path="/:slug/pedido/:orderId/pagamento" element={<OrderPaymentPage />} />

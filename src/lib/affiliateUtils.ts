@@ -8,8 +8,14 @@ export function generateAffiliateCode(): string {
   return code;
 }
 
-export function generateAffiliateLink(storeSlug: string, affiliateCode: string): string {
-  return `https://vitrineturbo.com/${storeSlug}?aff=${affiliateCode}`;
+/**
+ * Main storefront link for an affiliate: the store's own slug, then the
+ * affiliate's own slug as a second path segment (e.g. /sneakerhouse/taina).
+ * Replaces the old `?aff=CODE` query-param format for this specific link —
+ * the code-based deep links below (product/category) are unchanged.
+ */
+export function generateAffiliateLink(storeSlug: string, affiliateSlug: string): string {
+  return `https://vitrineturbo.com/${storeSlug}/${affiliateSlug}`;
 }
 
 /**
@@ -75,6 +81,37 @@ export async function captureAffiliateClick(storeOwnerId: string, code: string, 
     const attribution: StoredAffiliateAttribution = {
       affiliateId,
       code,
+      clickedAt: Date.now(),
+    };
+    localStorage.setItem(attributionStorageKey(storeOwnerId), JSON.stringify(attribution));
+
+    await supabase.from('affiliate_clicks').insert({
+      affiliate_id: affiliateId,
+      visitor_id: getSessionVisitorId(),
+      landing_path: landingPath,
+    });
+  } catch {
+    /* silent */
+  }
+}
+
+/**
+ * Same as captureAffiliateClick, but resolves the affiliate from the slug
+ * path segment (e.g. /sneakerhouse/taina) instead of the ?aff=CODE query
+ * param — used by the /:slug/:affiliateSlug route.
+ */
+export async function captureAffiliateClickBySlug(storeOwnerId: string, slug: string, landingPath: string): Promise<void> {
+  try {
+    const { data: affiliateId } = await supabase.rpc('resolve_affiliate_by_slug', {
+      p_store_owner_id: storeOwnerId,
+      p_slug: slug,
+    });
+
+    if (!affiliateId) return;
+
+    const attribution: StoredAffiliateAttribution = {
+      affiliateId,
+      code: slug,
       clickedAt: Date.now(),
     };
     localStorage.setItem(attributionStorageKey(storeOwnerId), JSON.stringify(attribution));

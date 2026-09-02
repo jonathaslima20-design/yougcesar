@@ -10,6 +10,7 @@ export interface Affiliate {
   whatsapp: string | null;
   country_code: string;
   affiliate_code: string;
+  slug: string;
   default_commission_percentage: number;
   commission_trigger: 'confirmed' | 'delivered';
   attribution_window_days: 7 | 15 | 30;
@@ -60,6 +61,7 @@ export interface CreateAffiliateInput {
   email: string;
   password: string;
   name: string;
+  slug: string;
   whatsapp?: string;
   country_code?: string;
   default_commission_percentage: number;
@@ -170,10 +172,13 @@ export function useAffiliates() {
 
   const updateAffiliate = async (
     id: string,
-    updates: Partial<Pick<Affiliate, 'name' | 'whatsapp' | 'default_commission_percentage' | 'commission_trigger' | 'attribution_window_days' | 'payment_frequency' | 'whatsapp_contact_mode'>>
+    updates: Partial<Pick<Affiliate, 'name' | 'slug' | 'whatsapp' | 'default_commission_percentage' | 'commission_trigger' | 'attribution_window_days' | 'payment_frequency' | 'whatsapp_contact_mode'>>
   ) => {
     const { error } = await supabase.from('affiliates').update(updates).eq('id', id);
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') throw new Error('Esse link já está em uso por outro afiliado. Escolha outro.');
+      throw error;
+    }
     await fetchAffiliates();
   };
 
