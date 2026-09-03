@@ -1,0 +1,54 @@
+{
+  "plansPage": {
+    "eyebrow": "/ planos vitrineturbo",
+    "title": "Escolhe o plano ideal para o teu negócio",
+    "subtitle": "Produtos ilimitados, stock, encomendas, cupões e domínio próprio. Sem comissão sobre as vendas."
+  },
+  "card": {
+    "ctaLabel": "Começar agora",
+    "perMonth": "/mês"
+  },
+  "plans": {
+    "mensal": {
+      "tag": "Flexível",
+      "name": "Mensal",
+      "billedNote": "Cobrado mensalmente"
+    },
+    "semestral": {
+      "tag": "Mais escolhido",
+      "name": "Semestral",
+      "savingsBadge": "Poupa 33%"
+    },
+    "anual": {
+      "tag": "Recomendado",
+      "name": "Anual",
+      "savingsBadge": "Poupa 51%"
+    }
+  },
+  "international": {
+    "annualBilledNoteTemplate": "{{amount}} cobrados por ano",
+    "savingsBadgeTemplate": "Poupa {{percent}}%"
+  },
+  "benefits": {
+    "unlimited_products": "Produtos ilimitados",
+    "unlimited_categories": "Categorias e etiquetas ilimitadas",
+    "digital_catalog": "Catálogo digital por link",
+    "admin_panel": "Painel de administração completo",
+    "cart": "Carrinho de compras",
+    "inventory": "Controlo de stock e inventário",
+    "orders": "Gestão de encomendas e vendas",
+    "coupons": "Sistema de cupões",
+    "customization": "Personalização de cores e tipos de letra",
+    "pixel_integration": "Integração com Meta Pixel e Google Tag",
+    "referral": "Programa de indicação",
+    "custom_domain": "Domínio próprio com SSL",
+    "rest_api": "API REST para integrações externas (Bling, Tiny, ERPs)",
+    "no_branding": "Remoção do logótipo VitrineTurbo",
+    "free_products_limit": "Até 20 produtos",
+    "free_support": "Suporte humanizado"
+  },
+  "freePlan": {
+    "excludedDomain": "Domínio próprio",
+    "excludedAnalytics": "Análise avançada"
+  }
+}

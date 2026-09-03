@@ -30,6 +30,8 @@ import { captureAttributionParams } from '@/lib/attribution';
 
 // Layouts
 import PublicLayout from '@/components/layouts/PublicLayout';
+import LocaleLayout from '@/components/layouts/LocaleLayout';
+import { LOCALE_PATH_PREFIXES } from '@/i18n/config';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import BuyerAccountLayout from '@/components/layouts/BuyerAccountLayout';
@@ -70,7 +72,6 @@ import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
 import BuyerOrderDetailPage from '@/pages/buyer/BuyerOrderDetailPage.tsx';
 import BuyerFavoritesPage from '@/pages/buyer/BuyerFavoritesPage.tsx';
 import BuyerCouponsPage from '@/pages/buyer/BuyerCouponsPage.tsx';
-import BuyerCartPage from '@/pages/buyer/BuyerCartPage.tsx';
 import OrderPaymentPage from '@/pages/storefront/OrderPaymentPage.tsx';
 import CheckoutAddressPage from '@/pages/storefront/CheckoutAddressPage.tsx';
 
@@ -141,6 +142,21 @@ import AdminRoute from '@/components/AdminRoute';
 import PartnerRoute from '@/components/PartnerRoute';
 
 import { usePageSEO } from '@/hooks/usePageSEO';
+
+// The 5 public-funnel pages, mounted twice under AppContent's <Routes> (once under
+// /:lang for es/en/pt, once unprefixed for pt-BR) so the URLs share the same page
+// components without duplicating JSX. See src/components/layouts/LocaleLayout.tsx.
+function funnelRoutes() {
+  return (
+    <>
+      <Route index element={<LandingPage />} />
+      <Route path="login" element={<LoginPage />} />
+      <Route path="register" element={<RegisterPage />} />
+      <Route path="planos" element={<PlansSharePage />} />
+      <Route path="completar-cadastro" element={<CompleteProfilePage />} />
+    </>
+  );
+}
 
 function AppContent() {
   const { isLoaded } = useTheme();
@@ -260,13 +276,21 @@ function AppContent() {
 
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
-          {!isCustomDomain && <Route path="/" element={<LandingPage />} />}
-          <Route path="/login" element={<LoginPage />} />
+          {/* Public funnel (landing/login/register/planos/completar-cadastro), localized:
+              /es, /en, /pt prefixes plus the unprefixed default (pt-BR). Never shown on
+              a merchant's custom domain — that's a different product surface. */}
+          {!isCustomDomain && (
+            <>
+              {LOCALE_PATH_PREFIXES.map((prefix) => (
+                <Route key={prefix} path={`/${prefix}`} element={<LocaleLayout lang={prefix} />}>
+                  {funnelRoutes()}
+                </Route>
+              ))}
+              <Route element={<LocaleLayout />}>{funnelRoutes()}</Route>
+            </>
+          )}
           <Route path="/partners/login" element={<PartnersLoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/planos" element={<PlansSharePage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
-          <Route path="/completar-cadastro" element={<CompleteProfilePage />} />
 
           {/* Buyer Account Routes (customer login, separate from merchant auth) */}
           <Route path="/conta/entrar" element={<BuyerLoginPage />} />
@@ -275,7 +299,6 @@ function AppContent() {
           <Route element={<BuyerAccountLayout />}>
             <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
             <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
-            <Route path="/conta/carrinho" element={<BuyerCartPage />} />
             <Route path="/conta/favoritos" element={<BuyerFavoritesPage />} />
             <Route path="/conta/cupons" element={<BuyerCouponsPage />} />
             <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />

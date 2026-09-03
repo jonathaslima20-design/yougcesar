@@ -1,0 +1,170 @@
+{
+  "nav": {
+    "features": "Funcionalidades",
+    "analytics": "Analytics",
+    "integrations": "Integrações",
+    "plans": "Planos",
+    "faq": "FAQ",
+    "blog": "Blog",
+    "login": "Entrar",
+    "createStore": "Criar Loja Grátis"
+  },
+  "hero": {
+    "badge": "+3.000 lojas criadas no Brasil",
+    "title": "Sua loja online pronta em minutos. Sem taxa sobre vendas.",
+    "subtitle": "Catálogo profissional, estoque, pedidos e domínio próprio. Você fica com 100% de cada venda, nós não cobramos comissão.",
+    "ctaStart": "Começar Grátis",
+    "ctaPlans": "Ver Planos",
+    "footnote": "Grátis até 20 produtos · Sem cartão de crédito"
+  },
+  "howItWorks": {
+    "kicker": "/ como funciona",
+    "title": "Do zero à primeira venda em minutos",
+    "steps": {
+      "1": { "title": "Crie sua conta grátis", "desc": "Sem cartão de crédito. Leva menos de 2 minutos." },
+      "2": { "title": "Adicione seus produtos", "desc": "Fotos, preços, variações e estoque em um painel simples." },
+      "3": { "title": "Compartilhe seu link e venda", "desc": "No WhatsApp, Instagram, Google e onde seu cliente estiver." }
+    },
+    "cta": "Criar Minha Loja Agora"
+  },
+  "feeComparison": {
+    "kicker": "/ sem comissão",
+    "title": "Quanto você deixa de perder em taxas?",
+    "marketplacesLabel": "Marketplaces tradicionais",
+    "marketplacesNote": "de comissão a cada R$ 10 mil vendidos (12% a 16%)",
+    "vitrineturboLabel": "Com VitrineTurbo",
+    "vitrineturboSuffix": "de comissão",
+    "vitrineturboNote": "Você paga só o plano fixo — a partir de R$ 57/mês, vendendo o quanto quiser.",
+    "cta": "Parar de Pagar Comissão"
+  },
+  "bento": {
+    "kicker": "/ funcionalidades",
+    "title": "Tudo que você precisa para vender como profissional",
+    "card01Title": "Gestão Completa de Produtos",
+    "card02Title": "Controle de Estoque",
+    "card02Note": "Reserva automática por 15min no carrinho",
+    "card03Title": "Gestão de Pedidos",
+    "card03Orders": "Pedidos/mês",
+    "card03Revenue": "Receita",
+    "card04Title": "Cupons de Desconto",
+    "card05Title": "WhatsApp Integrado",
+    "card06Title": "Carrinho de Compras",
+    "card06Total": "Total",
+    "card07Title": "Pixel Meta & Google Tag",
+    "card07Active": "Ativo",
+    "card08Title": "Indique e Ganhe",
+    "card08EarnUpTo": "Ganhe até",
+    "card08PerUser": "por usuário indicado",
+    "card09Title": "Multi Idiomas e Moedas"
+  },
+  "proFeatures": {
+    "kicker": "/ profissional",
+    "title": "Recursos avançados para quem leva vendas a sério",
+    "customization": {
+      "badge": "Aparência",
+      "title": "Personalize Sua Vitrine",
+      "colorsLabel": "Cores personalizadas",
+      "fieldsLabel": "Fundo, Texto, Botões, Bordas",
+      "fontsLabel": "Fontes personalizadas via Google Fonts"
+    },
+    "domain": {
+      "badge": "Planos Pagos",
+      "title": "Domínio Próprio",
+      "ssl": "SSL gratuito incluso",
+      "dns": "DNS verificado automaticamente",
+      "setup": "Configuração simples via CNAME"
+    },
+    "api": {
+      "badge": "Plano Anual",
+      "title": "API REST Completa",
+      "integration": "Integre com Bling, Tiny e outros ERPs"
+    }
+  },
+  "differentiation": {
+    "kicker": "/ diferencial",
+    "title": "Para negócios que precisam de escala.",
+    "subtitle": "Não é só um catálogo. É uma plataforma completa para gerenciar e escalar suas vendas online, com ferramentas e funcionalidades voltadas para o seu negócio.",
+    "cta": "Criar Minha Loja",
+    "features": {
+      "1": "Sem taxa sobre vendas — pague apenas o plano",
+      "2": "Estoque automatizado com alertas de nível baixo",
+      "3": "Pedidos organizados por status em tempo real",
+      "4": "Cupons para fidelizar e atrair clientes",
+      "5": "API REST para conectar com ERPs externos",
+      "6": "Domínio próprio com SSL gratuito",
+      "7": "Personalize cores, fontes e aparência da loja",
+      "8": "Analytics completo com funil de conversão"
+    }
+  },
+  "analytics": {
+    "kicker": "/ analytics",
+    "title": "Decisões baseadas em dados reais.",
+    "subtitle": "Tenha uma visão geral do seu negócio e acompanhe suas vendas de forma simples e intuitiva.",
+    "metrics": {
+      "products": "Total de Produtos",
+      "views": "Visualizações",
+      "visitors": "Visitantes",
+      "conversions": "Conversões"
+    },
+    "overview": "Visão geral",
+    "last30d": "últimos 30d",
+    "leads": "Leads"
+  },
+  "socialProof": {
+    "kicker": "/ usuários",
+    "title": "Junte-se a milhares de usuários do VitrineTurbo"
+  },
+  "pricing": {
+    "kicker": "/ planos",
+    "title": "Escolha o plano ideal pra você",
+    "freePlan": {
+      "name": "Free",
+      "badge": "Grátis",
+      "priceSuffix": "/ grátis",
+      "note": "Para quem está começando",
+      "cta": "Começar grátis"
+    }
+  },
+  "faq": {
+    "kicker": "/ dúvidas",
+    "title": "Perguntas frequentes.",
+    "items": {
+      "1": { "q": "Existe um plano gratuito?", "a": "Sim! O plano Free permite cadastrar até 20 produtos sem nenhum custo, sem precisar inserir cartão de crédito. É a forma mais simples de começar sua vitrine digital. Quando sua loja crescer e você precisar de mais recursos, basta fazer o upgrade para um plano pago com um clique." },
+      "2": { "q": "Preciso de cartão de crédito para começar?", "a": "Não. Você pode criar sua vitrine e explorar a plataforma sem nenhum compromisso inicial." },
+      "3": { "q": "Existe taxa sobre as vendas?", "a": "Não cobramos nenhuma comissão sobre suas vendas. Você paga apenas o plano escolhido." },
+      "4": { "q": "Funciona para qualquer nicho?", "a": "Sim. Moda, calçados, cosméticos, alimentos, serviços, decoração... A plataforma é flexível e se adapta ao seu negócio." },
+      "5": { "q": "Como funciona o controle de estoque?", "a": "O sistema rastreia automaticamente a quantidade de cada produto. Você recebe alertas quando o estoque está baixo, pode bloquear vendas de itens esgotados e o sistema reserva produtos no carrinho por 15 minutos para evitar vendas duplicadas." },
+      "6": { "q": "Posso usar meu próprio domínio?", "a": "Sim. Em qualquer plano pago, você pode conectar seu domínio personalizado (ex: www.sualoja.com.br) com SSL gratuito. Basta apontar o DNS e o sistema verifica automaticamente." },
+      "7": { "q": "A API funciona com Bling, Tiny e outros ERPs?", "a": "Sim. A API REST permite integração com qualquer sistema que suporte requisições HTTP. Você pode sincronizar produtos, estoque, pedidos e cupons com ERPs como Bling, Tiny e outros." },
+      "8": { "q": "Posso criar cupons de desconto?", "a": "Sim. Você pode criar cupons com desconto percentual ou valor fixo, definir limite de uso, data de expiração e valor mínimo de compra. Ideal para campanhas promocionais e fidelização." },
+      "9": { "q": "Como funciona o Indique e Ganhe?", "a": "Cada usuário recebe um link de indicação exclusivo. Quem assinar pelo seu link ganha desconto na primeira assinatura, e você recebe comissões em dinheiro por cada indicação convertida. Os ganhos ficam disponíveis para saque diretamente no painel." },
+      "10": { "q": "Posso cancelar a qualquer momento?", "a": "Sim. O cancelamento é imediato e sem burocracia, diretamente no painel administrativo." }
+    }
+  },
+  "finalCta": {
+    "title": "Tudo que você precisa. Em um único lugar.",
+    "subtitle": "Estoque, pedidos, cupons, domínio próprio e API de integração. Sem taxa sobre vendas.",
+    "cta": "Começar Agora",
+    "orFreePlanPrefix": "Ou comece pelo",
+    "orFreePlanLink": "plano gratuito",
+    "orFreePlanSuffix": ", sem cartão de crédito"
+  },
+  "footer": {
+    "tagline": "Crie sua vitrine online em minutos e venda mais.",
+    "platformHeading": "Plataforma",
+    "login": "Entrar",
+    "createAccount": "Criar conta",
+    "plansAndPricing": "Planos e preços",
+    "supportHeading": "Suporte",
+    "helpCenter": "Central de ajuda",
+    "legalHeading": "Legal",
+    "termsOfUse": "Termos de Uso",
+    "privacyPolicy": "Política de Privacidade",
+    "cookiesPolicy": "Política de Cookies",
+    "myData": "Meus Dados (LGPD)",
+    "copyright": "Todos os direitos reservados.",
+    "privacyShort": "Privacidade",
+    "termsShort": "Termos",
+    "cookiesShort": "Cookies"
+  }
+}

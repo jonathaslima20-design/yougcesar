@@ -1,0 +1,54 @@
+{
+  "plansPage": {
+    "eyebrow": "/ vitrineturbo plans",
+    "title": "Choose the right plan for your business",
+    "subtitle": "Unlimited products, inventory, orders, coupons and your own domain. No fee on sales."
+  },
+  "card": {
+    "ctaLabel": "Get started now",
+    "perMonth": "/mo"
+  },
+  "plans": {
+    "mensal": {
+      "tag": "Flexible",
+      "name": "Monthly",
+      "billedNote": "Billed monthly"
+    },
+    "semestral": {
+      "tag": "Most popular",
+      "name": "Semiannual",
+      "savingsBadge": "Save 33%"
+    },
+    "anual": {
+      "tag": "Recommended",
+      "name": "Annual",
+      "savingsBadge": "Save 51%"
+    }
+  },
+  "international": {
+    "annualBilledNoteTemplate": "{{amount}} billed per year",
+    "savingsBadgeTemplate": "Save {{percent}}%"
+  },
+  "benefits": {
+    "unlimited_products": "Unlimited products",
+    "unlimited_categories": "Unlimited categories and tags",
+    "digital_catalog": "Digital catalog via link",
+    "admin_panel": "Full admin dashboard",
+    "cart": "Shopping cart",
+    "inventory": "Inventory and stock control",
+    "orders": "Order and sales management",
+    "coupons": "Coupon system",
+    "customization": "Color and font customization",
+    "pixel_integration": "Meta Pixel and Google Tag integration",
+    "referral": "Referral program",
+    "custom_domain": "Custom domain with SSL",
+    "rest_api": "REST API for external integrations (Bling, Tiny, ERPs)",
+    "no_branding": "Remove VitrineTurbo branding",
+    "free_products_limit": "Up to 20 products",
+    "free_support": "Human support"
+  },
+  "freePlan": {
+    "excludedDomain": "Custom domain",
+    "excludedAnalytics": "Advanced analytics"
+  }
+}

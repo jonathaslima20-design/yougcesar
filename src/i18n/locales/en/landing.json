@@ -1,0 +1,170 @@
+{
+  "nav": {
+    "features": "Features",
+    "analytics": "Analytics",
+    "integrations": "Integrations",
+    "plans": "Pricing",
+    "faq": "FAQ",
+    "blog": "Blog",
+    "login": "Sign in",
+    "createStore": "Create Free Store"
+  },
+  "hero": {
+    "badge": "+3,000 stores created across Latin America",
+    "title": "Your online store, ready in minutes. No fee on sales.",
+    "subtitle": "Professional catalog, inventory, orders and your own domain. You keep 100% of every sale — we never charge commission.",
+    "ctaStart": "Start for Free",
+    "ctaPlans": "See Plans",
+    "footnote": "Free up to 20 products · No credit card required"
+  },
+  "howItWorks": {
+    "kicker": "/ how it works",
+    "title": "From zero to your first sale in minutes",
+    "steps": {
+      "1": { "title": "Create your free account", "desc": "No credit card. Takes less than 2 minutes." },
+      "2": { "title": "Add your products", "desc": "Photos, prices, variants and inventory in one simple dashboard." },
+      "3": { "title": "Share your link and sell", "desc": "On WhatsApp, Instagram, Google and wherever your customers are." }
+    },
+    "cta": "Create My Store Now"
+  },
+  "feeComparison": {
+    "kicker": "/ no commission",
+    "title": "How much are you losing to fees?",
+    "marketplacesLabel": "Traditional marketplaces",
+    "marketplacesNote": "in commission for every $10k sold (12% to 16%)",
+    "vitrineturboLabel": "With VitrineTurbo",
+    "vitrineturboSuffix": "commission",
+    "vitrineturboNote": "You only pay the flat plan — starting from the monthly plan, no matter how much you sell.",
+    "cta": "Stop Paying Commission"
+  },
+  "bento": {
+    "kicker": "/ features",
+    "title": "Everything you need to sell like a pro",
+    "card01Title": "Full Product Management",
+    "card02Title": "Inventory Control",
+    "card02Note": "Automatic 15-minute cart reservation",
+    "card03Title": "Order Management",
+    "card03Orders": "Orders/month",
+    "card03Revenue": "Revenue",
+    "card04Title": "Discount Coupons",
+    "card05Title": "WhatsApp Built In",
+    "card06Title": "Shopping Cart",
+    "card06Total": "Total",
+    "card07Title": "Meta Pixel & Google Tag",
+    "card07Active": "Active",
+    "card08Title": "Refer & Earn",
+    "card08EarnUpTo": "Earn up to",
+    "card08PerUser": "per referred user",
+    "card09Title": "Multiple Languages & Currencies"
+  },
+  "proFeatures": {
+    "kicker": "/ pro",
+    "title": "Advanced tools for serious sellers",
+    "customization": {
+      "badge": "Appearance",
+      "title": "Customize Your Store",
+      "colorsLabel": "Custom colors",
+      "fieldsLabel": "Background, text, buttons, borders",
+      "fontsLabel": "Custom fonts via Google Fonts"
+    },
+    "domain": {
+      "badge": "Paid Plans",
+      "title": "Custom Domain",
+      "ssl": "Free SSL included",
+      "dns": "Automatic DNS verification",
+      "setup": "Simple setup via CNAME"
+    },
+    "api": {
+      "badge": "Annual Plan",
+      "title": "Full REST API",
+      "integration": "Integrate with Bling, Tiny and other ERPs"
+    }
+  },
+  "differentiation": {
+    "kicker": "/ why us",
+    "title": "For businesses that need to scale.",
+    "subtitle": "It's not just a catalog. It's a complete platform to manage and scale your online sales, with tools built for your business.",
+    "cta": "Create My Store",
+    "features": {
+      "1": "No fee on sales — pay only for the plan",
+      "2": "Automated inventory with low-stock alerts",
+      "3": "Orders organized by status in real time",
+      "4": "Coupons to retain and attract customers",
+      "5": "REST API to connect with external ERPs",
+      "6": "Custom domain with free SSL",
+      "7": "Customize colors, fonts and store appearance",
+      "8": "Full analytics with conversion funnel"
+    }
+  },
+  "analytics": {
+    "kicker": "/ analytics",
+    "title": "Decisions based on real data.",
+    "subtitle": "Get a full overview of your business and track your sales simply and intuitively.",
+    "metrics": {
+      "products": "Total Products",
+      "views": "Views",
+      "visitors": "Visitors",
+      "conversions": "Conversions"
+    },
+    "overview": "Overview",
+    "last30d": "last 30d",
+    "leads": "Leads"
+  },
+  "socialProof": {
+    "kicker": "/ users",
+    "title": "Join thousands of VitrineTurbo users"
+  },
+  "pricing": {
+    "kicker": "/ pricing",
+    "title": "Choose the right plan for you",
+    "freePlan": {
+      "name": "Free",
+      "badge": "Free",
+      "priceSuffix": "/ free",
+      "note": "For those just getting started",
+      "cta": "Start for free"
+    }
+  },
+  "faq": {
+    "kicker": "/ faq",
+    "title": "Frequently asked questions.",
+    "items": {
+      "1": { "q": "Is there a free plan?", "a": "Yes! The Free plan lets you list up to 20 products at no cost, with no credit card required. It's the simplest way to start your digital storefront. When your store grows and you need more features, just upgrade to a paid plan with one click." },
+      "2": { "q": "Do I need a credit card to get started?", "a": "No. You can create your store and explore the platform with no initial commitment." },
+      "3": { "q": "Is there a fee on sales?", "a": "We never charge commission on your sales. You only pay for your chosen plan." },
+      "4": { "q": "Does it work for any niche?", "a": "Yes. Fashion, footwear, cosmetics, food, services, home decor... the platform is flexible and adapts to your business." },
+      "5": { "q": "How does inventory control work?", "a": "The system automatically tracks the quantity of each product. You get alerts when stock is low, you can block sales of out-of-stock items, and the system reserves cart items for 15 minutes to prevent duplicate sales." },
+      "6": { "q": "Can I use my own domain?", "a": "Yes. On any paid plan you can connect your custom domain (e.g. www.mystore.com) with free SSL. Just point the DNS and the system verifies it automatically." },
+      "7": { "q": "Does the API work with Bling, Tiny and other ERPs?", "a": "Yes. The REST API integrates with any system that supports HTTP requests. You can sync products, inventory, orders and coupons with ERPs like Bling, Tiny and others." },
+      "8": { "q": "Can I create discount coupons?", "a": "Yes. You can create coupons with a percentage or fixed-amount discount, set a usage limit, expiration date and minimum purchase amount. Great for promotional campaigns and customer retention." },
+      "9": { "q": "How does Refer & Earn work?", "a": "Every user gets a unique referral link. Anyone who signs up through your link gets a discount on their first subscription, and you earn cash commissions for every converted referral. Earnings can be withdrawn directly from the dashboard." },
+      "10": { "q": "Can I cancel at any time?", "a": "Yes. Cancellation is immediate and hassle-free, directly from the admin dashboard." }
+    }
+  },
+  "finalCta": {
+    "title": "Everything you need. In one place.",
+    "subtitle": "Inventory, orders, coupons, custom domain and integration API. No fee on sales.",
+    "cta": "Get Started Now",
+    "orFreePlanPrefix": "Or start with the",
+    "orFreePlanLink": "free plan",
+    "orFreePlanSuffix": ", no credit card required"
+  },
+  "footer": {
+    "tagline": "Create your online store in minutes and sell more.",
+    "platformHeading": "Platform",
+    "login": "Sign in",
+    "createAccount": "Create account",
+    "plansAndPricing": "Plans & pricing",
+    "supportHeading": "Support",
+    "helpCenter": "Help center",
+    "legalHeading": "Legal",
+    "termsOfUse": "Terms of Use",
+    "privacyPolicy": "Privacy Policy",
+    "cookiesPolicy": "Cookie Policy",
+    "myData": "My Data",
+    "copyright": "All rights reserved.",
+    "privacyShort": "Privacy",
+    "termsShort": "Terms",
+    "cookiesShort": "Cookies"
+  }
+}
