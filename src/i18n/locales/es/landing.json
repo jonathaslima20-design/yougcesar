@@ -1,0 +1,170 @@
+{
+  "nav": {
+    "features": "Funcionalidades",
+    "analytics": "Analytics",
+    "integrations": "Integraciones",
+    "plans": "Planes",
+    "faq": "Preguntas",
+    "blog": "Blog",
+    "login": "Entrar",
+    "createStore": "Crear Tienda Gratis"
+  },
+  "hero": {
+    "badge": "+3.000 tiendas creadas en Latinoamérica",
+    "title": "Tu tienda online lista en minutos. Sin comisión sobre las ventas.",
+    "subtitle": "Catálogo profesional, inventario, pedidos y dominio propio. Te quedas con el 100% de cada venta, no cobramos comisión.",
+    "ctaStart": "Comenzar Gratis",
+    "ctaPlans": "Ver Planes",
+    "footnote": "Gratis hasta 20 productos · Sin tarjeta de crédito"
+  },
+  "howItWorks": {
+    "kicker": "/ cómo funciona",
+    "title": "De cero a tu primera venta en minutos",
+    "steps": {
+      "1": { "title": "Crea tu cuenta gratis", "desc": "Sin tarjeta de crédito. Toma menos de 2 minutos." },
+      "2": { "title": "Agrega tus productos", "desc": "Fotos, precios, variaciones e inventario en un panel simple." },
+      "3": { "title": "Comparte tu enlace y vende", "desc": "En WhatsApp, Instagram, Google y donde esté tu cliente." }
+    },
+    "cta": "Crear Mi Tienda Ahora"
+  },
+  "feeComparison": {
+    "kicker": "/ sin comisión",
+    "title": "¿Cuánto dejas de perder en comisiones?",
+    "marketplacesLabel": "Marketplaces tradicionales",
+    "marketplacesNote": "de comisión por cada 10 mil vendidos (12% a 16%)",
+    "vitrineturboLabel": "Con VitrineTurbo",
+    "vitrineturboSuffix": "de comisión",
+    "vitrineturboNote": "Pagas solo el plan fijo — desde el plan mensual, vendiendo lo que quieras.",
+    "cta": "Dejar de Pagar Comisión"
+  },
+  "bento": {
+    "kicker": "/ funcionalidades",
+    "title": "Todo lo que necesitas para vender como un profesional",
+    "card01Title": "Gestión Completa de Productos",
+    "card02Title": "Control de Inventario",
+    "card02Note": "Reserva automática por 15min en el carrito",
+    "card03Title": "Gestión de Pedidos",
+    "card03Orders": "Pedidos/mes",
+    "card03Revenue": "Ingresos",
+    "card04Title": "Cupones de Descuento",
+    "card05Title": "WhatsApp Integrado",
+    "card06Title": "Carrito de Compras",
+    "card06Total": "Total",
+    "card07Title": "Pixel Meta y Google Tag",
+    "card07Active": "Activo",
+    "card08Title": "Programa de Referidos",
+    "card08EarnUpTo": "Gana hasta",
+    "card08PerUser": "por usuario referido",
+    "card09Title": "Multi Idiomas y Monedas"
+  },
+  "proFeatures": {
+    "kicker": "/ profesional",
+    "title": "Funciones avanzadas para quienes se toman en serio las ventas",
+    "customization": {
+      "badge": "Apariencia",
+      "title": "Personaliza Tu Tienda",
+      "colorsLabel": "Colores personalizados",
+      "fieldsLabel": "Fondo, texto, botones, bordes",
+      "fontsLabel": "Fuentes personalizadas vía Google Fonts"
+    },
+    "domain": {
+      "badge": "Planes Pagos",
+      "title": "Dominio Propio",
+      "ssl": "SSL gratuito incluido",
+      "dns": "DNS verificado automáticamente",
+      "setup": "Configuración simple vía CNAME"
+    },
+    "api": {
+      "badge": "Plan Anual",
+      "title": "API REST Completa",
+      "integration": "Intégrala con Bling, Tiny y otros ERPs"
+    }
+  },
+  "differentiation": {
+    "kicker": "/ diferencial",
+    "title": "Para negocios que necesitan escalar.",
+    "subtitle": "No es solo un catálogo. Es una plataforma completa para gestionar y escalar tus ventas online, con herramientas y funciones pensadas para tu negocio.",
+    "cta": "Crear Mi Tienda",
+    "features": {
+      "1": "Sin comisión sobre las ventas — paga solo el plan",
+      "2": "Inventario automatizado con alertas de stock bajo",
+      "3": "Pedidos organizados por estado en tiempo real",
+      "4": "Cupones para fidelizar y atraer clientes",
+      "5": "API REST para conectar con ERPs externos",
+      "6": "Dominio propio con SSL gratuito",
+      "7": "Personaliza colores, fuentes y apariencia de la tienda",
+      "8": "Analítica completa con embudo de conversión"
+    }
+  },
+  "analytics": {
+    "kicker": "/ analytics",
+    "title": "Decisiones basadas en datos reales.",
+    "subtitle": "Ten una visión general de tu negocio y sigue tus ventas de forma simple e intuitiva.",
+    "metrics": {
+      "products": "Total de Productos",
+      "views": "Visualizaciones",
+      "visitors": "Visitantes",
+      "conversions": "Conversiones"
+    },
+    "overview": "Visión general",
+    "last30d": "últimos 30d",
+    "leads": "Leads"
+  },
+  "socialProof": {
+    "kicker": "/ usuarios",
+    "title": "Únete a miles de usuarios de VitrineTurbo"
+  },
+  "pricing": {
+    "kicker": "/ planes",
+    "title": "Elige el plan ideal para ti",
+    "freePlan": {
+      "name": "Free",
+      "badge": "Gratis",
+      "priceSuffix": "/ gratis",
+      "note": "Para quienes están empezando",
+      "cta": "Comenzar gratis"
+    }
+  },
+  "faq": {
+    "kicker": "/ preguntas",
+    "title": "Preguntas frecuentes.",
+    "items": {
+      "1": { "q": "¿Existe un plan gratuito?", "a": "¡Sí! El plan Free permite registrar hasta 20 productos sin ningún costo, sin necesidad de tarjeta de crédito. Es la forma más simple de empezar tu vitrina digital. Cuando tu tienda crezca y necesites más funciones, puedes actualizar a un plan pago con un clic." },
+      "2": { "q": "¿Necesito tarjeta de crédito para empezar?", "a": "No. Puedes crear tu tienda y explorar la plataforma sin ningún compromiso inicial." },
+      "3": { "q": "¿Hay comisión sobre las ventas?", "a": "No cobramos ninguna comisión sobre tus ventas. Solo pagas el plan elegido." },
+      "4": { "q": "¿Funciona para cualquier nicho?", "a": "Sí. Moda, calzado, cosméticos, alimentos, servicios, decoración... La plataforma es flexible y se adapta a tu negocio." },
+      "5": { "q": "¿Cómo funciona el control de inventario?", "a": "El sistema rastrea automáticamente la cantidad de cada producto. Recibes alertas cuando el stock está bajo, puedes bloquear la venta de productos agotados y el sistema reserva los productos en el carrito por 15 minutos para evitar ventas duplicadas." },
+      "6": { "q": "¿Puedo usar mi propio dominio?", "a": "Sí. En cualquier plan pago puedes conectar tu dominio personalizado (ej: www.mitienda.com) con SSL gratuito. Solo apunta el DNS y el sistema lo verifica automáticamente." },
+      "7": { "q": "¿La API funciona con Bling, Tiny y otros ERPs?", "a": "Sí. La API REST permite integración con cualquier sistema que soporte peticiones HTTP. Puedes sincronizar productos, inventario, pedidos y cupones con ERPs como Bling, Tiny y otros." },
+      "8": { "q": "¿Puedo crear cupones de descuento?", "a": "Sí. Puedes crear cupones con descuento porcentual o monto fijo, definir límite de uso, fecha de vencimiento y monto mínimo de compra. Ideal para campañas promocionales y fidelización." },
+      "9": { "q": "¿Cómo funciona el Programa de Referidos?", "a": "Cada usuario recibe un enlace de referido exclusivo. Quien se suscriba por tu enlace obtiene un descuento en su primera suscripción, y tú recibes comisiones en dinero por cada referido convertido. Las ganancias están disponibles para retirar directamente desde el panel." },
+      "10": { "q": "¿Puedo cancelar en cualquier momento?", "a": "Sí. La cancelación es inmediata y sin trámites, directamente desde el panel administrativo." }
+    }
+  },
+  "finalCta": {
+    "title": "Todo lo que necesitas. En un solo lugar.",
+    "subtitle": "Inventario, pedidos, cupones, dominio propio y API de integración. Sin comisión sobre las ventas.",
+    "cta": "Comenzar Ahora",
+    "orFreePlanPrefix": "O empieza por el",
+    "orFreePlanLink": "plan gratuito",
+    "orFreePlanSuffix": ", sin tarjeta de crédito"
+  },
+  "footer": {
+    "tagline": "Crea tu tienda online en minutos y vende más.",
+    "platformHeading": "Plataforma",
+    "login": "Entrar",
+    "createAccount": "Crear cuenta",
+    "plansAndPricing": "Planes y precios",
+    "supportHeading": "Soporte",
+    "helpCenter": "Centro de ayuda",
+    "legalHeading": "Legal",
+    "termsOfUse": "Términos de Uso",
+    "privacyPolicy": "Política de Privacidad",
+    "cookiesPolicy": "Política de Cookies",
+    "myData": "Mis Datos",
+    "copyright": "Todos los derechos reservados.",
+    "privacyShort": "Privacidad",
+    "termsShort": "Términos",
+    "cookiesShort": "Cookies"
+  }
+}
