@@ -1,15 +1,20 @@
 import { ArrowRight, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { PricingPlan } from '@/lib/pricingPlans';
 
 export default function PricingCard({
   plan,
   ctaHref,
-  ctaLabel = 'Começar agora',
+  ctaLabel,
+  priceDisplay,
 }: {
   plan: PricingPlan;
   ctaHref?: string;
   ctaLabel?: string;
+  /** Fully-formatted headline price (e.g. "$199.00", "12,99 €"). Defaults to "R$ {priceSuffix}". */
+  priceDisplay?: string;
 }) {
+  const { t } = useTranslation('pricing');
   const { tag, name, priceSuffix, priceUnit, billedNote, savingsBadge, featured = false, benefits } = plan;
 
   return (
@@ -31,8 +36,8 @@ export default function PricingCard({
         </span>
       </div>
       <div className="mt-8">
-        <span className="font-display font-semibold text-[44px] lg:text-[52px] tracking-[-0.03em] leading-none">R$ {priceSuffix}</span>
-        <span className={`text-[14px] ml-1 ${featured ? 'text-white/60' : 'text-ink-500'}`}>{priceUnit ?? '/mês'}</span>
+        <span className="font-display font-semibold text-[44px] lg:text-[52px] tracking-[-0.03em] leading-none">{priceDisplay ?? `R$ ${priceSuffix}`}</span>
+        <span className={`text-[14px] ml-1 ${featured ? 'text-white/60' : 'text-ink-500'}`}>{priceUnit ?? t('card.perMonth')}</span>
       </div>
       <div className="flex items-center gap-2 mt-2">
         <p className={`text-[12px] ${featured ? 'text-white/60' : 'text-ink-400'}`}>{billedNote}</p>
@@ -65,7 +70,7 @@ export default function PricingCard({
               : 'btn-primary'
           }`}
         >
-          {ctaLabel}
+          {ctaLabel ?? t('card.ctaLabel')}
           <ArrowRight size={14} />
         </a>
       )}
