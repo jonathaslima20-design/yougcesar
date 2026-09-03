@@ -1,0 +1,62 @@
+{
+  "plansPage": {
+    "eyebrow": "/ planos vitrineturbo",
+    "title": "Escolha o plano ideal para o seu negócio",
+    "subtitle": "Produtos ilimitados, estoque, pedidos, cupons e domínio próprio. Sem taxa sobre vendas."
+  },
+  "card": {
+    "ctaLabel": "Começar agora",
+    "perMonth": "/mês"
+  },
+  "plans": {
+    "mensal": {
+      "tag": "Flexível",
+      "name": "Mensal",
+      "billedNote": "Cobrado mensalmente"
+    },
+    "semestral": {
+      "tag": "Mais escolhido",
+      "name": "Semestral",
+      "savingsBadge": "Economize 33%"
+    },
+    "anual": {
+      "tag": "Recomendado",
+      "name": "Anual",
+      "savingsBadge": "Economize 51%"
+    }
+  },
+  "installments": {
+    "toggleAvista": "Pix ou Cartão",
+    "toggleParcelado": "Pix parcelado",
+    "badge": "Pagamento facilitado",
+    "unit": "no Pix",
+    "totalNote": "Total {{total}} em {{count}}x no Pix",
+    "disclaimer": "Parcelamento no Pix sujeito a taxas e aprovação do provedor de pagamento. Consulte as condições com nosso time."
+  },
+  "international": {
+    "annualBilledNoteTemplate": "{{amount}} cobrados por ano",
+    "savingsBadgeTemplate": "Economize {{percent}}%"
+  },
+  "benefits": {
+    "unlimited_products": "Produtos ilimitados",
+    "unlimited_categories": "Categorias e tags ilimitadas",
+    "digital_catalog": "Catálogo Digital via Link",
+    "admin_panel": "Painel Administrativo completo",
+    "cart": "Carrinho de compras",
+    "inventory": "Controle de Estoque e Inventário",
+    "orders": "Gestão de Pedidos e Vendas",
+    "coupons": "Sistema de Cupons",
+    "customization": "Personalização de cores e fontes",
+    "pixel_integration": "Integração com Meta Pixel e Google Tag",
+    "referral": "Programa de Indicação",
+    "custom_domain": "Domínio próprio com SSL",
+    "rest_api": "API REST para integrações externas (Bling, Tiny, ERPs)",
+    "no_branding": "Remoção da logomarca VitrineTurbo",
+    "free_products_limit": "Até 20 produtos",
+    "free_support": "Suporte Humanizado"
+  },
+  "freePlan": {
+    "excludedDomain": "Domínio próprio",
+    "excludedAnalytics": "Analytics avançado"
+  }
+}
