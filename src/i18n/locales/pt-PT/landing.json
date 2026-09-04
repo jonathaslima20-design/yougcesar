@@ -7,21 +7,21 @@
     "faq": "FAQ",
     "blog": "Blog",
     "login": "Entrar",
-    "createStore": "Criar Loja Grátis"
+    "createStore": "Criar a Minha Loja"
   },
   "hero": {
     "badge": "+3.000 lojas criadas na América Latina",
     "title": "A tua loja online pronta em minutos. Sem comissão sobre as vendas.",
     "subtitle": "Catálogo profissional, stock, encomendas e domínio próprio. Ficas com 100% de cada venda, não cobramos comissão.",
-    "ctaStart": "Começar Grátis",
+    "ctaStart": "Começar Agora",
     "ctaPlans": "Ver Planos",
-    "footnote": "Grátis até 20 produtos · Sem cartão de crédito"
+    "footnote": "Configura a tua loja em minutos"
   },
   "howItWorks": {
     "kicker": "/ como funciona",
     "title": "Do zero à primeira venda em minutos",
     "steps": {
-      "1": { "title": "Cria a tua conta grátis", "desc": "Sem cartão de crédito. Demora menos de 2 minutos." },
+      "1": { "title": "Cria a tua conta", "desc": "Demora menos de 2 minutos." },
       "2": { "title": "Adiciona os teus produtos", "desc": "Fotos, preços, variações e stock num painel simples." },
       "3": { "title": "Partilha o teu link e vende", "desc": "No WhatsApp, Instagram, Google e onde estiver o teu cliente." }
     },
@@ -116,14 +116,7 @@
   },
   "pricing": {
     "kicker": "/ planos",
-    "title": "Escolhe o plano ideal para ti",
-    "freePlan": {
-      "name": "Free",
-      "badge": "Grátis",
-      "priceSuffix": "/ grátis",
-      "note": "Para quem está a começar",
-      "cta": "Começar grátis"
-    }
+    "title": "Escolhe o plano ideal para ti"
   },
   "faq": {
     "kicker": "/ dúvidas",
@@ -144,10 +137,7 @@
   "finalCta": {
     "title": "Tudo o que precisas. Num único lugar.",
     "subtitle": "Stock, encomendas, cupões, domínio próprio e API de integração. Sem comissão sobre as vendas.",
-    "cta": "Começar Agora",
-    "orFreePlanPrefix": "Ou começa pelo",
-    "orFreePlanLink": "plano gratuito",
-    "orFreePlanSuffix": ", sem cartão de crédito"
+    "cta": "Começar Agora"
   },
   "footer": {
     "tagline": "Cria a tua montra online em minutos e vende mais.",

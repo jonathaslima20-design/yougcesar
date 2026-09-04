@@ -7,21 +7,21 @@
     "faq": "FAQ",
     "blog": "Blog",
     "login": "Sign in",
-    "createStore": "Create Free Store"
+    "createStore": "Create My Store"
   },
   "hero": {
     "badge": "+3,000 stores created across Latin America",
     "title": "Your online store, ready in minutes. No fee on sales.",
     "subtitle": "Professional catalog, inventory, orders and your own domain. You keep 100% of every sale — we never charge commission.",
-    "ctaStart": "Start for Free",
+    "ctaStart": "Get Started",
     "ctaPlans": "See Plans",
-    "footnote": "Free up to 20 products · No credit card required"
+    "footnote": "Set up your store in minutes"
   },
   "howItWorks": {
     "kicker": "/ how it works",
     "title": "From zero to your first sale in minutes",
     "steps": {
-      "1": { "title": "Create your free account", "desc": "No credit card. Takes less than 2 minutes." },
+      "1": { "title": "Create your account", "desc": "Takes less than 2 minutes." },
       "2": { "title": "Add your products", "desc": "Photos, prices, variants and inventory in one simple dashboard." },
       "3": { "title": "Share your link and sell", "desc": "On WhatsApp, Instagram, Google and wherever your customers are." }
     },
@@ -116,14 +116,7 @@
   },
   "pricing": {
     "kicker": "/ pricing",
-    "title": "Choose the right plan for you",
-    "freePlan": {
-      "name": "Free",
-      "badge": "Free",
-      "priceSuffix": "/ free",
-      "note": "For those just getting started",
-      "cta": "Start for free"
-    }
+    "title": "Choose the right plan for you"
   },
   "faq": {
     "kicker": "/ faq",
@@ -144,10 +137,7 @@
   "finalCta": {
     "title": "Everything you need. In one place.",
     "subtitle": "Inventory, orders, coupons, custom domain and integration API. No fee on sales.",
-    "cta": "Get Started Now",
-    "orFreePlanPrefix": "Or start with the",
-    "orFreePlanLink": "free plan",
-    "orFreePlanSuffix": ", no credit card required"
+    "cta": "Get Started Now"
   },
   "footer": {
     "tagline": "Create your online store in minutes and sell more.",

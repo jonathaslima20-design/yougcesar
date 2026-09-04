@@ -62,17 +62,3 @@ export const PAID_PLANS: PricingPlan[] = [
     benefits: anualBenefits,
   },
 ];
-
-export const FREE_PLAN_BENEFITS_INCLUDED = [
-  'Até 20 produtos',
-  'Catálogo Digital via Link',
-  'Suporte Humanizado',
-];
-
-export const FREE_PLAN_BENEFITS_EXCLUDED = [
-  'Domínio próprio',
-  'Personalização de cores',
-  'Analytics avançado',
-  'Cupons de desconto',
-  'Produtos ilimitados',
-];

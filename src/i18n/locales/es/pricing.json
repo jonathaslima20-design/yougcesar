@@ -43,12 +43,6 @@
     "referral": "Programa de referidos",
     "custom_domain": "Dominio propio con SSL",
     "rest_api": "API REST para integraciones externas (Bling, Tiny, ERPs)",
-    "no_branding": "Eliminación del logo de VitrineTurbo",
-    "free_products_limit": "Hasta 20 productos",
-    "free_support": "Soporte personalizado"
-  },
-  "freePlan": {
-    "excludedDomain": "Dominio propio",
-    "excludedAnalytics": "Analítica avanzada"
+    "no_branding": "Eliminación del logo de VitrineTurbo"
   }
 }

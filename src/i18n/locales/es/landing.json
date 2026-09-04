@@ -7,21 +7,21 @@
     "faq": "Preguntas",
     "blog": "Blog",
     "login": "Entrar",
-    "createStore": "Crear Tienda Gratis"
+    "createStore": "Crear Mi Tienda"
   },
   "hero": {
     "badge": "+3.000 tiendas creadas en Latinoamérica",
     "title": "Tu tienda online lista en minutos. Sin comisión sobre las ventas.",
     "subtitle": "Catálogo profesional, inventario, pedidos y dominio propio. Te quedas con el 100% de cada venta, no cobramos comisión.",
-    "ctaStart": "Comenzar Gratis",
+    "ctaStart": "Comenzar Ahora",
     "ctaPlans": "Ver Planes",
-    "footnote": "Gratis hasta 20 productos · Sin tarjeta de crédito"
+    "footnote": "Configura tu tienda en minutos"
   },
   "howItWorks": {
     "kicker": "/ cómo funciona",
     "title": "De cero a tu primera venta en minutos",
     "steps": {
-      "1": { "title": "Crea tu cuenta gratis", "desc": "Sin tarjeta de crédito. Toma menos de 2 minutos." },
+      "1": { "title": "Crea tu cuenta", "desc": "Toma menos de 2 minutos." },
       "2": { "title": "Agrega tus productos", "desc": "Fotos, precios, variaciones e inventario en un panel simple." },
       "3": { "title": "Comparte tu enlace y vende", "desc": "En WhatsApp, Instagram, Google y donde esté tu cliente." }
     },
@@ -116,14 +116,7 @@
   },
   "pricing": {
     "kicker": "/ planes",
-    "title": "Elige el plan ideal para ti",
-    "freePlan": {
-      "name": "Free",
-      "badge": "Gratis",
-      "priceSuffix": "/ gratis",
-      "note": "Para quienes están empezando",
-      "cta": "Comenzar gratis"
-    }
+    "title": "Elige el plan ideal para ti"
   },
   "faq": {
     "kicker": "/ preguntas",
@@ -144,10 +137,7 @@
   "finalCta": {
     "title": "Todo lo que necesitas. En un solo lugar.",
     "subtitle": "Inventario, pedidos, cupones, dominio propio y API de integración. Sin comisión sobre las ventas.",
-    "cta": "Comenzar Ahora",
-    "orFreePlanPrefix": "O empieza por el",
-    "orFreePlanLink": "plan gratuito",
-    "orFreePlanSuffix": ", sin tarjeta de crédito"
+    "cta": "Comenzar Ahora"
   },
   "footer": {
     "tagline": "Crea tu tienda online en minutos y vende más.",

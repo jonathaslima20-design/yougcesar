@@ -43,12 +43,6 @@
     "referral": "Referral program",
     "custom_domain": "Custom domain with SSL",
     "rest_api": "REST API for external integrations (Bling, Tiny, ERPs)",
-    "no_branding": "Remove VitrineTurbo branding",
-    "free_products_limit": "Up to 20 products",
-    "free_support": "Human support"
-  },
-  "freePlan": {
-    "excludedDomain": "Custom domain",
-    "excludedAnalytics": "Advanced analytics"
+    "no_branding": "Remove VitrineTurbo branding"
   }
 }

@@ -19,7 +19,9 @@ import { supabase } from '@/lib/supabase';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { calculateDiscountedPrice } from '@/lib/offerService';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSubscriberAccess } from '@/lib/subscriptionAccess';
 import { LEGACY_TRIMESTRAL_PLAN } from '@/lib/legacyTrimestralPlan';
+import { PIX_INSTALLMENTS, parseBRLAmount, formatBRLAmount, PIX_SUPPORT_WHATSAPP_HREF } from '@/lib/pixInstallments';
 import type { SubscriptionPlan, LimitReason, PlanStatus } from '@/types';
 import type { OfferDiscountInfo } from '@/contexts/SubscriptionModalContext';
 import { FREE_PLAN_PRODUCT_LIMIT, FREE_PLAN_CATEGORY_LIMIT } from '@/hooks/usePlanLimits';
@@ -37,6 +39,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [googleAdsConfig, setGoogleAdsConfig] = useState<{ tagId: string; checkoutId: string } | null>(null);
+  const [paymentTab, setPaymentTab] = useState<'avista' | 'parcelado'>('avista');
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -93,6 +96,13 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
 
   const isAnnualPlan = (duration: string) => duration === 'Anual';
 
+  // Pix parcelado is a BRL-only payment option, and only for the plans long enough
+  // to split (Semestral, Anual) — same rule as the landing page and the WhatsApp
+  // plans page. Its "Saiba mais" CTA sends the user to support instead of straight
+  // to checkout, since parcelado is arranged manually.
+  const isBRL = (user?.currency || 'BRL') === 'BRL';
+  const parceladoPlans = paidPlans.filter((p) => PIX_INSTALLMENTS[p.duration.toLowerCase()]);
+
   const limitMessage = (() => {
     if (limitReason === 'products') {
       return {
@@ -144,11 +154,8 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
     'Gestão de Pedidos e Vendas',
   ];
 
-  const isUserOnFree = user?.plan_status === 'free';
-  const isUserActive = user?.plan_status === 'active';
-
-  const isExpired = planStatus === 'expired';
-  const isSuspended = planStatus === 'suspended';
+  const { isFreePlan: isUserOnFree, isSubscriber: isUserActive } = getSubscriberAccess(user?.plan_status);
+  const { isExpired, isSuspended } = getSubscriberAccess(planStatus);
 
   const getModalTitle = () => {
     if (offerDiscount) return 'Oferta Exclusiva';
@@ -345,8 +352,34 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
               </div>
             )}
 
+            {/* Pix / Pix parcelado toggle */}
+            {isBRL && parceladoPlans.length > 0 && (
+              <div className="flex justify-center">
+                <div className="inline-flex items-center gap-1 p-1 rounded-full border">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentTab('avista')}
+                    className={`text-xs uppercase tracking-wide px-4 py-2 rounded-full font-medium transition-colors ${
+                      paymentTab === 'avista' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'
+                    }`}
+                  >
+                    Pix ou Cartão
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentTab('parcelado')}
+                    className={`text-xs uppercase tracking-wide px-4 py-2 rounded-full font-medium transition-colors ${
+                      paymentTab === 'parcelado' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'
+                    }`}
+                  >
+                    Pix parcelado
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Paid Plans */}
-            {paidPlans.length > 0 && (
+            {paidPlans.length > 0 && paymentTab === 'avista' && (
               <div className={`grid grid-cols-1 gap-5 ${paidPlans.length === 1 ? 'md:grid-cols-1 max-w-sm mx-auto' : paidPlans.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
                 {paidPlans.map((plan) => {
                   const featured = isAnnualPlan(plan.duration);
@@ -438,6 +471,88 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
                   );
                 })}
               </div>
+            )}
+
+            {/* Pix parcelado Plans */}
+            {paymentTab === 'parcelado' && parceladoPlans.length > 0 && (
+              <>
+                <div className={`grid grid-cols-1 gap-5 ${parceladoPlans.length === 1 ? 'md:grid-cols-1 max-w-sm mx-auto' : 'md:grid-cols-2 max-w-2xl mx-auto'}`}>
+                  {parceladoPlans.map((plan) => {
+                    const featured = isAnnualPlan(plan.duration);
+                    const planFeatures = featured
+                      ? [...commonPaidFeatures, ...annualExclusiveFeatures]
+                      : commonPaidFeatures;
+                    const installment = PIX_INSTALLMENTS[plan.duration.toLowerCase()];
+                    const total = installment.count * parseBRLAmount(installment.amount);
+
+                    return (
+                      <div
+                        key={plan.id}
+                        className={`rounded-2xl p-7 border flex flex-col transition-all duration-200 hover:shadow-lg ${
+                          featured ? 'bg-zinc-900 text-white border-zinc-800' : 'bg-white text-zinc-900 border-zinc-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`font-semibold text-base ${featured ? 'text-white' : 'text-zinc-900'}`}>
+                            {plan.name}
+                          </span>
+                          <span
+                            className={`text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full border font-medium ${
+                              featured ? 'border-white/30 text-white' : 'border-zinc-200 text-zinc-500'
+                            }`}
+                          >
+                            {plan.duration === 'Anual' ? 'Melhor valor' : 'Mais escolhido'}
+                          </span>
+                        </div>
+                        <div className="mt-6">
+                          <span className={`text-4xl font-bold tracking-tight ${featured ? 'text-white' : 'text-zinc-900'}`}>
+                            {installment.count}x R$ {installment.amount}
+                          </span>
+                          <span className={`text-sm ml-1 ${featured ? 'text-white/60' : 'text-zinc-500'}`}>no Pix</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <p className={`text-xs ${featured ? 'text-white/60' : 'text-zinc-400'}`}>
+                            Total R$ {formatBRLAmount(total)} em {installment.count}x no Pix
+                          </p>
+                          <span className="text-[9px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                            Pagamento facilitado
+                          </span>
+                        </div>
+                        <ul className="mt-6 space-y-3 flex-1">
+                          {planFeatures.map((feature, index) => (
+                            <li key={index} className="flex items-center gap-3">
+                              <span
+                                className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  featured ? 'bg-white/15' : 'bg-white border border-zinc-200'
+                                }`}
+                              >
+                                <Check size={12} strokeWidth={3} className={featured ? 'text-white' : 'text-zinc-900'} />
+                              </span>
+                              <span className={`text-sm ${featured ? 'text-white/90' : 'text-zinc-700'}`}>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <a
+                          href={PIX_SUPPORT_WHATSAPP_HREF}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`mt-6 rounded-full px-6 py-3 font-medium text-sm inline-flex items-center justify-center gap-2 transition-colors ${
+                            featured
+                              ? 'bg-white text-zinc-900 hover:bg-white/90'
+                              : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                          }`}
+                        >
+                          Saiba mais
+                          <ArrowRight size={14} />
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground text-center max-w-2xl mx-auto">
+                  Parcelamento no Pix sujeito a taxas e aprovação do provedor de pagamento. Consulte as condições com nosso time.
+                </p>
+              </>
             )}
 
             {paidPlans.length === 0 && !loading && (

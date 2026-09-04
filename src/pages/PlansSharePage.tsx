@@ -6,23 +6,9 @@ import { PAID_BENEFIT_KEYS, translateBenefit } from '@/lib/pricingBenefitKeys';
 import { useReveal } from '@/hooks/useReveal';
 import { useDetectedCountry } from '@/lib/billing/useDetectedCountry';
 import { PUBLIC_PRICING_BY_CURRENCY, formatPublicPrice, annualMonthlyEquivalent, annualSavingsPercent, type PublicCurrency } from '@/lib/billing/publicPricing';
+import { PIX_INSTALLMENTS, parseBRLAmount, formatBRLAmount } from '@/lib/pixInstallments';
 
 type PaymentTab = 'avista' | 'parcelado';
-
-/** Pix parcelado is a BRL-only payment option, only available for the plans with a billing
- * cycle long enough to split (semestral = 6 months, anual = 12 months). */
-const PIX_INSTALLMENTS: Record<string, { count: number; amount: string }> = {
-  semestral: { count: 6, amount: '39,00' },
-  anual: { count: 12, amount: '28,00' },
-};
-
-function parseBRLAmount(amount: string): number {
-  return Number(amount.replace(/\./g, '').replace(',', '.'));
-}
-
-function formatBRLAmount(value: number): string {
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 export default function PlansSharePage() {
   useReveal();

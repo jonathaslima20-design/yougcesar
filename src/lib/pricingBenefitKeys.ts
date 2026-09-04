@@ -19,20 +19,6 @@ export const PAID_BENEFIT_KEYS: Record<string, string> = {
   'Remoção da logomarca VitrineTurbo': 'benefits.no_branding',
 };
 
-export const FREE_BENEFIT_KEYS_INCLUDED: Record<string, string> = {
-  'Até 20 produtos': 'benefits.free_products_limit',
-  'Catálogo Digital via Link': 'benefits.digital_catalog',
-  'Suporte Humanizado': 'benefits.free_support',
-};
-
-export const FREE_BENEFIT_KEYS_EXCLUDED: Record<string, string> = {
-  'Domínio próprio': 'freePlan.excludedDomain',
-  'Personalização de cores': 'benefits.customization',
-  'Analytics avançado': 'freePlan.excludedAnalytics',
-  'Cupons de desconto': 'benefits.coupons',
-  'Produtos ilimitados': 'benefits.unlimited_products',
-};
-
 export function translateBenefit(t: (key: string, options?: { defaultValue?: string }) => string, keyMap: Record<string, string>, text: string): string {
   const key = keyMap[text];
   return key ? t(key, { defaultValue: text }) : text;

@@ -7,21 +7,21 @@
     "faq": "FAQ",
     "blog": "Blog",
     "login": "Entrar",
-    "createStore": "Criar Loja Grátis"
+    "createStore": "Criar Minha Loja"
   },
   "hero": {
     "badge": "+3.000 lojas criadas no Brasil",
     "title": "Sua loja online pronta em minutos. Sem taxa sobre vendas.",
     "subtitle": "Catálogo profissional, estoque, pedidos e domínio próprio. Você fica com 100% de cada venda, nós não cobramos comissão.",
-    "ctaStart": "Começar Grátis",
+    "ctaStart": "Começar Agora",
     "ctaPlans": "Ver Planos",
-    "footnote": "Grátis até 20 produtos · Sem cartão de crédito"
+    "footnote": "Configure sua vitrine em minutos"
   },
   "howItWorks": {
     "kicker": "/ como funciona",
     "title": "Do zero à primeira venda em minutos",
     "steps": {
-      "1": { "title": "Crie sua conta grátis", "desc": "Sem cartão de crédito. Leva menos de 2 minutos." },
+      "1": { "title": "Crie sua conta", "desc": "Leva menos de 2 minutos." },
       "2": { "title": "Adicione seus produtos", "desc": "Fotos, preços, variações e estoque em um painel simples." },
       "3": { "title": "Compartilhe seu link e venda", "desc": "No WhatsApp, Instagram, Google e onde seu cliente estiver." }
     },
@@ -116,14 +116,7 @@
   },
   "pricing": {
     "kicker": "/ planos",
-    "title": "Escolha o plano ideal pra você",
-    "freePlan": {
-      "name": "Free",
-      "badge": "Grátis",
-      "priceSuffix": "/ grátis",
-      "note": "Para quem está começando",
-      "cta": "Começar grátis"
-    }
+    "title": "Escolha o plano ideal pra você"
   },
   "faq": {
     "kicker": "/ dúvidas",
@@ -144,10 +137,7 @@
   "finalCta": {
     "title": "Tudo que você precisa. Em um único lugar.",
     "subtitle": "Estoque, pedidos, cupons, domínio próprio e API de integração. Sem taxa sobre vendas.",
-    "cta": "Começar Agora",
-    "orFreePlanPrefix": "Ou comece pelo",
-    "orFreePlanLink": "plano gratuito",
-    "orFreePlanSuffix": ", sem cartão de crédito"
+    "cta": "Começar Agora"
   },
   "footer": {
     "tagline": "Crie sua vitrine online em minutos e venda mais.",

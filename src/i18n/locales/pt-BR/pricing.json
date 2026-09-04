@@ -31,7 +31,8 @@
     "badge": "Pagamento facilitado",
     "unit": "no Pix",
     "totalNote": "Total {{total}} em {{count}}x no Pix",
-    "disclaimer": "Parcelamento no Pix sujeito a taxas e aprovação do provedor de pagamento. Consulte as condições com nosso time."
+    "disclaimer": "Parcelamento no Pix sujeito a taxas e aprovação do provedor de pagamento. Consulte as condições com nosso time.",
+    "whatsappCta": "Saiba mais"
   },
   "international": {
     "annualBilledNoteTemplate": "{{amount}} cobrados por ano",
@@ -51,12 +52,6 @@
     "referral": "Programa de Indicação",
     "custom_domain": "Domínio próprio com SSL",
     "rest_api": "API REST para integrações externas (Bling, Tiny, ERPs)",
-    "no_branding": "Remoção da logomarca VitrineTurbo",
-    "free_products_limit": "Até 20 produtos",
-    "free_support": "Suporte Humanizado"
-  },
-  "freePlan": {
-    "excludedDomain": "Domínio próprio",
-    "excludedAnalytics": "Analytics avançado"
+    "no_branding": "Remoção da logomarca VitrineTurbo"
   }
 }
