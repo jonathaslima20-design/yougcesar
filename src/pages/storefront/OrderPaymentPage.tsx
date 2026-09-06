@@ -145,13 +145,44 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
   const [pixResult, setPixResult] = useState<OrderPixPaymentResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, []);
+
+  // Purely a display countdown — the reservation's real deadline lives on
+  // the server (pix_expires_at) and is enforced there by a scheduled job;
+  // this just gives the buyer visible urgency instead of a code that quietly
+  // stops working.
+  useEffect(() => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (!pixResult?.expires_at) {
+      setSecondsLeft(null);
+      return;
+    }
+    const expiresAtMs = new Date(pixResult.expires_at).getTime();
+    const tick = () => {
+      const remaining = Math.max(0, Math.round((expiresAtMs - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setExpired(true);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        if (pollingRef.current) clearInterval(pollingRef.current);
+      }
+    };
+    tick();
+    countdownRef.current = setInterval(tick, 1000);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [pixResult?.expires_at]);
 
   const startPolling = useCallback(
     (orderPaymentId: string) => {
@@ -162,6 +193,9 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
             if (pollingRef.current) clearInterval(pollingRef.current);
             setApproved(true);
             onSuccess();
+          } else if (status.status === 'expired' || status.status === 'rejected' || status.status === 'cancelled') {
+            if (pollingRef.current) clearInterval(pollingRef.current);
+            setExpired(true);
           }
         } catch {
           // ignore polling errors
@@ -188,6 +222,7 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
         order_id: order.id,
         payer: { email, first_name: firstName, last_name: lastName, doc: cleanDoc },
       });
+      setExpired(false);
       setPixResult(result);
       startPolling(result.order_payment_id);
     } catch (error) {
@@ -195,6 +230,12 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatCountdown = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
   };
 
   const handleCopy = () => {
@@ -208,6 +249,26 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
 
   if (approved) return null;
 
+  if (pixResult && expired) {
+    return (
+      <div className="text-center space-y-4 py-8">
+        <div className="flex justify-center">
+          <div className="h-14 w-14 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <Clock className="h-7 w-7 text-amber-500" />
+          </div>
+        </div>
+        <h3 className="text-lg font-semibold">Código expirado</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+          O tempo para pagar este código Pix acabou. Gere um novo código para continuar.
+        </p>
+        <Button onClick={handleSubmit} disabled={loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <QrCode className="h-4 w-4 mr-2" />}
+          Gerar novo código Pix
+        </Button>
+      </div>
+    );
+  }
+
   if (pixResult) {
     return (
       <div className="space-y-6">
@@ -219,6 +280,11 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
           </div>
           <h3 className="text-lg font-semibold">QR Code gerado!</h3>
           <p className="text-sm text-muted-foreground">Escaneie o QR Code ou copie o código para pagar</p>
+          {secondsLeft !== null && secondsLeft > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Finalize o pagamento em <span className="font-medium text-foreground">{formatCountdown(secondsLeft)}</span>
+            </p>
+          )}
         </div>
 
         {pixResult.pix_qr_code_base64 && (

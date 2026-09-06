@@ -178,6 +178,20 @@ Deno.serve(async (req: Request) => {
           );
         }
 
+        // Reserve stock before ever contacting Mercado Pago — idempotent, so
+        // this is a no-op when the order already holds a reservation (the
+        // common case) and only does real work on a first attempt or a retry
+        // after a prior reservation was released (PIX expired, card declined).
+        const { error: reserveError } = await admin.rpc("reserve_stock_for_order", {
+          p_order_id: order.id,
+        });
+        if (reserveError) {
+          return new Response(
+            JSON.stringify({ error: reserveError.message || "Produto sem estoque suficiente" }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         // transaction_amount always comes from the order row itself, resolved
         // server-side — never from the request body — so a manipulated client
         // can never pay less than the real order total.
@@ -355,6 +369,10 @@ Deno.serve(async (req: Request) => {
             .update({ status: "rejected", status_detail: mpData.message || "API error", raw_response: mpData, updated_at: new Date().toISOString() })
             .eq("id", paymentRow.id);
 
+          // Card declines resolve synchronously, unlike Pix — no need to wait
+          // for the webhook to free the stock back up for another buyer.
+          await admin.rpc("release_order_stock_reservation", { p_order_id: order.id });
+
           return new Response(
             JSON.stringify({ error: mpData.message || "Erro ao processar pagamento com cartão" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -380,6 +398,12 @@ Deno.serve(async (req: Request) => {
 
         if (mpData.status === "approved") {
           await admin.from("orders").update({ payment_status: "approved" }).eq("id", order.id);
+        } else if (mpData.status === "rejected") {
+          // binary_mode makes this the common outcome for a declined card —
+          // MP still answers 200 here, so this is separate from the
+          // !mpResponse.ok branch above. Free the stock for another buyer
+          // right away instead of waiting on the webhook.
+          await admin.rpc("release_order_stock_reservation", { p_order_id: order.id });
         }
 
         return new Response(
@@ -456,6 +480,11 @@ Deno.serve(async (req: Request) => {
 
                   if (mpStatus === "approved") {
                     await admin.from("orders").update({ payment_status: "approved" }).eq("id", payment.order_id);
+                  } else if (mpStatus === "rejected" || mpStatus === "cancelled") {
+                    // Learned about a terminal negative status while the
+                    // buyer's own browser is polling — free the stock now
+                    // rather than waiting on the webhook or the cron sweep.
+                    await admin.rpc("release_order_stock_reservation", { p_order_id: payment.order_id });
                   }
 
                   return new Response(

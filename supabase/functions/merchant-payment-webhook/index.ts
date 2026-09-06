@@ -261,6 +261,15 @@ Deno.serve(async (req: Request) => {
         if (restoreError) {
           console.error("Failed to restore stock after reversal:", paymentRow.order_id, restoreError);
         }
+      } else {
+        // Primeira vez recusado/cancelado (nunca foi aprovado) — nada saiu
+        // do estoque real ainda, so a reserva precisa ser liberada.
+        const { error: releaseError } = await admin.rpc("release_order_stock_reservation", {
+          p_order_id: paymentRow.order_id,
+        });
+        if (releaseError) {
+          console.error("Failed to release stock reservation:", paymentRow.order_id, releaseError);
+        }
       }
     }
 
