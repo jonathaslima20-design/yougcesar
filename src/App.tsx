@@ -72,6 +72,7 @@ import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
 import BuyerOrderDetailPage from '@/pages/buyer/BuyerOrderDetailPage.tsx';
 import BuyerFavoritesPage from '@/pages/buyer/BuyerFavoritesPage.tsx';
 import BuyerCouponsPage from '@/pages/buyer/BuyerCouponsPage.tsx';
+import BuyerCartPage from '@/pages/buyer/BuyerCartPage.tsx';
 import OrderPaymentPage from '@/pages/storefront/OrderPaymentPage.tsx';
 import CheckoutAddressPage from '@/pages/storefront/CheckoutAddressPage.tsx';
 
@@ -298,6 +299,7 @@ function AppContent() {
           <Route element={<BuyerAccountLayout />}>
             <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
             <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
+            <Route path="/conta/carrinho" element={<BuyerCartPage />} />
             <Route path="/conta/favoritos" element={<BuyerFavoritesPage />} />
             <Route path="/conta/cupons" element={<BuyerCouponsPage />} />
             <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
