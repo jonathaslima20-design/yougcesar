@@ -405,6 +405,7 @@ function generateDefaultMetaTagsHTML(): string {
     <meta name="description" content="Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, plano grátis, sem taxa sobre vendas. Comece agora." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://vitrineturbo.com/" />
+    ${buildHreflangLinks('')}
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://vitrineturbo.com/" />
     <meta property="og:title" content="VitrineTurbo: Catálogo Digital para WhatsApp | Venda Mais Sem Taxa" />
@@ -425,6 +426,207 @@ function generateDefaultMetaTagsHTML(): string {
   <body>
     <h1>VitrineTurbo</h1>
     <p>Catálogo Digital para WhatsApp</p>
+  </body>
+</html>`;
+}
+
+// Language prefixes for the public funnel (/, /login, /register, /planos,
+// /completar-cadastro). Kept in sync manually with LOCALE_PATH_PREFIXES in
+// src/i18n/config.ts — this file runs on Deno and can't import from src/.
+const LOCALE_PATH_PREFIXES = ['es', 'en', 'pt'] as const;
+type LocalePathPrefix = (typeof LOCALE_PATH_PREFIXES)[number];
+
+function isLocalePathPrefix(value: string | undefined): value is LocalePathPrefix {
+  return !!value && (LOCALE_PATH_PREFIXES as readonly string[]).includes(value);
+}
+
+const PATH_PREFIX_TO_HTML_LANG: Record<LocalePathPrefix, string> = {
+  es: 'es',
+  en: 'en',
+  pt: 'pt-PT',
+};
+
+const PATH_PREFIX_TO_OG_LOCALE: Record<LocalePathPrefix, string> = {
+  es: 'es_ES',
+  en: 'en_US',
+  pt: 'pt_PT',
+};
+
+type FunnelPageKey = '' | 'login' | 'register' | 'planos' | 'completar-cadastro';
+type FunnelLocale = 'pt-BR' | LocalePathPrefix;
+
+const FUNNEL_PATH_SUFFIX: Record<FunnelPageKey, string> = {
+  '': '',
+  login: '/login',
+  register: '/register',
+  planos: '/planos',
+  'completar-cadastro': '/completar-cadastro',
+};
+
+function matchFunnelPageKey(segments: string[]): FunnelPageKey | null {
+  if (segments.length === 0) return '';
+  if (segments.length === 1) {
+    const seg = segments[0];
+    if (seg === 'login' || seg === 'register' || seg === 'planos' || seg === 'completar-cadastro') {
+      return seg;
+    }
+  }
+  return null;
+}
+
+interface FunnelPageCopy {
+  title: string;
+  description: string;
+}
+
+const FUNNEL_PAGE_SEO: Record<FunnelPageKey, Record<FunnelLocale, FunnelPageCopy>> = {
+  '': {
+    'pt-BR': {
+      title: 'VitrineTurbo: Catálogo Digital para WhatsApp | Venda Mais Sem Taxa',
+      description: 'Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, plano grátis, sem taxa sobre vendas. Comece agora.',
+    },
+    es: {
+      title: 'VitrineTurbo: Catálogo Digital para WhatsApp | Vende Sin Comisión',
+      description: 'Crea tu catálogo digital profesional y compártelo por WhatsApp. Más de 3.000 tiendas activas, plan gratis, sin comisión sobre las ventas. Empieza ahora.',
+    },
+    en: {
+      title: 'VitrineTurbo: Digital Catalog for WhatsApp | Sell With No Fees',
+      description: 'Build a professional digital catalog and share it on WhatsApp. 3,000+ active stores, a free plan, zero commission on sales. Get started now.',
+    },
+    pt: {
+      title: 'VitrineTurbo: Catálogo Digital para WhatsApp | Vende Sem Comissão',
+      description: 'Cria o teu catálogo digital profissional e partilha-o no WhatsApp. Mais de 3.000 lojas ativas, plano grátis, sem comissão sobre as vendas. Começa agora.',
+    },
+  },
+  login: {
+    'pt-BR': {
+      title: 'Entrar | VitrineTurbo',
+      description: 'Entre com seu email e senha para acessar sua conta VitrineTurbo e gerenciar seu catálogo digital.',
+    },
+    es: {
+      title: 'Iniciar Sesión | VitrineTurbo',
+      description: 'Ingresa tu email y contraseña para acceder a tu cuenta de VitrineTurbo y gestionar tu catálogo digital.',
+    },
+    en: {
+      title: 'Sign In | VitrineTurbo',
+      description: 'Enter your email and password to access your VitrineTurbo account and manage your digital catalog.',
+    },
+    pt: {
+      title: 'Entrar | VitrineTurbo',
+      description: 'Introduz o teu email e palavra-passe para aceder à tua conta VitrineTurbo e gerires o teu catálogo digital.',
+    },
+  },
+  register: {
+    'pt-BR': {
+      title: 'Criar Conta Grátis | VitrineTurbo',
+      description: 'Cadastre-se para criar sua vitrine digital de produtos. Grátis até 20 produtos, sem cartão de crédito.',
+    },
+    es: {
+      title: 'Crear Cuenta Gratis | VitrineTurbo',
+      description: 'Regístrate para crear tu vitrina digital de productos. Gratis hasta 20 productos, sin tarjeta de crédito.',
+    },
+    en: {
+      title: 'Create Your Free Account | VitrineTurbo',
+      description: 'Sign up to create your digital product showcase. Free up to 20 products, no credit card required.',
+    },
+    pt: {
+      title: 'Criar Conta Grátis | VitrineTurbo',
+      description: 'Regista-te para criares a tua montra digital de produtos. Grátis até 20 produtos, sem cartão de crédito.',
+    },
+  },
+  planos: {
+    'pt-BR': {
+      title: 'Planos e Preços | VitrineTurbo',
+      description: 'Escolha o plano ideal para o seu negócio. Produtos ilimitados, estoque, pedidos, cupons e domínio próprio. Sem taxa sobre vendas.',
+    },
+    es: {
+      title: 'Planes y Precios | VitrineTurbo',
+      description: 'Elige el plan ideal para tu negocio. Productos ilimitados, inventario, pedidos, cupones y dominio propio. Sin comisión sobre las ventas.',
+    },
+    en: {
+      title: 'Plans & Pricing | VitrineTurbo',
+      description: 'Choose the right plan for your business. Unlimited products, inventory, orders, coupons and your own domain. No fee on sales.',
+    },
+    pt: {
+      title: 'Planos e Preços | VitrineTurbo',
+      description: 'Escolhe o plano ideal para o teu negócio. Produtos ilimitados, stock, encomendas, cupões e domínio próprio. Sem comissão sobre as vendas.',
+    },
+  },
+  'completar-cadastro': {
+    'pt-BR': {
+      title: 'Falta Pouco! Complete seu Cadastro | VitrineTurbo',
+      description: 'Complete seus dados para finalizar o cadastro e começar a vender com o VitrineTurbo.',
+    },
+    es: {
+      title: '¡Ya Casi! Completa tu Registro | VitrineTurbo',
+      description: 'Completa tus datos para finalizar el registro y empezar a vender con VitrineTurbo.',
+    },
+    en: {
+      title: 'Almost There! Complete Your Sign-Up | VitrineTurbo',
+      description: 'Complete your details to finish signing up and start selling with VitrineTurbo.',
+    },
+    pt: {
+      title: 'Falta Pouco! Completa o teu Registo | VitrineTurbo',
+      description: 'Completa os teus dados para terminares o registo e começares a vender com o VitrineTurbo.',
+    },
+  },
+};
+
+/**
+ * hreflang alternates for a funnel page: pt-BR (no prefix) + x-default point
+ * to the unprefixed URL, plus one link per /es, /en, /pt variant.
+ */
+function buildHreflangLinks(pageKey: FunnelPageKey): string {
+  const suffix = FUNNEL_PATH_SUFFIX[pageKey];
+  const links: string[] = [
+    `<link rel="alternate" hreflang="pt-BR" href="https://vitrineturbo.com${suffix}" />`,
+    `<link rel="alternate" hreflang="x-default" href="https://vitrineturbo.com${suffix}" />`,
+  ];
+  for (const prefix of LOCALE_PATH_PREFIXES) {
+    links.push(`<link rel="alternate" hreflang="${PATH_PREFIX_TO_HTML_LANG[prefix]}" href="https://vitrineturbo.com/${prefix}${suffix}" />`);
+  }
+  return links.join('\n    ');
+}
+
+/**
+ * Generates locale-aware HTML for the 4 non-home funnel pages, plus the
+ * /es, /en, /pt variants of the home page (pt-BR home keeps using
+ * generateDefaultMetaTagsHTML, which has its own richer JSON-LD markup).
+ */
+function generateFunnelPageHTML(pageKey: FunnelPageKey, locale: FunnelLocale, canonicalUrl: string): string {
+  const copy = FUNNEL_PAGE_SEO[pageKey][locale];
+  const htmlLang = locale === 'pt-BR' ? 'pt-BR' : PATH_PREFIX_TO_HTML_LANG[locale];
+  const ogLocale = locale === 'pt-BR' ? 'pt_BR' : PATH_PREFIX_TO_OG_LOCALE[locale];
+  const imageUrl = 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png';
+
+  return `<!DOCTYPE html>
+<html lang="${htmlLang}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${copy.title}</title>
+    <meta name="title" content="${copy.title}" />
+    <meta name="description" content="${copy.description}" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="${canonicalUrl}" />
+    ${buildHreflangLinks(pageKey)}
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${canonicalUrl}" />
+    <meta property="og:title" content="${copy.title}" />
+    <meta property="og:description" content="${copy.description}" />
+    <meta property="og:image" content="${imageUrl}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="VitrineTurbo" />
+    <meta property="og:locale" content="${ogLocale}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${copy.title}" />
+    <meta name="twitter:description" content="${copy.description}" />
+    <meta name="twitter:image" content="${imageUrl}" />
+  </head>
+  <body>
+    <h1>${copy.title}</h1>
+    <p>${copy.description}</p>
   </body>
 </html>`;
 }
@@ -614,8 +816,16 @@ export default async (request: Request, context: Context) => {
       return context.next();
     }
 
-    // Parse the URL to extract the slug (standard vitrineturbo.com flow)
-    const pathSegments = url.pathname.split('/').filter(Boolean);
+    // Parse the URL to extract the slug (standard vitrineturbo.com flow).
+    // Strip a funnel language prefix (/es, /en, /pt) first so every check below
+    // keeps working exactly as before against the underlying path — mirrors
+    // LocaleLayout.tsx's client-side routing. Anything else (custom slugs,
+    // /dashboard, /blog, etc.) is completely unaffected since only those 3
+    // exact first segments are stripped.
+    const rawPathSegments = url.pathname.split('/').filter(Boolean);
+    const localePrefix = isLocalePathPrefix(rawPathSegments[0]) ? rawPathSegments[0] : null;
+    const activeLocale: FunnelLocale = localePrefix ?? 'pt-BR';
+    const pathSegments = localePrefix ? rawPathSegments.slice(1) : rawPathSegments;
 
     // Check for referral link: /?ref=CODE
     const refCode = url.searchParams.get('ref');
@@ -723,11 +933,43 @@ export default async (request: Request, context: Context) => {
       });
     }
 
+    // Funnel pages (/, /login, /register, /planos, /completar-cadastro) get
+    // locale-aware meta tags with hreflang across all 4 languages.
+    const funnelPageKey = matchFunnelPageKey(pathSegments);
+    if (funnelPageKey !== null) {
+      if (funnelPageKey === '' && activeLocale === 'pt-BR') {
+        // Canonical pt-BR home page keeps its existing richer meta (JSON-LD,
+        // admin-configurable override) — it just gained hreflang tags above.
+        console.log('📄 Home page (pt-BR), returning landing/default');
+        if (supabaseUrl && supabaseKey) {
+          const config = await fetchLinkPreviewConfig(supabaseUrl, supabaseKey, 'landing');
+          if (config) {
+            const html = generateConfigBasedHTML(config, request.url);
+            return new Response(html, {
+              status: 200,
+              headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+            });
+          }
+        }
+        return new Response(generateDefaultMetaTagsHTML(), {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+        });
+      }
+
+      console.log('📄 Funnel page:', { funnelPageKey, activeLocale });
+      const canonicalUrl = activeLocale === 'pt-BR'
+        ? `https://vitrineturbo.com${FUNNEL_PATH_SUFFIX[funnelPageKey]}`
+        : `https://vitrineturbo.com/${activeLocale}${FUNNEL_PATH_SUFFIX[funnelPageKey]}`;
+      const html = generateFunnelPageHTML(funnelPageKey, activeLocale, canonicalUrl);
+      return new Response(html, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+      });
+    }
+
     // Skip special paths (return landing config or default)
-    if (pathSegments.length === 0 ||
-        pathSegments[0] === 'login' ||
-        pathSegments[0] === 'register' ||
-        pathSegments[0] === 'dashboard' ||
+    if (pathSegments[0] === 'dashboard' ||
         pathSegments[0] === 'admin' ||
         pathSegments[0] === 'help' ||
         pathSegments[0] === 'blog' ||

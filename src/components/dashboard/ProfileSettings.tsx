@@ -87,7 +87,8 @@ export function ProfileSettings() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [coverImagesOpen, setCoverImagesOpen] = useState(false);
   const [promotionalBannerOpen, setPromotionalBannerOpen] = useState(false);
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
+  const [profileSynced, setProfileSynced] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -113,8 +114,24 @@ export function ProfileSettings() {
 
   const whatsappMode = form.watch('whatsapp_mode');
 
+  // The `user` in AuthContext can start out as a stale localStorage snapshot
+  // (e.g. this browser hasn't seen edits saved from another browser/device
+  // yet). Force one fresh fetch from the DB before trusting it to populate
+  // this form — editing/saving against stale data can null out fields like
+  // phone/whatsapp that were actually filled in.
   useEffect(() => {
-    if (user) {
+    let cancelled = false;
+    refreshUser().finally(() => {
+      if (!cancelled) setProfileSynced(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (user && profileSynced) {
       setPreviewImage(user.avatar_url || null);
       setPreviewCover({
         desktop: user.cover_url_desktop || null,
@@ -148,7 +165,7 @@ export function ProfileSettings() {
       
       setLoading(false);
     }
-  }, [user, form]);
+  }, [user, profileSynced, form]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;

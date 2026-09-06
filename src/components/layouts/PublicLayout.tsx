@@ -5,9 +5,11 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Loader } from 'lucide-react';
 import { scrollCoordinator } from '@/lib/scrollCoordinator';
+import { stripLocalePrefix } from '@/i18n/stripLocalePrefix';
 
 export default function PublicLayout() {
   const location = useLocation();
+  const { rest: pathnameWithoutLocale } = stripLocalePrefix(location.pathname);
 
   useEffect(() => {
     const isReturningFromProduct = (location.state as any)?.from === 'product-detail';
@@ -19,9 +21,9 @@ export default function PublicLayout() {
   }, [location.state]);
 
   // Only hide Footer on auth pages
-  const hideFooter = ['/', '/login', '/register', '/reset-password'].includes(location.pathname);
-  // Buyer account pages don't need the VitrineTurbo branding pushed on the buyer
-  const hideFooterLogo = location.pathname.startsWith('/conta/');
+  const hideFooter = ['/', '/login', '/register', '/reset-password'].includes(pathnameWithoutLocale);
+  // Buyer account pages and the checkout flow (address + payment) don't need the VitrineTurbo branding pushed on the buyer
+  const hideFooterLogo = location.pathname.startsWith('/conta/') || /\/pedido\/(endereco|[^/]+\/pagamento)$/.test(location.pathname);
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">

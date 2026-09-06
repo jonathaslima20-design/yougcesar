@@ -5,9 +5,10 @@ import {
   saveStripeAdminConfig,
   testStripeAdminCredentials,
   saveStripePrices,
+  runStripeProductSetup,
   type StripePriceRow,
 } from '@/lib/stripeAdmin';
-import { Loader as Loader2, CircleCheck as CheckCircle2, Circle as XCircle, CreditCard, Eye, EyeOff, Copy, RefreshCw } from 'lucide-react';
+import { Loader as Loader2, CircleCheck as CheckCircle2, Circle as XCircle, CreditCard, Eye, EyeOff, Copy, RefreshCw, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ export default function StripePage() {
   const [saving, setSaving] = useState(false);
   const [savingPrices, setSavingPrices] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [settingUpProducts, setSettingUpProducts] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'failed'>('unknown');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [showSecrets, setShowSecrets] = useState(false);
@@ -154,6 +156,21 @@ export default function StripePage() {
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar preços');
     } finally {
       setSavingPrices(false);
+    }
+  };
+
+  const handleSetupProducts = async () => {
+    setSettingUpProducts(true);
+    try {
+      const result = await runStripeProductSetup(config.environment as 'test' | 'production');
+      const created = (result.prices || []).filter((p: { reused: boolean }) => !p.reused).length;
+      const reused = (result.prices || []).length - created;
+      toast.success(`Produto e preços prontos na Stripe (${created} criados, ${reused} reaproveitados)`);
+      await fetchConfig();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar produtos na Stripe');
+    } finally {
+      setSettingUpProducts(false);
     }
   };
 
@@ -371,10 +388,18 @@ export default function StripePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Preços por país</CardTitle>
-          <CardDescription>
-            Cole aqui os Price IDs gerados por <code className="text-xs">scripts/setup-stripe-products.js</code>. Rode o script uma vez com a chave de teste e outra com a de produção.
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-base">Preços por país</CardTitle>
+              <CardDescription>
+                Cria (ou reaproveita, se já existirem) o produto e os 8 preços na Stripe pro ambiente selecionado acima ("{config.environment === 'production' ? 'Produção' : 'Teste'}") e preenche os campos abaixo automaticamente. Também pode colar Price IDs manualmente se preferir.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleSetupProducts} disabled={settingUpProducts} className="shrink-0">
+              {settingUpProducts ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              Criar produto e preços
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {CURRENCIES.map((c) => (

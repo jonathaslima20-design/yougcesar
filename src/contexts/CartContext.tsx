@@ -1,9 +1,11 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { toast } from 'sonner';
 import type { CartItem, CartState, Product, PriceTier, VariantDistribution, DistributionItem, CartDistribution, AppliedCoupon } from '@/types';
 import { fetchProductPriceTiers, calculateApplicablePrice } from '@/lib/tieredPricingUtils';
 import { createDistribution, updateDistribution, deleteDistribution, fetchUserDistributions } from '@/lib/distributionUtils';
 import { supabase } from '@/lib/supabase';
+import { fetchBuyerCart, replaceBuyerCart, mergeCartItems } from '@/lib/buyerCartService';
+import { useBuyerAuth } from './BuyerAuthContext';
 
 interface CartContextType {
   cart: CartState;
@@ -35,8 +37,10 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'vitrineturbo_cart';
 const COUPON_STORAGE_KEY = 'vitrineturbo_coupon';
+const CART_OWNER_KEY = 'vitrineturbo_cart_owner';
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { customer } = useBuyerAuth();
   const [cart, setCart] = useState<CartState>({
     items: [],
     distributions: [],
@@ -46,6 +50,77 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [appliedCoupon, setAppliedCouponState] = useState<AppliedCoupon | null>(null);
   const [tiersCache, setTiersCache] = useState<Map<string, PriceTier[]>>(new Map());
   const [productsCache, setProductsCache] = useState<Map<string, Product>>(new Map());
+  const cartRef = useRef(cart);
+  const hasSyncedForCustomerRef = useRef(false);
+  const prevCustomerIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
+  // Syncs the buyer's cart with their account on login, so a cart started as
+  // a guest shows up once they're signed in (and vice versa, across devices).
+  useEffect(() => {
+    if (!customer) {
+      // Real logout (not the initial guest state): clear the local cart so it
+      // doesn't leak into whichever buyer logs in next on this device.
+      if (prevCustomerIdRef.current) {
+        setCart({ items: [], distributions: [], total: 0, itemCount: 0 });
+        localStorage.removeItem(CART_OWNER_KEY);
+      }
+      hasSyncedForCustomerRef.current = false;
+      prevCustomerIdRef.current = null;
+      return;
+    }
+
+    prevCustomerIdRef.current = customer.id;
+    if (hasSyncedForCustomerRef.current) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const serverItems = await fetchBuyerCart(customer.id);
+        const cartOwner = localStorage.getItem(CART_OWNER_KEY);
+
+        // Local cart already mirrors this same account (e.g. page reload) —
+        // the server copy is the source of truth, no summing needed.
+        // Otherwise this is a guest cart merging into the account for the
+        // first time on this device: sum quantities for matching variants.
+        const merged = cartOwner === customer.id
+          ? serverItems
+          : mergeCartItems(cartRef.current.items, serverItems);
+
+        if (cancelled) return;
+        setCart(prev => ({ ...prev, items: merged }));
+        await replaceBuyerCart(customer.id, merged);
+        localStorage.setItem(CART_OWNER_KEY, customer.id);
+      } catch (error) {
+        console.error('Error syncing buyer cart with account:', error);
+      } finally {
+        if (!cancelled) hasSyncedForCustomerRef.current = true;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customer]);
+
+  // Pushes subsequent cart changes to the account once the initial merge
+  // above has run, so add/remove/quantity edits follow the buyer to other
+  // devices too.
+  useEffect(() => {
+    if (!customer || !hasSyncedForCustomerRef.current) return;
+
+    const timeout = setTimeout(() => {
+      replaceBuyerCart(customer.id, cart.items).catch((error) => {
+        console.error('Error saving cart to account:', error);
+      });
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [cart.items, customer]);
 
   // Load cart from localStorage on mount
   useEffect(() => {

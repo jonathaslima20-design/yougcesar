@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Loader, CircleAlert as AlertCircle, ExternalLink, MessageCircle, Eye, EyeOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -36,21 +37,29 @@ import { generateWhatsAppUrl } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { injectMetaPixel } from '@/lib/tracking';
 
-const formSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = {
+  email: string;
+  password: string;
+};
 
 const GOOGLE_AUTH_ENABLED = true;
 
 export default function LoginPage() {
+  const { t, i18n } = useTranslation('auth');
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
+
+  const formSchema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t('validation.emailInvalid')),
+        password: z.string().min(6, t('validation.passwordMin')),
+      }),
+    [t]
+  );
 
   useEffect(() => {
     supabase
@@ -65,7 +74,7 @@ export default function LoginPage() {
       });
   }, []);
   const navigate = useNavigate();
-  
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -73,7 +82,7 @@ export default function LoginPage() {
       password: '',
     },
   });
-  
+
   const onSubmit = async (data: FormValues) => {
     try {
       setIsLoading(true);
@@ -85,11 +94,11 @@ export default function LoginPage() {
         let friendlyError: string;
 
         if (error === 'BLOCKED_USER') {
-          friendlyError = 'Usuário desabilitado por pendência financeira, entre em contato com o suporte.';
+          friendlyError = t('login.errors.blockedUser');
         } else if (error.includes('Invalid login credentials') || error.includes('invalid_credentials') || error.includes('E-mail ou senha incorretos')) {
-          friendlyError = 'E-mail ou senha incorretos!';
+          friendlyError = t('login.errors.invalidCredentials');
         } else if (error.includes('Erro de conexão') || error.includes('Failed to fetch')) {
-          friendlyError = 'Erro de conexão com o servidor. Verifique sua conexão com a internet e tente novamente.';
+          friendlyError = t('login.errors.connection');
         } else {
           friendlyError = error;
         }
@@ -99,11 +108,11 @@ export default function LoginPage() {
         return;
       }
 
-      toast.success('Login realizado com sucesso!');
+      toast.success(t('login.success'));
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);
-      const errorMessage = error.message || 'Erro inesperado ao realizar login';
+      const errorMessage = error.message || t('login.errors.unexpected');
       setLoginError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -142,9 +151,9 @@ export default function LoginPage() {
 
         <Card className="shadow-xl border-border/50 backdrop-blur-sm">
           <CardHeader className="space-y-2 px-7 pt-7">
-            <CardTitle className="text-2xl text-center page-title">Entrar</CardTitle>
+            <CardTitle className="text-2xl text-center page-title">{t('login.title')}</CardTitle>
             <CardDescription className="text-center text-[14px]">
-              Entre com seu email e senha para acessar sua conta
+              {t('login.subtitle')}
             </CardDescription>
           </CardHeader>
           <CardContent className="px-7">
@@ -153,32 +162,34 @@ export default function LoginPage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   {loginError}
-                  {loginError === 'Usuário desabilitado por pendência financeira, entre em contato com o suporte.' ? (
-                    <div className="mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full bg-green-50 hover:bg-green-100 border-green-200 text-green-800"
-                        asChild
-                      >
-                        <a
-                          href={generateWhatsAppUrl('5591982465495')}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                  {loginError === t('login.errors.blockedUser') ? (
+                    i18n.language === 'pt-BR' && (
+                      <div className="mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full bg-green-50 hover:bg-green-100 border-green-200 text-green-800"
+                          asChild
                         >
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Falar com Suporte via WhatsApp
-                        </a>
-                      </Button>
-                    </div>
+                          <a
+                            href={generateWhatsAppUrl('5591982465495')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            {t('login.errors.supportWhatsApp')}
+                          </a>
+                        </Button>
+                      </div>
+                    )
                   ) : loginError.includes('credenciais') && (
                     <div className="mt-2 text-sm">
-                      <p>Verifique se:</p>
+                      <p>{t('login.errors.checkTitle')}</p>
                       <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>O email está correto</li>
-                        <li>A senha está correta</li>
-                        <li>Não há espaços extras</li>
-                        <li>As maiúsculas/minúsculas estão corretas</li>
+                        <li>{t('login.errors.checkEmail')}</li>
+                        <li>{t('login.errors.checkPassword')}</li>
+                        <li>{t('login.errors.checkSpaces')}</li>
+                        <li>{t('login.errors.checkCase')}</li>
                       </ul>
                     </div>
                   )}
@@ -200,7 +211,7 @@ export default function LoginPage() {
                   ) : (
                     <GoogleIcon className="mr-2 h-4 w-4" />
                   )}
-                  Entrar com Google
+                  {t('login.googleCta')}
                 </Button>
 
                 <div className="relative my-5">
@@ -208,7 +219,7 @@ export default function LoginPage() {
                     <span className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                    <span className="bg-card px-2 text-muted-foreground">{t('login.or')}</span>
                   </div>
                 </div>
               </>
@@ -221,13 +232,13 @@ export default function LoginPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('login.emailLabel')}</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="seu@email.com" 
-                          type="email" 
-                          disabled={isLoading} 
-                          {...field} 
+                        <Input
+                          placeholder={t('login.emailPlaceholder')}
+                          type="email"
+                          disabled={isLoading}
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
@@ -239,14 +250,14 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Senha</FormLabel>
+                      <FormLabel>{t('login.passwordLabel')}</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            placeholder="******" 
+                          <Input
+                            placeholder={t('login.passwordPlaceholder')}
                             type={showPassword ? "text" : "password"}
-                            disabled={isLoading} 
-                            {...field} 
+                            disabled={isLoading}
+                            {...field}
                           />
                           <Button
                             type="button"
@@ -268,32 +279,32 @@ export default function LoginPage() {
                     </FormItem>
                   )}
                 />
-                <Button 
-                  type="submit" 
-                  className="w-full" 
+                <Button
+                  type="submit"
+                  className="w-full"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  Entrar
+                  {t('login.submit')}
                 </Button>
               </form>
             </Form>
           </CardContent>
           <CardFooter className="px-7 pb-7 flex flex-col space-y-4">
             <div className="text-sm text-center text-muted-foreground">
-              Não tem uma conta?{' '}
+              {t('login.noAccount')}{' '}
             </div>
-            
-            <Button 
-              variant="outline" 
-              className="w-full" 
+
+            <Button
+              variant="outline"
+              className="w-full"
               asChild
             >
               <Link to="/register">
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Criar Conta Agora
+                {t('login.createAccountCta')}
               </Link>
             </Button>
           </CardFooter>

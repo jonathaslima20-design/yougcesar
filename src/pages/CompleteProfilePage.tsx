@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Loader } from 'lucide-react';
 import { trackLead } from '@/lib/metaEvents';
 import { getStoredAttribution, clearStoredAttribution } from '@/lib/attribution';
@@ -33,25 +34,36 @@ import Logo from '@/components/Logo';
 import { completeGoogleProfile, type PendingGoogleAuth } from '@/lib/auth/simpleAuth';
 import { useAuth } from '@/contexts/AuthContext';
 
-const formSchema = z.object({
-  owner_name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres'),
-  name: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres'),
-  country_code: z.string().default('55'),
-  whatsapp: z.string().min(1, 'WhatsApp é obrigatório'),
-  accepted_terms: z.boolean().refine((v) => v === true, {
-    message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
-  }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = {
+  owner_name: string;
+  name: string;
+  country_code: string;
+  whatsapp: string;
+  accepted_terms: boolean;
+};
 
 export default function CompleteProfilePage() {
+  const { t } = useTranslation('auth');
   const location = useLocation();
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const pendingAuth = (location.state as { pendingAuth?: PendingGoogleAuth } | null)?.pendingAuth;
+
+  const formSchema = useMemo(
+    () =>
+      z.object({
+        owner_name: z.string().min(2, t('validation.ownerNameMin')),
+        name: z.string().min(3, t('validation.businessNameMin')),
+        country_code: z.string().default('55'),
+        whatsapp: z.string().min(1, t('validation.whatsappRequired')),
+        accepted_terms: z.boolean().refine((v) => v === true, {
+          message: t('validation.termsRequired'),
+        }),
+      }),
+    [t]
+  );
 
   useEffect(() => {
     if (!pendingAuth) {
@@ -100,10 +112,10 @@ export default function CompleteProfilePage() {
       clearStoredAttribution();
       trackLead(pendingAuth.email);
       await refreshUser();
-      toast.success('Cadastro concluído com sucesso!');
+      toast.success(t('completeProfile.success'));
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao concluir cadastro');
+      toast.error(error.message || t('completeProfile.errors.generic'));
     } finally {
       setIsLoading(false);
     }
@@ -127,9 +139,9 @@ export default function CompleteProfilePage() {
 
         <Card className="shadow-xl border-border/50 backdrop-blur-sm">
           <CardHeader className="space-y-2 px-7 pt-7">
-            <CardTitle className="text-2xl text-center page-title">Falta pouco!</CardTitle>
+            <CardTitle className="text-2xl text-center page-title">{t('completeProfile.title')}</CardTitle>
             <CardDescription className="text-center text-[14px]">
-              Complete seus dados para finalizar o cadastro com {pendingAuth.email}
+              {t('completeProfile.subtitle', { email: pendingAuth.email })}
             </CardDescription>
           </CardHeader>
           <CardContent className="px-7">
@@ -140,9 +152,9 @@ export default function CompleteProfilePage() {
                   name="owner_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Seu Nome</FormLabel>
+                      <FormLabel>{t('completeProfile.ownerNameLabel')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Seu nome" disabled={isLoading} {...field} />
+                        <Input placeholder={t('completeProfile.ownerNamePlaceholder')} disabled={isLoading} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -154,9 +166,9 @@ export default function CompleteProfilePage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome da Empresa ou Negócio</FormLabel>
+                      <FormLabel>{t('completeProfile.businessNameLabel')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome da sua empresa ou negócio" disabled={isLoading} {...field} />
+                        <Input placeholder={t('completeProfile.businessNamePlaceholder')} disabled={isLoading} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -168,7 +180,7 @@ export default function CompleteProfilePage() {
                   name="country_code"
                   render={() => (
                     <FormItem>
-                      <FormLabel>País e WhatsApp</FormLabel>
+                      <FormLabel>{t('completeProfile.countryWhatsAppLabel')}</FormLabel>
                       <FormControl>
                         <PhoneInputWithCountry
                           defaultCountry="BR"
@@ -176,7 +188,7 @@ export default function CompleteProfilePage() {
                             form.setValue('country_code', data.ddi.replace('+', ''));
                             form.setValue('whatsapp', data.phone);
                           }}
-                          placeholder="(11) 99999-9999"
+                          placeholder={t('completeProfile.whatsappPlaceholder')}
                         />
                       </FormControl>
                       <FormMessage />
@@ -203,25 +215,25 @@ export default function CompleteProfilePage() {
                           htmlFor="accepted_terms"
                           className="text-sm font-normal text-foreground/80 leading-relaxed cursor-pointer"
                         >
-                          Li e aceito os{' '}
+                          {t('completeProfile.termsPrefix')}{' '}
                           <Link
                             to="/termos-de-uso"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
                           >
-                            Termos de Uso
+                            {t('completeProfile.termsLink')}
                           </Link>
-                          {' '}e a{' '}
+                          {' '}{t('completeProfile.termsAnd')}{' '}
                           <Link
                             to="/politica-de-privacidade"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
                           >
-                            Política de Privacidade
+                            {t('completeProfile.privacyLink')}
                           </Link>
-                          {' '}do VitrineTurbo.
+                          {' '}{t('completeProfile.termsSuffix')}
                         </FormLabel>
                       </div>
                       <FormMessage />
@@ -231,7 +243,7 @@ export default function CompleteProfilePage() {
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Concluir Cadastro
+                  {t('completeProfile.submit')}
                 </Button>
               </form>
             </Form>

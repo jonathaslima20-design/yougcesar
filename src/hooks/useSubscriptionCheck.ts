@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscriptionModal } from '@/contexts/SubscriptionModalContext';
+import { getSubscriberAccess } from '@/lib/subscriptionAccess';
 
 export function useSubscriptionCheck() {
   const { user } = useAuth();
@@ -18,8 +19,7 @@ export function useSubscriptionCheck() {
 
     const isAdmin = user.role === 'admin';
     const isParceiro = user.role === 'parceiro';
-    const hasActivePlan = user.plan_status === 'active';
-    const isFreePlan = user.plan_status === 'free';
+    const { isSubscriber: hasActivePlan, isFreePlan } = getSubscriberAccess(user.plan_status);
 
     if (isAdmin || isParceiro || isFreePlan) {
       if (isForcedRef.current) {
@@ -38,9 +38,11 @@ export function useSubscriptionCheck() {
     }
   }, [user, openModal, closeModal, setForced]);
 
+  const { isSubscriber, isFreePlan, hasAccess } = getSubscriberAccess(user?.plan_status);
+
   return {
-    hasActivePlan: user?.plan_status === 'active',
-    isFreePlan: user?.plan_status === 'free',
-    hasAccess: user?.plan_status === 'active' || user?.plan_status === 'free',
+    hasActivePlan: isSubscriber,
+    isFreePlan,
+    hasAccess,
   };
 }

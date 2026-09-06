@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Loader, CircleAlert as AlertCircle, MessageCircle, Mail, ArrowLeft } from 'lucide-react';
 import { trackLead } from '@/lib/metaEvents';
 import { trackGoogleAdsCadastro } from '@/lib/googleAdsEvents';
@@ -42,33 +43,49 @@ import GoogleIcon from '@/components/icons/GoogleIcon';
 import { supabase } from '@/lib/supabase';
 import { injectMetaPixel } from '@/lib/tracking';
 
-const formSchema = z.object({
-  owner_name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres'),
-  name: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-  confirmPassword: z.string(),
-  country_code: z.string().default('55'),
-  whatsapp: z.string().min(1, 'WhatsApp é obrigatório'),
-  accepted_terms: z.boolean().refine((v) => v === true, {
-    message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'As senhas não coincidem',
-  path: ['confirmPassword'],
-});
-
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = {
+  owner_name: string;
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  country_code: string;
+  whatsapp: string;
+  accepted_terms: boolean;
+};
 
 const GOOGLE_AUTH_ENABLED = true;
 
 export default function RegisterPage() {
+  const { t, i18n } = useTranslation('auth');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [searchParams] = useSearchParams();
   const [googleAdsConfig, setGoogleAdsConfig] = useState<{ tagId: string; cadastroId: string } | null>(null);
+
+  const formSchema = useMemo(
+    () =>
+      z
+        .object({
+          owner_name: z.string().min(2, t('validation.ownerNameMin')),
+          name: z.string().min(3, t('validation.businessNameMin')),
+          email: z.string().email(t('validation.emailInvalid')),
+          password: z.string().min(6, t('validation.passwordMin')),
+          confirmPassword: z.string(),
+          country_code: z.string().default('55'),
+          whatsapp: z.string().min(1, t('validation.whatsappRequired')),
+          accepted_terms: z.boolean().refine((v) => v === true, {
+            message: t('validation.termsRequired'),
+          }),
+        })
+        .refine((data) => data.password === data.confirmPassword, {
+          message: t('validation.passwordsMismatch'),
+          path: ['confirmPassword'],
+        }),
+    [t]
+  );
 
   useEffect(() => {
     supabase
@@ -138,7 +155,7 @@ export default function RegisterPage() {
         // Handle duplicate email error
         if (error === 'EMAIL_ALREADY_EXISTS') {
           setRegisterError(error);
-          toast.error('Este e-mail já está cadastrado no sistema');
+          toast.error(t('register.errors.emailExists'));
           return;
         }
 
@@ -153,11 +170,11 @@ export default function RegisterPage() {
       if (googleAdsConfig) {
         trackGoogleAdsCadastro(googleAdsConfig.tagId, googleAdsConfig.cadastroId);
       }
-      toast.success('Cadastro realizado com sucesso!');
+      toast.success(t('register.success'));
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Register error:', error);
-      const errorMsg = error.message || 'Erro ao realizar cadastro';
+      const errorMsg = error.message || t('register.errors.generic');
       setRegisterError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -196,9 +213,9 @@ export default function RegisterPage() {
 
         <Card className="shadow-xl border-border/50 backdrop-blur-sm">
           <CardHeader className="space-y-2 px-7 pt-7">
-            <CardTitle className="text-2xl text-center page-title">Criar Conta</CardTitle>
+            <CardTitle className="text-2xl text-center page-title">{t('register.title')}</CardTitle>
             <CardDescription className="text-center text-[14px]">
-              Cadastre-se para criar sua vitrine digital de produtos
+              {t('register.subtitle')}
             </CardDescription>
           </CardHeader>
           <CardContent className="px-7">
@@ -216,7 +233,7 @@ export default function RegisterPage() {
                   ) : (
                     <GoogleIcon className="mr-2 h-4 w-4" />
                   )}
-                  Cadastrar com Google
+                  {t('register.googleCta')}
                 </Button>
 
                 <div className="relative my-5">
@@ -224,7 +241,7 @@ export default function RegisterPage() {
                     <span className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                    <span className="bg-card px-2 text-muted-foreground">{t('register.or')}</span>
                   </div>
                 </div>
 
@@ -235,7 +252,7 @@ export default function RegisterPage() {
                   onClick={() => setShowEmailForm(true)}
                 >
                   <Mail className="mr-2 h-4 w-4" />
-                  Cadastrar com Email
+                  {t('register.emailFormCta')}
                 </Button>
               </>
             ) : (
@@ -249,7 +266,7 @@ export default function RegisterPage() {
                     onClick={() => setShowEmailForm(false)}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Voltar
+                    {t('register.back')}
                   </Button>
                 )}
 
@@ -259,25 +276,27 @@ export default function RegisterPage() {
                     <AlertDescription>
                       {registerError === 'EMAIL_ALREADY_EXISTS' ? (
                         <>
-                          <div>Este e-mail já está cadastrado no sistema.</div>
-                          <div className="text-sm mt-1">Por favor, utilize outro e-mail ou entre em contato com o suporte.</div>
-                          <div className="mt-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full bg-green-50 hover:bg-green-100 border-green-200 text-green-800"
-                              asChild
-                            >
-                              <a
-                                href={generateWhatsAppUrl('5591982465495')}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                          <div>{t('register.errors.emailExistsTitle')}</div>
+                          <div className="text-sm mt-1">{t('register.errors.emailExistsHint')}</div>
+                          {i18n.language === 'pt-BR' && (
+                            <div className="mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-green-50 hover:bg-green-100 border-green-200 text-green-800"
+                                asChild
                               >
-                                <MessageCircle className="h-4 w-4 mr-2" />
-                                Falar com Suporte via WhatsApp
-                              </a>
-                            </Button>
-                          </div>
+                                <a
+                                  href={generateWhatsAppUrl('5591982465495')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <MessageCircle className="h-4 w-4 mr-2" />
+                                  {t('register.errors.supportWhatsApp')}
+                                </a>
+                              </Button>
+                            </div>
+                          )}
                         </>
                       ) : (
                         registerError
@@ -293,10 +312,10 @@ export default function RegisterPage() {
                   name="owner_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Seu Nome</FormLabel>
+                      <FormLabel>{t('register.ownerNameLabel')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Seu nome"
+                          placeholder={t('register.ownerNamePlaceholder')}
                           disabled={isLoading}
                           {...field}
                         />
@@ -311,10 +330,10 @@ export default function RegisterPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome da Empresa ou Negócio</FormLabel>
+                      <FormLabel>{t('register.businessNameLabel')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Nome da sua empresa ou negócio"
+                          placeholder={t('register.businessNamePlaceholder')}
                           disabled={isLoading}
                           {...field}
                         />
@@ -329,13 +348,13 @@ export default function RegisterPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('register.emailLabel')}</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="seu@email.com" 
-                          type="email" 
-                          disabled={isLoading} 
-                          {...field} 
+                        <Input
+                          placeholder={t('register.emailPlaceholder')}
+                          type="email"
+                          disabled={isLoading}
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
@@ -346,9 +365,9 @@ export default function RegisterPage() {
                 <FormField
                   control={form.control}
                   name="country_code"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
-                      <FormLabel>País e WhatsApp</FormLabel>
+                      <FormLabel>{t('register.countryWhatsAppLabel')}</FormLabel>
                       <FormControl>
                         <PhoneInputWithCountry
                           defaultCountry="BR"
@@ -356,7 +375,7 @@ export default function RegisterPage() {
                             form.setValue('country_code', data.ddi.replace('+', ''));
                             form.setValue('whatsapp', data.phone);
                           }}
-                          placeholder="(11) 99999-9999"
+                          placeholder={t('register.whatsappPlaceholder')}
                         />
                       </FormControl>
                       <FormMessage />
@@ -369,10 +388,10 @@ export default function RegisterPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Senha</FormLabel>
+                      <FormLabel>{t('register.passwordLabel')}</FormLabel>
                       <FormControl>
                         <PasswordInput
-                          placeholder="******"
+                          placeholder={t('register.passwordPlaceholder')}
                           disabled={isLoading}
                           {...field}
                         />
@@ -387,10 +406,10 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirmar Senha</FormLabel>
+                      <FormLabel>{t('register.confirmPasswordLabel')}</FormLabel>
                       <FormControl>
                         <PasswordInput
-                          placeholder="******"
+                          placeholder={t('register.passwordPlaceholder')}
                           disabled={isLoading}
                           {...field}
                         />
@@ -419,25 +438,25 @@ export default function RegisterPage() {
                           htmlFor="accepted_terms"
                           className="text-sm font-normal text-foreground/80 leading-relaxed cursor-pointer"
                         >
-                          Li e aceito os{' '}
+                          {t('register.termsPrefix')}{' '}
                           <Link
                             to="/termos-de-uso"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
                           >
-                            Termos de Uso
+                            {t('register.termsLink')}
                           </Link>
-                          {' '}e a{' '}
+                          {' '}{t('register.termsAnd')}{' '}
                           <Link
                             to="/politica-de-privacidade"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
                           >
-                            Política de Privacidade
+                            {t('register.privacyLink')}
                           </Link>
-                          {' '}do VitrineTurbo.
+                          {' '}{t('register.termsSuffix')}
                         </FormLabel>
                       </div>
                       <FormMessage />
@@ -453,7 +472,7 @@ export default function RegisterPage() {
                   {isLoading ? (
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  Cadastrar
+                  {t('register.submit')}
                 </Button>
               </form>
             </Form>
@@ -462,9 +481,9 @@ export default function RegisterPage() {
           </CardContent>
           <CardFooter className="flex flex-col px-7 pb-7">
             <div className="text-sm text-center text-muted-foreground mt-2">
-              Já tem uma conta?{' '}
+              {t('register.haveAccount')}{' '}
               <Link to="/login" className="text-primary hover:underline">
-                Entrar
+                {t('register.loginCta')}
               </Link>
             </div>
           </CardFooter>

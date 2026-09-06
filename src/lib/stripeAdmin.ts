@@ -44,3 +44,15 @@ export interface StripePriceRow {
 export function saveStripePrices(prices: StripePriceRow[]) {
   return callStripeAdmin('savePrices', { prices });
 }
+
+export async function runStripeProductSetup(environment: 'test' | 'production') {
+  const headers = await getAuthHeaders();
+  const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/setup-stripe-products`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ environment }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error || 'Falha ao criar produtos na Stripe');
+  return data;
+}

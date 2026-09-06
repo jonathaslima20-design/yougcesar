@@ -1,6 +1,6 @@
 export type UserRole = 'corretor' | 'admin' | 'parceiro' | 'partner';
 export type NicheType = 'diversos';
-export type PlanStatus = 'active' | 'expired' | 'suspended' | 'free';
+export type PlanStatus = 'active' | 'expired' | 'suspended' | 'free' | 'inactive';
 
 export type BillingCycle = 'monthly' | 'quarterly' | 'semiannually' | 'annually';
 

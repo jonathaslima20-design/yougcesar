@@ -1,8 +1,10 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Package, MapPin, User, Heart, Ticket, LogOut, Menu, X } from 'lucide-react';
+import { Package, MapPin, User, Heart, Ticket, LogOut, Menu, X, ShoppingCart } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { getLastVisitedStore } from '@/lib/lastVisitedStore';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { cn, getInitials } from '@/lib/utils';
@@ -20,6 +22,7 @@ interface LastStoreInfo {
 // the same product as the merchant dashboard instead of a bolted-on afterthought.
 
 const NAV_ITEMS = [
+  { name: 'Carrinho', href: '/conta/carrinho', icon: ShoppingCart },
   { name: 'Pedidos', href: '/conta/pedidos', icon: Package },
   { name: 'Favoritos', href: '/conta/favoritos', icon: Heart },
   { name: 'Cupons', href: '/conta/cupons', icon: Ticket },
@@ -31,6 +34,7 @@ export default function BuyerAccountSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [lastStore, setLastStore] = useState<LastStoreInfo | null>(null);
   const { customer, signOut } = useBuyerAuth();
+  const { cart } = useCart();
   const navigate = useNavigate();
 
   // A conta do comprador não pertence a uma loja só (ele pode ter pedidos em
@@ -100,6 +104,7 @@ export default function BuyerAccountSidebar() {
               name={item.name}
               href={item.href}
               icon={item.icon}
+              badge={item.href === '/conta/carrinho' && cart.itemCount > 0 ? cart.itemCount : undefined}
               onClick={() => isMobile && toggleMobileSidebar()}
             />
           ))}
@@ -178,10 +183,11 @@ interface InkNavItemProps {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
   onClick?: () => void;
 }
 
-function InkNavItem({ name, href, icon: Icon, onClick }: InkNavItemProps) {
+function InkNavItem({ name, href, icon: Icon, badge, onClick }: InkNavItemProps) {
   const location = useLocation();
   const isActive = location.pathname.startsWith(href);
 
@@ -198,7 +204,12 @@ function InkNavItem({ name, href, icon: Icon, onClick }: InkNavItemProps) {
     >
       {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-foreground" />}
       <Icon className="h-[19px] w-[19px] shrink-0" />
-      <span className="whitespace-nowrap">{name}</span>
+      <span className="whitespace-nowrap flex-1">{name}</span>
+      {!!badge && (
+        <Badge variant="secondary" className="h-5 min-w-5 px-1 justify-center text-[11px] font-semibold">
+          {badge}
+        </Badge>
+      )}
     </NavLink>
   );
 }

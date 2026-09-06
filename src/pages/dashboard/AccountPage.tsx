@@ -37,7 +37,33 @@ export default function AccountPage() {
   const { openModal } = useSubscriptionModal();
   const [isSaving, setIsSaving] = useState(false);
   const [renewLoading, setRenewLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const navigate = useNavigate();
+  const isStripeUser = user?.billing_provider === 'stripe';
+
+  const openStripePortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-portal`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data.url) {
+        throw new Error(data.error || 'Falha ao abrir portal de gerenciamento');
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao abrir portal de gerenciamento');
+      setPortalLoading(false);
+    }
+  };
 
   const navigateToCheckout = async (earlyRenewal = false) => {
     setRenewLoading(true);
@@ -315,15 +341,15 @@ export default function AccountPage() {
                 )}
                 <Button
                   className="mt-4"
-                  disabled={renewLoading}
-                  onClick={() => navigateToCheckout(false)}
+                  disabled={isStripeUser ? portalLoading : renewLoading}
+                  onClick={() => (isStripeUser ? openStripePortal() : navigateToCheckout(false))}
                 >
-                  {renewLoading ? (
+                  {(isStripeUser ? portalLoading : renewLoading) ? (
                     <Loader className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <CreditCard className="h-4 w-4 mr-2" />
                   )}
-                  Renovar Plano
+                  {isStripeUser ? 'Gerenciar Assinatura' : 'Renovar Plano'}
                 </Button>
               </div>
             </div>
@@ -337,18 +363,32 @@ export default function AccountPage() {
             <h3 className="text-base font-semibold mb-3">Assinatura</h3>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Próxima renovação</p>
+                <p className="text-sm text-muted-foreground">
+                  {isStripeUser ? 'Próxima cobrança' : 'Próxima renovação'}
+                </p>
                 <p className="text-sm font-medium">{formatDate(user.subscription_end_date)}</p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={renewLoading}
-                onClick={() => navigateToCheckout(true)}
-              >
-                {renewLoading && <Loader className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                Renovar Antecipado
-              </Button>
+              {isStripeUser ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={portalLoading}
+                  onClick={openStripePortal}
+                >
+                  {portalLoading && <Loader className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Gerenciar Assinatura
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={renewLoading}
+                  onClick={() => navigateToCheckout(true)}
+                >
+                  {renewLoading && <Loader className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Renovar Antecipado
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

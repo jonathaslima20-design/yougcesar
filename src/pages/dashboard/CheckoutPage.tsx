@@ -22,6 +22,7 @@ import {
 } from '@/lib/offerService';
 import { validateReferralCoupon, calculateReferralDiscount } from '@/lib/referralUtils';
 import { getProviderForCountry } from '@/lib/billing/provider';
+import { LEGACY_TRIMESTRAL_PLAN } from '@/lib/legacyTrimestralPlan';
 import StripeCheckoutRedirect from './StripeCheckoutRedirect';
 import { toast } from 'sonner';
 import { QrCode, CreditCard, Copy, Check, Loader as Loader2, ArrowLeft, ShieldCheck, Clock, CircleCheck as CheckCircle2, Circle as XCircle, CircleAlert as AlertCircle, CalendarClock, Tag, Ticket, Lock } from 'lucide-react';
@@ -526,6 +527,20 @@ export default function CheckoutPage() {
         .select('id, name, price, duration')
         .eq('id', resolvedPlanId)
         .maybeSingle();
+
+      // The retired Trimestral plan is is_active = false, which RLS hides from
+      // non-admin users even by exact id — fall back to the hardcoded reference
+      // so legacy subscribers can still renew into it.
+      if ((error || !data) && resolvedPlanId === LEGACY_TRIMESTRAL_PLAN.id) {
+        setPlan({
+          id: LEGACY_TRIMESTRAL_PLAN.id,
+          name: LEGACY_TRIMESTRAL_PLAN.name,
+          price: LEGACY_TRIMESTRAL_PLAN.price,
+          duration: cycle || LEGACY_TRIMESTRAL_PLAN.duration,
+        });
+        setPlanLoading(false);
+        return;
+      }
 
       if (error || !data) {
         toast.error('Plano não encontrado');

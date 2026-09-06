@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscriptionModal } from '@/contexts/SubscriptionModalContext';
 import SubscriptionModal from '@/components/subscription/SubscriptionModal';
+import { getSubscriberAccess } from '@/lib/subscriptionAccess';
 
 export default function SubscriptionBlocker() {
   const { user, loading } = useAuth();
@@ -16,10 +17,7 @@ export default function SubscriptionBlocker() {
 
     const isAdmin = user.role === 'admin';
     const isParceiro = user.role === 'parceiro';
-    const hasActivePlan = user.plan_status === 'active';
-    const isFreePlan = user.plan_status === 'free';
-    const isExpired = user.plan_status === 'expired';
-    const isSuspended = user.plan_status === 'suspended';
+    const { isSubscriber: hasActivePlan, isFreePlan, isExpired, isSuspended } = getSubscriberAccess(user.plan_status);
 
     if (isAdmin || isParceiro) {
       forceClose();

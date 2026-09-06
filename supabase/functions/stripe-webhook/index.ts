@@ -22,6 +22,21 @@ function toDateOnly(unixSeconds: number): string {
 }
 
 /**
+ * users.billing_cycle is shared with the Mercado Pago flow (values
+ * 'monthly' | 'quarterly' | 'semiannually' | 'annually' — see
+ * AccountPage.tsx/PlanStatusBadge.tsx's getBillingLabel()). Stripe only ever
+ * sells monthly/annual internationally, so map straight to the two values
+ * those already understand instead of introducing a third vocabulary.
+ */
+function mapStripeIntervalToBillingCycle(interval: string | undefined): string {
+  return interval === "year" ? "annually" : "monthly";
+}
+
+function subscriptionCycle(subscription: Stripe.Subscription): string {
+  return mapStripeIntervalToBillingCycle(subscription.items.data[0]?.price?.recurring?.interval);
+}
+
+/**
  * Grava direto em users (não em subscriptions/mp_payments — essas são do
  * Mercado Pago). O trigger que sincroniza subscription_end_date a partir de
  * subscriptions não dispara para assinantes Stripe, então essas datas
@@ -32,7 +47,8 @@ async function upsertActiveSubscription(
   userId: string,
   stripeCustomerId: string,
   stripeSubscriptionId: string,
-  currentPeriodEnd: number
+  currentPeriodEnd: number,
+  billingCycle: string
 ) {
   const endDate = toDateOnly(currentPeriodEnd);
   await admin
@@ -44,6 +60,8 @@ async function upsertActiveSubscription(
       stripe_subscription_id: stripeSubscriptionId,
       subscription_end_date: endDate,
       next_payment_date: endDate,
+      billing_cycle: billingCycle,
+      payment_failed_at: null,
     })
     .eq("id", userId);
 }
@@ -158,7 +176,8 @@ Deno.serve(async (req: Request) => {
           userId,
           stripeCustomerId,
           stripeSubscriptionId,
-          subscription.current_period_end
+          subscription.current_period_end,
+          subscriptionCycle(subscription)
         );
         break;
       }
@@ -185,34 +204,84 @@ Deno.serve(async (req: Request) => {
           userId,
           stripeCustomerId ?? subscription.customer as string,
           stripeSubscriptionId,
-          subscription.current_period_end
+          subscription.current_period_end,
+          subscriptionCycle(subscription)
         );
         break;
       }
 
       case "invoice.payment_failed": {
         // Stripe já cuida dos retries (Smart Retries); não derruba o acesso
-        // aqui. O rebaixamento real acontece via customer.subscription.deleted.
-        console.warn("invoice.payment_failed", event.id);
+        // aqui. Só inicia o relógio do grace period de 7 dias que
+        // check-stripe-grace-period fecha depois — não reseta o relógio a
+        // cada nova tentativa falha do mesmo ciclo, só marca a PRIMEIRA
+        // falha (payment_failed_at fica null até então, e é limpo de volta
+        // por upsertActiveSubscription assim que um pagamento é confirmado).
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeSubscriptionId = invoice.subscription as string | null;
+        const stripeCustomerId = invoice.customer as string | null;
+        if (!stripeSubscriptionId) break;
+
+        const userId = await findUserIdBySubscriptionOrCustomer(
+          admin,
+          stripeSubscriptionId,
+          stripeCustomerId
+        );
+        if (!userId) {
+          console.error("invoice.payment_failed: user not found", event.id);
+          break;
+        }
+
+        const { data: current } = await admin
+          .from("users")
+          .select("payment_failed_at")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (!current?.payment_failed_at) {
+          await admin
+            .from("users")
+            .update({ payment_failed_at: new Date().toISOString() })
+            .eq("id", userId);
+
+          await admin.from("notifications").insert({
+            user_id: userId,
+            type: "subscription_expiring",
+            title: "Falha no pagamento",
+            message:
+              "Não conseguimos processar o pagamento da sua assinatura. Atualize seu método de pagamento em até 7 dias para evitar o bloqueio da sua vitrine.",
+            related_entity_type: "subscription",
+          });
+        }
         break;
       }
 
       case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
+        const eventSubscription = event.data.object as Stripe.Subscription;
         const userId = await findUserIdBySubscriptionOrCustomer(
           admin,
-          subscription.id,
-          subscription.customer as string
+          eventSubscription.id,
+          eventSubscription.customer as string
         );
         if (!userId) {
           console.error("customer.subscription.updated: user not found", event.id);
           break;
         }
 
+        // Re-fetch via our own pinned API version (see `stripe` above) instead
+        // of trusting the webhook payload's shape, which depends on whatever
+        // API version the Stripe Dashboard destination is configured with —
+        // that can differ from ours, and Stripe has moved fields like
+        // current_period_end around between API versions before.
+        const subscription = await stripe.subscriptions.retrieve(eventSubscription.id);
         const endDate = toDateOnly(subscription.current_period_end);
         await admin
           .from("users")
-          .update({ subscription_end_date: endDate, next_payment_date: endDate })
+          .update({
+            subscription_end_date: endDate,
+            next_payment_date: endDate,
+            billing_cycle: subscriptionCycle(subscription),
+          })
           .eq("id", userId);
         break;
       }

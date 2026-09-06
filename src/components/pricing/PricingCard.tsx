@@ -6,11 +6,14 @@ export default function PricingCard({
   plan,
   ctaHref,
   ctaLabel,
+  ctaExternal,
   priceDisplay,
 }: {
   plan: PricingPlan;
   ctaHref?: string;
   ctaLabel?: string;
+  /** Opens ctaHref in a new tab (target="_blank") — for links that leave the site, e.g. WhatsApp. */
+  ctaExternal?: boolean;
   /** Fully-formatted headline price (e.g. "$199.00", "12,99 €"). Defaults to "R$ {priceSuffix}". */
   priceDisplay?: string;
 }) {
@@ -64,6 +67,7 @@ export default function PricingCard({
       {ctaHref && (
         <a
           href={ctaHref}
+          {...(ctaExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
           className={`mt-8 rounded-full px-6 py-3.5 font-display font-medium text-[14px] inline-flex items-center justify-center gap-2 transition-colors ${
             featured
               ? 'bg-white text-ink-900 hover:bg-white/90'
