@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 import { toast } from 'sonner';
 import {
@@ -14,6 +14,7 @@ import {
   CircleCheck as CheckCircle2,
   Circle as XCircle,
   CircleAlert as AlertCircle,
+  UserRound,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -424,7 +425,11 @@ function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => 
 export default function OrderPaymentPage() {
   const { slug, orderId } = useParams<{ slug: string; orderId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { customer, loading: authLoading } = useBuyerAuth();
+  const accountLink = customer
+    ? '/conta/pedidos'
+    : `/conta/entrar?loja=${slug}&from=${encodeURIComponent(location.pathname)}`;
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [items, setItems] = useState<OrderItemRow[]>([]);
   const [store, setStore] = useState<StoreInfo | null>(null);
@@ -522,10 +527,19 @@ export default function OrderPaymentPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/${slug}`)} className="text-muted-foreground">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Voltar à loja
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/${slug}`)} className="text-muted-foreground">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Voltar à loja
+          </Button>
+          <Link
+            to={accountLink}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <UserRound className="h-3.5 w-3.5" />
+            {customer ? 'Minha conta' : 'Entrar'}
+          </Link>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
         {/* Coluna de pagamento: no mobile fica em cima (ordem 1); no desktop
