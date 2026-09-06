@@ -49,19 +49,25 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Primary Stats */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total de Usuários" value={totalUsers} subtitle="usuários cadastrados" icon={Users} loading={loading} href="/admin/users" />
-        <StatCard title="Receita Recorrente" value={formatCurrencyI18n(totalRevenue, 'BRL', 'pt-BR')} subtitle="assinaturas ativas" icon={DollarSign} loading={loading} />
-        <StatCard title="Assinaturas Ativas" value={activeSubscriptions} subtitle="planos pagos" icon={CreditCard} loading={loading} accent="green" href="/admin/users?plan=active" />
-        <StatCard title="Novos Cadastros" value={newUsers30Days} subtitle={growthSubtitle} icon={UserPlus} loading={loading} accent="teal" href="/admin/users?date=last30days" />
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground mb-2">Visão Geral</h2>
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Total de Usuários" value={totalUsers} subtitle="usuários cadastrados" icon={Users} loading={loading} href="/admin/users" />
+          <StatCard title="Receita Recorrente" value={formatCurrencyI18n(totalRevenue, 'BRL', 'pt-BR')} subtitle="assinaturas ativas" icon={DollarSign} loading={loading} />
+          <StatCard title="Assinaturas Ativas" value={activeSubscriptions} subtitle="planos pagos" icon={CreditCard} loading={loading} accent="green" href="/admin/users?plan=active" />
+          <StatCard title="Novos Cadastros" value={newUsers30Days} subtitle={growthSubtitle} icon={UserPlus} loading={loading} href="/admin/users?date=last30days" />
+        </div>
       </div>
 
-      {/* Secondary Stats - Alerts */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Planos Vencidos" value={expiredPlans} subtitle="não renovados" icon={CalendarX2} loading={loading} accent={expiredPlans > 0 ? "red" : undefined} href="/admin/users?plan=expired" />
-        <StatCard title="Vencendo em 7 dias" value={expiringIn7Days} subtitle="risco de churn" icon={AlertTriangle} loading={loading} accent={expiringIn7Days > 0 ? "amber" : undefined} href="/admin/users?expiration=expiring-7days" />
-        <StatCard title="Planos Suspensos" value={suspendedPlans} subtitle="assinatura suspensa" icon={Clock} loading={loading} accent={suspendedPlans > 0 ? "amber" : undefined} href="/admin/users?plan=suspended" />
-        <StatCard title="Plano Gratuito" value={freePlans} subtitle="oportunidade de conversão" icon={Gift} loading={loading} href="/admin/users?plan=free" />
+      {/* Secondary Stats - Plan health */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground mb-2">Status dos Planos</h2>
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Planos Vencidos" value={expiredPlans} subtitle="não renovados" icon={CalendarX2} loading={loading} accent={expiredPlans > 0 ? "red" : undefined} href="/admin/users?plan=expired" />
+          <StatCard title="Vencendo em 7 dias" value={expiringIn7Days} subtitle="risco de churn" icon={AlertTriangle} loading={loading} accent={expiringIn7Days > 0 ? "amber" : undefined} href="/admin/users?expiration=expiring-7days" />
+          <StatCard title="Planos Suspensos" value={suspendedPlans} subtitle="assinatura suspensa" icon={Clock} loading={loading} accent={suspendedPlans > 0 ? "amber" : undefined} href="/admin/users?plan=suspended" />
+          <StatCard title="Plano Gratuito" value={freePlans} subtitle="oportunidade de conversão" icon={Gift} loading={loading} href="/admin/users?plan=free" />
+        </div>
       </div>
 
       {/* Charts Row */}
