@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Package, MapPin, User, Heart, Ticket, LogOut, Menu, X, ShoppingCart } from 'lucide-react';
+import { Package, MapPin, User, LogOut, Menu, X, ShoppingCart } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,8 +24,6 @@ interface LastStoreInfo {
 const NAV_ITEMS = [
   { name: 'Carrinho', href: '/conta/carrinho', icon: ShoppingCart },
   { name: 'Pedidos', href: '/conta/pedidos', icon: Package },
-  { name: 'Favoritos', href: '/conta/favoritos', icon: Heart },
-  { name: 'Cupons', href: '/conta/cupons', icon: Ticket },
   { name: 'Endereços', href: '/conta/enderecos', icon: MapPin },
   { name: 'Perfil', href: '/conta/perfil', icon: User },
 ];
