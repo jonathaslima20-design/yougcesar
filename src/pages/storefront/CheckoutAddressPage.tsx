@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck, Clock, ExternalLink, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -51,9 +51,13 @@ const EMPTY_ADDRESS: ManualAddress = {
 export default function CheckoutAddressPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { corretor, loading: corretorLoading } = useCorretorData({ slug });
   const { cart, clearCart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon, updateVariantQuantity, removeCartVariant } = useCart();
   const { customer: buyerAccount, loading: authLoading, saveCpf } = useBuyerAuth();
+  const accountLink = buyerAccount
+    ? '/conta/pedidos'
+    : `/conta/entrar?loja=${slug}&from=${encodeURIComponent(location.pathname)}`;
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
   // autoDeductStock nao e lido aqui: a baixa deste fluxo acontece no webhook
   // de pagamento, na aprovacao. inventoryEnabled ainda serve para revalidar
@@ -525,10 +529,19 @@ export default function CheckoutAddressPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/${slug}`)} className="text-muted-foreground">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Voltar à loja
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/${slug}`)} className="text-muted-foreground">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Voltar à loja
+          </Button>
+          <Link
+            to={accountLink}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <UserRound className="h-3.5 w-3.5" />
+            {buyerAccount ? 'Minha conta' : 'Entrar'}
+          </Link>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
         {/* Coluna do formulário: no mobile fica em cima (ordem 1); no desktop
