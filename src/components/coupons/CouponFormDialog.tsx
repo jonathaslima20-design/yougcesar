@@ -84,6 +84,7 @@ export default function CouponFormDialog({
       setIsActive(coupon.is_active);
       setAppliesTo(coupon.applies_to);
       setSelectedProductIds(couponProductIds);
+      setSelectedCategoryNames(couponCategoryIds);
     } else {
       setCode('');
       setName('');
@@ -102,7 +103,7 @@ export default function CouponFormDialog({
       setSelectedCategoryNames([]);
     }
     setErrors({});
-  }, [open, coupon, couponProductIds]);
+  }, [open, coupon, couponProductIds, couponCategoryIds]);
 
   useEffect(() => {
     if (!open || !user?.id) return;
@@ -136,12 +137,6 @@ export default function CouponFormDialog({
 
     loadData();
   }, [open, user?.id, appliesTo]);
-
-  useEffect(() => {
-    if (coupon && couponCategoryIds.length > 0 && categories.length === 0) {
-      // Will be loaded when categories are fetched
-    }
-  }, [coupon, couponCategoryIds, categories]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -190,7 +185,7 @@ export default function CouponFormDialog({
       is_active: isActive,
       applies_to: appliesTo,
       product_ids: appliesTo === 'specific_products' ? selectedProductIds : [],
-      category_ids: [],
+      category_ids: appliesTo === 'specific_categories' ? selectedCategoryNames : [],
     };
 
     const result = await onSave(formData);
