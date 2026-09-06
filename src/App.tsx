@@ -7,7 +7,6 @@ import { AffiliateAuthProvider } from '@/contexts/AffiliateAuthContext';
 import { AffiliateNotificationProvider } from '@/contexts/AffiliateNotificationContext';
 import { BuyerNotificationProvider } from '@/contexts/BuyerNotificationContext';
 import { CartProvider } from '@/contexts/CartContext';
-import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import { SubscriptionModalProvider } from '@/contexts/SubscriptionModalContext';
 import { CorretorPageStateProvider } from '@/contexts/CorretorPageStateContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -70,8 +69,6 @@ import BuyerAuthCallbackPage from '@/pages/buyer/BuyerAuthCallbackPage.tsx';
 import BuyerProfilePage from '@/pages/buyer/BuyerProfilePage.tsx';
 import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
 import BuyerOrderDetailPage from '@/pages/buyer/BuyerOrderDetailPage.tsx';
-import BuyerFavoritesPage from '@/pages/buyer/BuyerFavoritesPage.tsx';
-import BuyerCouponsPage from '@/pages/buyer/BuyerCouponsPage.tsx';
 import BuyerCartPage from '@/pages/buyer/BuyerCartPage.tsx';
 import OrderPaymentPage from '@/pages/storefront/OrderPaymentPage.tsx';
 import CheckoutAddressPage from '@/pages/storefront/CheckoutAddressPage.tsx';
@@ -300,8 +297,6 @@ function AppContent() {
             <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
             <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
             <Route path="/conta/carrinho" element={<BuyerCartPage />} />
-            <Route path="/conta/favoritos" element={<BuyerFavoritesPage />} />
-            <Route path="/conta/cupons" element={<BuyerCouponsPage />} />
             <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
             <Route path="/conta/perfil" element={<BuyerProfilePage />} />
           </Route>
@@ -439,15 +434,13 @@ export default function App() {
                     <SubscriptionModalProvider>
                       <PromotionalOffersProvider>
                         <CartProvider>
-                          <FavoritesProvider>
-                            <CorretorPageStateProvider>
-                              <AppContent />
-                              <OfferDisplayManager />
-                              <Toaster />
-                              <FloatingWhatsAppButton />
-                              <CookieConsentBanner />
-                            </CorretorPageStateProvider>
-                          </FavoritesProvider>
+                          <CorretorPageStateProvider>
+                            <AppContent />
+                            <OfferDisplayManager />
+                            <Toaster />
+                            <FloatingWhatsAppButton />
+                            <CookieConsentBanner />
+                          </CorretorPageStateProvider>
                         </CartProvider>
                       </PromotionalOffersProvider>
                     </SubscriptionModalProvider>
