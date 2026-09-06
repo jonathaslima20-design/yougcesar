@@ -178,7 +178,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
     if (isUserActive) return 'Seu plano está ativo. Você tem acesso completo à plataforma VitrineTurbo.';
     if (limitReason) return 'Você atingiu um limite do plano Free. Escolha um plano pago para continuar crescendo.';
     if (isUserOnFree) return 'Você está no Plano Free. Faça upgrade para desbloquear recursos ilimitados.';
-    return 'Ative sua conta e tenha acesso completo à plataforma VitrineTurbo.';
+    return 'Escolha o plano ideal para colocar sua loja no ar.';
   };
 
   return (
@@ -266,14 +266,6 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
           </Alert>
         )}
 
-        {isForced && !isUserActive && !isUserOnFree && !isExpired && !isSuspended && (
-          <Alert className="bg-blue-50 border-blue-200">
-            <AlertDescription className="text-blue-800">
-              Para utilizar a plataforma, você precisa ativar um plano de assinatura.
-            </AlertDescription>
-          </Alert>
-        )}
-
         {isUserActive && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
@@ -345,8 +337,14 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-3 text-muted-foreground font-medium flex items-center gap-1.5">
-                    <ArrowUpCircle className="h-3.5 w-3.5" />
-                    Faça upgrade e desbloqueie tudo
+                    {isUserOnFree ? (
+                      <>
+                        <ArrowUpCircle className="h-3.5 w-3.5" />
+                        Faça upgrade e desbloqueie tudo
+                      </>
+                    ) : (
+                      'Planos disponíveis'
+                    )}
                   </span>
                 </div>
               </div>
