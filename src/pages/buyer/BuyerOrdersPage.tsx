@@ -57,6 +57,11 @@ interface StoreInfo {
   slug: string;
 }
 
+interface OrderThumbnail {
+  image: string | null;
+  itemCount: number;
+}
+
 const PAYMENT_STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   not_applicable: { label: 'Sem pagamento online', variant: 'outline' },
   pending: { label: 'Pagamento pendente', variant: 'secondary' },
@@ -81,10 +86,13 @@ function OrdersSkeleton() {
     <div className="space-y-3">
       {[0, 1, 2].map((i) => (
         <div key={i} className="flex items-center justify-between border border-border rounded-lg p-4">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-5 w-40" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-14 w-14 rounded-md shrink-0" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
           </div>
           <Skeleton className="h-5 w-16" />
         </div>
@@ -99,6 +107,7 @@ export default function BuyerOrdersPage() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<BuyerOrderRow[]>([]);
   const [stores, setStores] = useState<Record<string, StoreInfo>>({});
+  const [orderThumbnails, setOrderThumbnails] = useState<Record<string, OrderThumbnail>>({});
   const [buyAgainItems, setBuyAgainItems] = useState<BuyAgainItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [reorderingId, setReorderingId] = useState<string | null>(null);
@@ -141,6 +150,19 @@ export default function BuyerOrdersPage() {
 
         const orderMeta = new Map(rows.map((o) => [o.id, o]));
         const aggregated = new Map<string, BuyAgainItem>();
+
+        // One thumbnail per order (its first item's image) so the list reads
+        // like a real order history instead of plain text rows.
+        const thumbnails: Record<string, OrderThumbnail> = {};
+        (itemRows || []).forEach((item) => {
+          const thumb = thumbnails[item.order_id];
+          if (thumb) {
+            thumb.itemCount += 1;
+          } else {
+            thumbnails[item.order_id] = { image: item.product_image_url, itemCount: 1 };
+          }
+        });
+        setOrderThumbnails(thumbnails);
 
         (itemRows || []).forEach((item) => {
           // Weight-variant purchases don't record which variant was bought,
@@ -438,6 +460,7 @@ export default function BuyerOrdersPage() {
                 {filteredOrders.map((order) => {
                   const paymentInfo = PAYMENT_STATUS_LABELS[order.payment_status] || PAYMENT_STATUS_LABELS.not_applicable;
                   const store = stores[order.store_owner_id];
+                  const thumb = orderThumbnails[order.id];
                   return (
                     <div
                       key={order.id}
@@ -447,14 +470,30 @@ export default function BuyerOrdersPage() {
                       onKeyDown={(e) => e.key === 'Enter' && navigate(`/conta/pedidos/${order.id}`)}
                       className="flex items-center justify-between border border-border rounded-lg p-4 hover:bg-muted/40 transition-colors cursor-pointer"
                     >
-                      <div>
-                        <p className="font-medium">{store?.name || 'Loja'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          <OrderStatusBadge status={order.status} />
-                          <Badge variant={paymentInfo.variant}>{paymentInfo.label}</Badge>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-14 w-14 rounded-md border border-border/60 bg-white overflow-hidden shrink-0 relative">
+                          {thumb?.image ? (
+                            <img src={thumb.image} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-muted">
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          {thumb && thumb.itemCount > 1 && (
+                            <span className="absolute bottom-0 right-0 bg-foreground text-background text-[10px] font-semibold leading-none px-1 py-0.5 rounded-tl-md">
+                              +{thumb.itemCount - 1}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{store?.name || 'Loja'}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            <OrderStatusBadge status={order.status} />
+                            <Badge variant={paymentInfo.variant}>{paymentInfo.label}</Badge>
+                          </div>
                         </div>
                       </div>
                       <div className="text-right flex flex-col items-end gap-1">
