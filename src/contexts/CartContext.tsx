@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { toast } from 'sonner';
 import type { CartItem, CartState, Product, PriceTier, VariantDistribution, DistributionItem, CartDistribution, AppliedCoupon } from '@/types';
 import { fetchProductPriceTiers, calculateApplicablePrice } from '@/lib/tieredPricingUtils';
@@ -36,6 +36,20 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const STORAGE_KEY = 'vitrineturbo_cart';
 const COUPON_STORAGE_KEY = 'vitrineturbo_coupon';
 
+// Identifies "which products, in what quantities" so a coupon's frozen
+// discount can be tied to the cart it was validated against.
+function getCartSignature(items: CartItem[], distributions: CartDistribution[]): string {
+  const itemsSig = (items || [])
+    .map((i) => `${i.id}:${i.selectedVariantId || ''}:${i.quantity}`)
+    .sort()
+    .join('|');
+  const distSig = (distributions || [])
+    .map((d) => `${d.distribution.id}:${d.distribution.total_quantity}`)
+    .sort()
+    .join('|');
+  return `${itemsSig}##${distSig}`;
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartState>({
     items: [],
@@ -46,22 +60,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [appliedCoupon, setAppliedCouponState] = useState<AppliedCoupon | null>(null);
   const [tiersCache, setTiersCache] = useState<Map<string, PriceTier[]>>(new Map());
   const [productsCache, setProductsCache] = useState<Map<string, Product>>(new Map());
+  // Snapshot of the cart contents at the moment a coupon was applied — a
+  // scoped coupon (specific products/categories) validates against the cart
+  // at that instant, so if items/quantities change afterward the discount
+  // must be dropped instead of silently carrying over onto products it was
+  // never checked against.
+  const couponCartSignatureRef = useRef<string | null>(null);
 
   // Load cart from localStorage on mount
   useEffect(() => {
     try {
+      let loadedItems: CartItem[] = [];
+      let loadedDistributions: CartDistribution[] = [];
       const savedCart = localStorage.getItem(STORAGE_KEY);
       if (savedCart) {
         const parsedCart = JSON.parse(savedCart);
+        loadedItems = parsedCart.items || [];
+        loadedDistributions = parsedCart.distributions || [];
         setCart({
-          items: parsedCart.items || [],
-          distributions: parsedCart.distributions || [],
+          items: loadedItems,
+          distributions: loadedDistributions,
           total: parsedCart.total || 0,
           itemCount: parsedCart.itemCount || 0,
         });
       }
       const savedCoupon = localStorage.getItem(COUPON_STORAGE_KEY);
       if (savedCoupon) {
+        // The signature is tied to the cart restored above — if it doesn't
+        // match (e.g. localStorage was edited, or the two keys drifted
+        // apart), the watcher effect below drops the coupon right away.
+        couponCartSignatureRef.current = getCartSignature(loadedItems, loadedDistributions);
         setAppliedCouponState(JSON.parse(savedCoupon));
       }
     } catch (error) {
@@ -94,12 +122,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [appliedCoupon]);
 
   const setAppliedCoupon = (coupon: AppliedCoupon | null) => {
+    couponCartSignatureRef.current = coupon
+      ? getCartSignature(cart.items, cart.distributions)
+      : null;
     setAppliedCouponState(coupon);
   };
 
   const clearAppliedCoupon = () => {
+    couponCartSignatureRef.current = null;
     setAppliedCouponState(null);
   };
+
+  // A coupon scoped to specific products/categories is only checked against
+  // the cart at the moment it's applied — if the buyer adds, removes, or
+  // changes quantities afterward, the frozen discount would otherwise keep
+  // being subtracted from a cart it was never validated against (including
+  // products the coupon was never meant to cover). Drop it and make the
+  // buyer re-apply so it gets re-validated against the new cart.
+  useEffect(() => {
+    if (!appliedCoupon || !couponCartSignatureRef.current) return;
+    const currentSignature = getCartSignature(cart.items, cart.distributions);
+    if (currentSignature !== couponCartSignatureRef.current) {
+      couponCartSignatureRef.current = null;
+      setAppliedCouponState(null);
+      toast.info('O cupom foi removido porque o carrinho mudou. Aplique-o novamente para revalidar o desconto.');
+    }
+  }, [cart.items, cart.distributions]);
 
   // Calculate totals whenever items or distributions change
   useEffect(() => {
