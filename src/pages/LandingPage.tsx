@@ -869,7 +869,8 @@ function FinalCTA({ refCode }: { refCode: string | null }) {
 function FooterLanding() {
   const { t, i18n } = useTranslation('landing');
   return (
-    <footer className="border-t hairline bg-white pt-14 pb-8">
+    {/* pb-28 no mobile reserva espaço para o MobileStickyCTA (fixed, md:hidden) não cobrir a última linha do rodapé */}
+    <footer className="border-t hairline bg-white pt-14 pb-28 md:pb-8">
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
         {/* Top grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-12">
