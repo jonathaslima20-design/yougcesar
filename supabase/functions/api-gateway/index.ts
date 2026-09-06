@@ -1613,53 +1613,36 @@ async function handleCoupons(
       return errorResponse("validation_error", "Field 'code' is required", 400);
     }
 
-    const { data: coupon } = await supabase
-      .from("coupons")
-      .select("*")
-      .eq("user_id", ctx.userId)
-      .eq("code", body.code.toUpperCase())
-      .eq("is_active", true)
-      .maybeSingle();
+    // Delegates to the same validate_coupon RPC the storefront checkout
+    // uses, instead of a second hand-rolled copy of the eligibility and
+    // discount rules — this endpoint used to skip max_uses_per_customer
+    // entirely and never checked specific_products/specific_categories
+    // scoping, silently discounting the full cart for a coupon meant for
+    // one product.
+    const { data: result, error: rpcError } = await supabase.rpc("validate_coupon", {
+      p_store_owner_id: ctx.userId,
+      p_code: body.code,
+      p_customer_whatsapp: body.customer_whatsapp || "",
+      p_cart_total: body.cart_total || 0,
+      p_product_ids: body.product_ids || [],
+      p_cart_items: body.cart_items || [],
+    });
 
-    if (!coupon) {
-      return jsonResponse({ data: { is_valid: false, reason: "Coupon not found or inactive" } });
-    }
-
-    const now = new Date();
-    if (coupon.valid_from && new Date(coupon.valid_from) > now) {
-      return jsonResponse({ data: { is_valid: false, reason: "Coupon not yet valid" } });
-    }
-    if (coupon.valid_until && new Date(coupon.valid_until) < now) {
-      return jsonResponse({ data: { is_valid: false, reason: "Coupon expired" } });
-    }
-    if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
-      return jsonResponse({ data: { is_valid: false, reason: "Coupon usage limit reached" } });
+    if (rpcError) {
+      return errorResponse("internal_error", rpcError.message, 500);
     }
 
-    const cartTotal = body.cart_total || 0;
-    if (coupon.min_order_value && cartTotal < coupon.min_order_value) {
-      return jsonResponse({
-        data: { is_valid: false, reason: `Minimum order value: ${coupon.min_order_value}` },
-      });
-    }
-
-    let discountAmount = 0;
-    if (coupon.discount_type === "percentage") {
-      discountAmount = cartTotal * (coupon.discount_value / 100);
-      if (coupon.max_discount_amount) {
-        discountAmount = Math.min(discountAmount, coupon.max_discount_amount);
-      }
-    } else {
-      discountAmount = coupon.discount_value;
+    if (!result?.valid) {
+      return jsonResponse({ data: { is_valid: false, reason: result?.error_message || "Coupon invalid" } });
     }
 
     return jsonResponse({
       data: {
         is_valid: true,
-        coupon_id: coupon.id,
-        discount_type: coupon.discount_type,
-        discount_value: coupon.discount_value,
-        discount_amount: discountAmount,
+        coupon_id: result.coupon_id,
+        discount_type: result.discount_type,
+        discount_value: result.discount_value,
+        discount_amount: result.calculated_discount,
       },
     });
   }
