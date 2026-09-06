@@ -3,19 +3,20 @@
 
   1. Problem 0: coupon_categories.category_id has the wrong column type
      - Confirmed live against production: `coupon_categories.category_id`
-       is `uuid`. But categories in this project are never a UUID-keyed
-       entity — `products.category` is a `text[]` of plain names, and
-       every other category-related table (`category_display_settings`,
-       `affiliate_commission_rules.category_name`) keys by name (text).
-       There is no `categories` table for a uuid to reference.
-     - This means the column was miscreated from the start: no coupon
-       could ever have a working category association through it, since
-       the app only ever has category *names* to store, not uuids.
-     - Fix: convert the column to text so it can actually hold a category
-       name. Safe regardless of current contents (any pre-existing value
-       is cast to its text form via `USING`); the frontend bug below
-       meant this table was in practice never populated with real data
-       anyway.
+       is `uuid`, with a foreign key to some other table's `id`. But
+       categories in this project are never a UUID-keyed entity —
+       `products.category` is a `text[]` of plain names, and every other
+       category-related table (`category_display_settings`,
+       `affiliate_commission_rules.category_name`) keys by name (text),
+       with no FK at all. Whatever this FK was meant to point at, there is
+       no real "categories" row for a coupon to reference, since the app
+       never assigns categories an id anywhere.
+     - Confirmed empty (`select count(*) from coupon_categories` = 0), so
+       there is no data at risk either way — consistent with the frontend
+       bug below meaning this table was never actually populated.
+     - Fix: drop the FK (name-matching needs none, same as the other two
+       category tables) and convert the column to text so it can hold a
+       category name.
 
   2. Problem 1: category-scoped coupons can never be applied
      - `validate_coupon` matched eligible products with
@@ -35,6 +36,9 @@
      - Fix: when an order is created with a coupon, insert a
        `coupon_usages` row and bump `coupons.current_uses`.
 */
+
+ALTER TABLE public.coupon_categories
+  DROP CONSTRAINT IF EXISTS coupon_categories_category_id_fkey;
 
 ALTER TABLE public.coupon_categories
   ALTER COLUMN category_id TYPE text USING category_id::text;
