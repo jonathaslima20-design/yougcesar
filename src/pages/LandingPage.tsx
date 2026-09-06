@@ -1,7 +1,7 @@
 import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Plus, Package, MessageCircle, Gift, Globe as Globe2, ChartBar as BarChart3, Check, Zap, TrendingUp, Users, LogIn, ShoppingCart, Radio, Box, ClipboardList, Tag, Code as Code2, Palette, Globe, Shield, TriangleAlert as AlertTriangle, Percent, Timer } from 'lucide-react';
+import { ArrowRight, Plus, Package, MessageCircle, CreditCard, QrCode, Image as ImageIcon, Link2, Copy, Instagram, Megaphone, Globe as Globe2, ChartBar as BarChart3, LogIn, Radio, Box, ClipboardList, Tag, Palette, Shield, TriangleAlert as AlertTriangle, Percent, RefreshCw } from 'lucide-react';
 import HeroPhoneCarousel from '@/components/landing/HeroPhoneCarousel';
 import PricingCard from '@/components/pricing/PricingCard';
 import { PAID_PLANS, type PricingPlan } from '@/lib/pricingPlans';
@@ -195,8 +195,7 @@ function Header({ refCode }: { refCode: string | null }) {
         </a>
         <nav className="hidden md:flex items-center gap-8">
           <a href="#recursos" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.features')}</a>
-          <a href="#analytics" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.analytics')}</a>
-          <a href="#integracoes" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.integrations')}</a>
+          <a href="#usuarios" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.users')}</a>
           <a href="#precos" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.plans')}</a>
           <a href="#faq" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.faq')}</a>
           <Link to="/blog" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.blog')}</Link>
@@ -277,76 +276,98 @@ function SectionHeading({ id, kicker, title }: { id?: string; kicker: string; ti
   );
 }
 
-function HowItWorksSection({ refCode }: { refCode: string | null }) {
+function HowItWorksSection() {
   const { t } = useTranslation('landing');
   const steps = [
-    { n: '01', title: t('howItWorks.steps.1.title'), desc: t('howItWorks.steps.1.desc') },
-    { n: '02', title: t('howItWorks.steps.2.title'), desc: t('howItWorks.steps.2.desc') },
-    { n: '03', title: t('howItWorks.steps.3.title'), desc: t('howItWorks.steps.3.desc') },
+    { n: 1, title: t('howItWorks.steps.1.title'), desc: t('howItWorks.steps.1.desc'), meta: t('howItWorks.steps.1.meta') },
+    { n: 2, title: t('howItWorks.steps.2.title'), desc: t('howItWorks.steps.2.desc'), meta: t('howItWorks.steps.2.meta') },
+    { n: 3, title: t('howItWorks.steps.3.title'), desc: t('howItWorks.steps.3.desc'), meta: t('howItWorks.steps.3.meta') },
+  ];
+
+  const mocks = [
+    // Etapa 1: cadastro
+    <div key="m1" className="space-y-2">
+      <div className="rounded-lg border hairline bg-white px-3 py-2 text-[12px] text-ink-900">{t('howItWorks.mock.storeName')}</div>
+      <div className="rounded-lg border hairline bg-white px-3 py-2 text-[12px] text-ink-400">ana@email.com</div>
+      <div className="rounded-lg bg-ink-900 text-white px-3 py-2 text-center text-[12px] font-semibold mt-1">{t('howItWorks.mock.createBtn')}</div>
+    </div>,
+    // Etapa 2: produto
+    <div key="m2" className="space-y-2">
+      <div className="flex gap-2">
+        <div className="w-11 h-11 rounded-lg border border-dashed border-ink-300 bg-white flex items-center justify-center flex-shrink-0 text-ink-400">
+          <ImageIcon size={16} />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="rounded-lg border hairline bg-white px-3 py-1.5 text-[12px] text-ink-900 truncate">Chuteira Mercurial</div>
+          <div className="rounded-lg border hairline bg-white px-3 py-1.5 text-[12px] text-ink-900">R$ 389,00</div>
+        </div>
+      </div>
+      <div className="flex gap-1.5">
+        {['39', '40', '41', '42'].map((size, i) => (
+          <span
+            key={size}
+            className={`text-[11px] px-2.5 py-1 rounded-md ${i === 0 ? 'bg-ink-900 text-white' : 'border hairline bg-white text-ink-700'}`}
+          >
+            {size}
+          </span>
+        ))}
+      </div>
+    </div>,
+    // Etapa 3: link + canais
+    <div key="m3" className="space-y-2">
+      <div className="flex items-center gap-2 rounded-lg border hairline bg-white px-3 py-2 text-[12px] font-mono-label text-ink-900">
+        <Link2 size={13} className="text-ink-400 flex-shrink-0" />
+        <span className="flex-1 truncate">vitrineturbo.com/lojadaana</span>
+        <Copy size={13} className="text-ink-400 flex-shrink-0" />
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[
+          { Icon: MessageCircle, label: t('howItWorks.mock.status') },
+          { Icon: Instagram, label: t('howItWorks.mock.bio') },
+          { Icon: Megaphone, label: t('howItWorks.mock.ads') },
+        ].map(({ Icon, label }) => (
+          <div key={label} className="flex items-center justify-center gap-1.5 rounded-lg border hairline bg-white px-2 py-1.5 text-[11px] text-ink-700">
+            <Icon size={13} className="text-ink-500" />
+            {label}
+          </div>
+        ))}
+      </div>
+    </div>,
   ];
 
   return (
-    <section className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 500px' }}>
+    <section className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 600px' }}>
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker={t('howItWorks.kicker')} title={t('howItWorks.title')} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-14">
-          {steps.map((step) => (
-            <div key={step.n} className="reveal card-hover rounded-2xl border hairline bg-surface p-6 lg:p-7">
-              <span className="font-display font-semibold text-[15px] text-ink-400">{step.n}</span>
-              <h3 className="font-display font-semibold text-[20px] lg:text-[22px] text-ink-900 tracking-[-0.02em] mt-4">
+        <div className="relative grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-6 lg:gap-10 mt-14">
+          {/* linha de progressão entre os círculos (só no desktop) */}
+          <div aria-hidden="true" className="hidden md:block absolute top-[18px] left-[16.66%] right-[16.66%] h-px bg-ink-200" />
+          {steps.map((step, i) => (
+            <div key={step.n} className="reveal relative flex flex-col">
+              <div className="flex items-center gap-3">
+                <div className="relative z-10 w-9 h-9 rounded-full border border-ink-300 bg-white flex items-center justify-center font-display font-semibold text-[14px] text-ink-900">
+                  {step.n}
+                </div>
+                <span className="font-mono-label uppercase text-[10px] text-ink-400">{step.meta}</span>
+              </div>
+              <h3 className="font-display font-semibold text-[20px] lg:text-[22px] text-ink-900 tracking-[-0.02em] mt-5">
                 {step.title}
               </h3>
-              <p className="text-[14px] text-ink-500 leading-[1.5] mt-2">{step.desc}</p>
+              <p className="text-[14px] text-ink-500 leading-[1.5] mt-2 max-w-xs">{step.desc}</p>
+              <div className="mt-5 flex-1 rounded-2xl border hairline bg-surface p-4">{mocks[i]}</div>
             </div>
           ))}
-        </div>
-        <div className="reveal mt-10">
-          <a href={getRegisterHref(refCode)} className="btn-primary rounded-full px-7 py-3.5 font-display font-medium text-[14px] inline-flex items-center gap-2">
-            {t('howItWorks.cta')}
-            <ArrowRight size={14} />
-          </a>
         </div>
       </div>
     </section>
   );
 }
 
-function FeeComparisonSection({ refCode }: { refCode: string | null }) {
-  const { t } = useTranslation('landing');
-  return (
-    <section className="py-24 lg:py-32 bg-surface border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 500px' }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-10">
-        <SectionHeading kicker={t('feeComparison.kicker')} title={t('feeComparison.title')} />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-14">
-          <div className="reveal rounded-2xl border hairline bg-white p-7 lg:p-8">
-            <span className="font-mono-label uppercase text-[10px] text-ink-400">{t('feeComparison.marketplacesLabel')}</span>
-            <div className="font-display font-semibold text-[40px] lg:text-[48px] text-ink-900 tracking-[-0.03em] mt-3">
-              R$ 1.200<span className="text-[24px] text-ink-400">–1.600</span>
-            </div>
-            <p className="text-[13px] text-ink-500 mt-2">{t('feeComparison.marketplacesNote')}</p>
-          </div>
-          <div className="reveal rounded-2xl border-2 border-ink-900 bg-ink-900 text-white p-7 lg:p-8">
-            <span className="font-mono-label uppercase text-[10px] text-white/60">{t('feeComparison.vitrineturboLabel')}</span>
-            <div className="font-display font-semibold text-[40px] lg:text-[48px] tracking-[-0.03em] mt-3">
-              R$ 0<span className="text-[24px] text-white/60"> {t('feeComparison.vitrineturboSuffix')}</span>
-            </div>
-            <p className="text-[13px] text-white/70 mt-2">{t('feeComparison.vitrineturboNote')}</p>
-          </div>
-        </div>
-        <div className="reveal mt-10">
-          <a href={getRegisterHref(refCode)} className="btn-primary rounded-full px-7 py-3.5 font-display font-medium text-[14px] inline-flex items-center gap-2">
-            {t('feeComparison.cta')}
-            <ArrowRight size={14} />
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 function BentoCard({
   idx,
   title,
+  desc,
   Icon,
   className = '',
   badge,
@@ -354,6 +375,7 @@ function BentoCard({
 }: {
   idx: string;
   title: string;
+  desc?: string;
   Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
   className?: string;
   badge?: string;
@@ -377,13 +399,17 @@ function BentoCard({
       <h3 className="font-display font-semibold text-[20px] lg:text-[22px] text-ink-900 tracking-[-0.02em] mt-6">
         {title}
       </h3>
+      {desc && (
+        <p className="text-[14px] text-ink-500 leading-[1.5] mt-2 max-w-md">{desc}</p>
+      )}
       <div className="mt-5 flex-1">{children}</div>
     </div>
   );
 }
 
 function BentoGrid() {
-  const { t } = useTranslation('landing');
+  const { t, i18n } = useTranslation('landing');
+  const showLanguagesCard = i18n.language !== 'pt-BR';
   return (
     <section id="recursos" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 1200px' }}>
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -393,10 +419,11 @@ function BentoGrid() {
           <BentoCard
             idx="01"
             title={t('bento.card01Title')}
+            desc={t('bento.card01Desc')}
             Icon={Package}
             className="lg:col-span-2 lg:row-span-2"
           >
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 lg:h-full lg:auto-rows-fr">
               {[
                 { name: 'Camiseta Mith', price: 'R$ 149', tag: 'Novo', img: 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/landing/Camiseta_Oversized_Treino_Preta_Mith.png' },
                 { name: 'Chuteira Mercurial', price: 'R$ 389', tag: '-20%', img: 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/landing/Chuteira_Nike_Campo_Mercurial.png' },
@@ -407,7 +434,7 @@ function BentoGrid() {
               ].map(({ name, price, tag, img }) => (
                 <div
                   key={name}
-                  className="group relative aspect-[3/4] sm:aspect-square rounded-xl border hairline bg-white p-3 sm:p-2.5 flex flex-col justify-between overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+                  className="group relative aspect-[3/4] sm:aspect-square lg:aspect-auto lg:min-h-[200px] rounded-xl border hairline bg-white p-3 sm:p-2.5 flex flex-col justify-between overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
                 >
                   {tag && (
                     <span className="absolute top-2 right-2 z-10 font-mono-label uppercase text-[9px] sm:text-[8px] tracking-wider px-2 py-0.5 rounded-full bg-ink-900 text-white shadow-sm">
@@ -435,416 +462,189 @@ function BentoGrid() {
           </BentoCard>
 
           {/* Card 02 - Controle de Estoque */}
-          <BentoCard idx="02" title={t('bento.card02Title')} Icon={Box}>
+          <BentoCard idx="02" title={t('bento.card02Title')} desc={t('bento.card02Desc')} Icon={Box}>
             <div className="space-y-2">
-              {[
-                { name: 'Camiseta Oversized', stock: 47, status: 'ok' },
-                { name: 'Chuteira Mercurial', stock: 3, status: 'low' },
-                { name: 'Bola Nike Pitch', stock: 0, status: 'out' },
-              ].map((item) => (
-                <div key={item.name} className="flex items-center gap-2.5 rounded-xl border hairline bg-white px-3 py-2">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    item.status === 'ok' ? 'bg-emerald-500' : item.status === 'low' ? 'bg-amber-500' : 'bg-red-500'
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-medium text-ink-900 truncate">{item.name}</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {item.status === 'low' && <AlertTriangle size={10} className="text-amber-500" />}
-                    <span className={`text-[11px] font-semibold ${
-                      item.status === 'ok' ? 'text-ink-900' : item.status === 'low' ? 'text-amber-600' : 'text-red-600'
-                    }`}>{item.stock} un</span>
+              <div className="flex items-center gap-3 rounded-xl border hairline bg-white px-4 py-3">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium text-ink-900 truncate">Chuteira Mercurial</div>
+                  <div className="text-[11px] text-amber-600 flex items-center gap-1 mt-0.5">
+                    <AlertTriangle size={11} />
+                    {t('bento.card02LowStock')}
                   </div>
                 </div>
-              ))}
+                <div className="font-display font-semibold text-[22px] text-ink-900 tracking-[-0.02em] leading-none">
+                  3 <span className="text-[12px] text-ink-400 font-normal tracking-normal">un</span>
+                </div>
+              </div>
               <div className="rounded-xl border hairline bg-ink-50 px-3 py-2 flex items-center gap-2">
-                <Timer size={11} className="text-ink-400 flex-shrink-0" />
-                <span className="text-[10px] text-ink-500">{t('bento.card02Note')}</span>
+                <RefreshCw size={11} className="text-ink-400 flex-shrink-0" />
+                <span className="text-[11px] text-ink-500">{t('bento.card02Note')}</span>
               </div>
             </div>
           </BentoCard>
 
-          {/* Card 03 - Gestão de Pedidos */}
-          <BentoCard idx="03" title={t('bento.card03Title')} Icon={ClipboardList}>
-            <div className="space-y-3">
-              <div className="flex items-center gap-1.5">
-                {['Pendente', 'Confirmado', 'Preparando', 'Enviado', 'Entregue'].map((step, i) => (
-                  <div key={step} className="flex items-center gap-1.5">
-                    <div className={`w-2 h-2 rounded-full ${i < 3 ? 'bg-ink-900' : 'bg-ink-200'}`} />
-                    {i < 4 && <div className={`w-3 h-px ${i < 2 ? 'bg-ink-900' : 'bg-ink-200'}`} />}
+          {/* Card 03 - Painel de Pedidos e Resultados */}
+          <BentoCard idx="03" title={t('bento.card03Title')} desc={t('bento.card03Desc')} Icon={ClipboardList}>
+            <div className="space-y-2">
+              <div className="rounded-xl border hairline bg-white px-3 pt-2.5 pb-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <BarChart3 size={11} className="text-ink-900" />
+                    <span className="text-[11px] font-medium text-ink-900">{t('bento.card03Overview')}</span>
                   </div>
-                ))}
+                  <span className="font-mono-label uppercase text-[9px] text-ink-400">{t('bento.card03Last30d')}</span>
+                </div>
+                <svg viewBox="0 0 400 90" className="w-full h-auto" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="vt-bento-area" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#0A0A0A" stopOpacity="0.14" />
+                      <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0,70 C40,58 60,34 100,40 C140,46 160,22 200,28 C240,34 260,52 300,40 C340,28 360,16 400,22 L400,90 L0,90 Z" fill="url(#vt-bento-area)" />
+                  <path d="M0,70 C40,58 60,34 100,40 C140,46 160,22 200,28 C240,34 260,52 300,40 C340,28 360,16 400,22" fill="none" stroke="#0A0A0A" strokeWidth="2" strokeLinecap="round" />
+                </svg>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border hairline bg-white px-2.5 py-2 text-center">
-                  <div className="font-display font-semibold text-[18px] text-ink-900">156</div>
-                  <div className="font-mono-label uppercase text-[8px] text-ink-400 mt-0.5">{t('bento.card03Orders')}</div>
+                  <div className="font-display font-semibold text-[20px] text-ink-900">156</div>
+                  <div className="font-mono-label uppercase text-[9px] text-ink-400 mt-0.5">{t('bento.card03Orders')}</div>
                 </div>
                 <div className="rounded-lg border hairline bg-white px-2.5 py-2 text-center">
-                  <div className="font-display font-semibold text-[18px] text-emerald-600">R$ 24k</div>
-                  <div className="font-mono-label uppercase text-[8px] text-ink-400 mt-0.5">{t('bento.card03Revenue')}</div>
+                  <div className="font-display font-semibold text-[20px] text-emerald-600">R$ 24k</div>
+                  <div className="font-mono-label uppercase text-[9px] text-ink-400 mt-0.5">{t('bento.card03Revenue')}</div>
                 </div>
               </div>
             </div>
           </BentoCard>
 
-          {/* Card 04 - Sistema de Cupons */}
-          <BentoCard idx="04" title={t('bento.card04Title')} Icon={Tag}>
-            <div className="space-y-2">
-              {[
-                { code: 'PRIMEIRACOMPRA', discount: '-15%', uses: '234 usos' },
-                { code: 'PROMO20', discount: '-R$ 25', uses: '89 usos' },
-                { code: 'BLACKFRIDAY', discount: '-30%', uses: '567 usos' },
-              ].map((coupon) => (
-                <div key={coupon.code} className="flex items-center gap-2.5 rounded-xl border hairline bg-white px-3 py-2">
-                  <div className="w-7 h-7 rounded-lg bg-ink-50 flex items-center justify-center flex-shrink-0">
-                    <Percent size={12} className="text-ink-500" />
+          {/* Card 05 - Carrinho e Checkout Online */}
+          <BentoCard idx="05" title={t('bento.card05Title')} desc={t('bento.card05Desc')} Icon={CreditCard} className="lg:col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                {[
+                  { name: 'Camiseta Oversized Preta', qty: 2, price: 'R$ 179,80' },
+                  { name: 'Chuteira Nike Mercurial', qty: 1, price: 'R$ 349,00' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border hairline bg-white px-3 py-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-ink-50 flex items-center justify-center flex-shrink-0">
+                      <Package size={14} className="text-ink-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-medium text-ink-900 truncate">{item.name}</div>
+                      <div className="text-[11px] text-ink-400">Qtd: {item.qty}</div>
+                    </div>
+                    <div className="text-[12px] font-semibold text-ink-900 flex-shrink-0">{item.price}</div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[10px] font-mono-label font-medium text-ink-900 truncate">{coupon.code}</div>
-                    <div className="text-[9px] text-ink-400">{coupon.uses}</div>
-                  </div>
-                  <span className="font-display font-semibold text-[12px] text-emerald-600 flex-shrink-0">{coupon.discount}</span>
+                ))}
+                <div className="flex items-center justify-between pt-1 px-1">
+                  <div className="font-mono-label uppercase text-[10px] text-ink-400">{t('bento.card05Total')}</div>
+                  <div className="font-display font-semibold text-[16px] text-ink-900">R$ 528,80</div>
                 </div>
-              ))}
-            </div>
-          </BentoCard>
-
-          {/* Card 05 - WhatsApp Integrado */}
-          <BentoCard idx="05" title={t('bento.card05Title')} Icon={MessageCircle}>
-            <div className="space-y-2">
-              <div className="max-w-[85%] bg-surface rounded-2xl rounded-bl-sm px-3 py-2 text-[12px] text-ink-900 leading-snug">
-                Olá, gostaria de mais informações sobre o produto Camiseta Reserva Orleans Masculina.
               </div>
-              <div className="max-w-[85%] ml-auto bg-ink-900 text-white rounded-2xl rounded-br-sm px-3 py-2 text-[12px] leading-snug">
-                Perfeito, me chamo Letícia e vou prosseguir com o seu atendimento!
-              </div>
-            </div>
-          </BentoCard>
-
-          {/* Card 06 - Carrinho de Compras */}
-          <BentoCard idx="06" title={t('bento.card06Title')} Icon={ShoppingCart}>
-            <div className="space-y-2">
-              {[
-                { name: 'Camiseta Oversized Preta', qty: 2, price: 'R$ 89,90' },
-                { name: 'Chuteira Nike Mercurial', qty: 1, price: 'R$ 349,00' },
-                { name: 'Bola Nike Pitch Team', qty: 3, price: 'R$ 129,90' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-2.5 rounded-xl border hairline bg-white px-3 py-2">
-                  <div className="w-7 h-7 rounded-lg bg-ink-50 flex items-center justify-center flex-shrink-0">
-                    <Package size={13} className="text-ink-400" />
+              <div className="flex flex-col gap-2">
+                {[
+                  { Icon: QrCode, label: t('bento.card05Pay1'), selected: true },
+                  { Icon: CreditCard, label: t('bento.card05Pay2'), selected: false },
+                  { Icon: MessageCircle, label: t('bento.card05Pay3'), selected: false },
+                ].map(({ Icon, label, selected }) => (
+                  <div
+                    key={label}
+                    className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+                      selected ? 'border-ink-900 bg-white' : 'hairline bg-white'
+                    }`}
+                  >
+                    <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                      selected ? 'border-ink-900' : 'border-ink-300'
+                    }`}>
+                      {selected && <div className="w-1.5 h-1.5 rounded-full bg-ink-900" />}
+                    </div>
+                    <Icon size={14} className="text-ink-500 flex-shrink-0" />
+                    <span className="text-[12px] font-medium text-ink-900">{label}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-medium text-ink-900 truncate">{item.name}</div>
-                    <div className="text-[10px] text-ink-400">Qtd: {item.qty}</div>
-                  </div>
-                  <div className="text-[11px] font-semibold text-ink-900 flex-shrink-0">{item.price}</div>
+                ))}
+                <div className="rounded-xl bg-ink-900 text-white px-3 py-2.5 text-center text-[12px] font-semibold mt-1">
+                  {t('bento.card05Cta')}
                 </div>
-              ))}
-              <div className="flex items-center justify-between pt-1 px-1">
-                <div className="font-mono-label uppercase text-[10px] text-ink-400">{t('bento.card06Total')}</div>
-                <div className="text-[13px] font-semibold text-ink-900">R$ 918,60</div>
               </div>
             </div>
           </BentoCard>
 
-          {/* Card 07 - Pixel Meta & Google Tag */}
-          <BentoCard idx="07" title={t('bento.card07Title')} Icon={Radio}>
-            <div className="space-y-3">
+          {/* Card 04 - Cupons */}
+          <BentoCard idx="04" title={t('bento.card04Title')} desc={t('bento.card04Desc')} Icon={Tag}>
+            <div className="rounded-xl border-2 border-dashed border-ink-200 bg-white px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-ink-50 flex items-center justify-center flex-shrink-0">
+                <Percent size={15} className="text-ink-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-mono-label font-medium text-[13px] text-ink-900 truncate">PRIMEIRACOMPRA</div>
+                <div className="text-[11px] text-ink-400 mt-0.5">{t('bento.card04Uses')}</div>
+              </div>
+              <span className="font-display font-semibold text-[22px] text-emerald-600 tracking-[-0.02em] flex-shrink-0">-15%</span>
+            </div>
+          </BentoCard>
+
+          {/* Card 06 - Pixel Meta & Google Tag */}
+          <BentoCard idx="06" title={t('bento.card06Title')} desc={t('bento.card06Desc')} Icon={Radio}>
+            <div className="space-y-2">
               {[
-                { platform: 'Meta Pixel', label: 'Facebook & Instagram Ads', dot: 'bg-blue-500' },
-                { platform: 'Google Tag', label: 'Google Ads & Analytics', dot: 'bg-red-500' },
+                { platform: 'Meta Pixel', dot: 'bg-blue-500' },
+                { platform: 'Google Tag', dot: 'bg-red-500' },
               ].map((item) => (
                 <div key={item.platform} className="rounded-xl border hairline bg-white px-3 py-3 flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.dot}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-semibold text-ink-900">{item.platform}</div>
-                    <div className="text-[10px] text-ink-400">{item.label}</div>
-                  </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex-1 text-[13px] font-semibold text-ink-900">{item.platform}</div>
+                  <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-mono-label uppercase text-[9px] text-emerald-600">{t('bento.card07Active')}</span>
+                    <span className="font-mono-label uppercase text-[9px] text-emerald-600">{t('bento.card06Active')}</span>
                   </div>
                 </div>
               ))}
             </div>
           </BentoCard>
 
-          {/* Card 08 - Indique e Ganhe */}
-          <BentoCard idx="08" title={t('bento.card08Title')} Icon={Gift}>
-            <div className="flex items-end justify-between">
-              <div>
-                <div className="font-mono-label uppercase text-[10px] text-ink-400 mb-1">{t('bento.card08EarnUpTo')}</div>
-                <div className="font-display font-semibold text-[32px] leading-none tracking-[-0.03em] text-ink-900">R$ <span className="text-[38px]">100</span><span className="text-[22px]">,00</span></div>
-                <div className="font-mono-label uppercase text-[10px] text-ink-400 mt-2">{t('bento.card08PerUser')}</div>
-              </div>
-              <div className="flex -space-x-2">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-surface flex items-center justify-center">
-                    <Users size={14} className="text-ink-500" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </BentoCard>
-
-          {/* Card 09 - Multi Idiomas */}
-          <BentoCard idx="09" title={t('bento.card09Title')} Icon={Globe2}>
-            <div className="flex flex-wrap gap-2">
-              {['PT-BR', 'EN-US', 'ES-ES', 'BRL', 'USD', 'EUR'].map((p) => (
-                <span key={p} className="font-mono-label text-[10px] uppercase px-2.5 py-1 rounded-full border hairline bg-white text-ink-700">
-                  {p}
-                </span>
-              ))}
-            </div>
-          </BentoCard>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ProFeaturesSection({ refCode }: { refCode: string | null }) {
-  const { t } = useTranslation('landing');
-  return (
-    <section id="integracoes" className="py-24 lg:py-32 bg-surface border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-10">
-        <SectionHeading kicker={t('proFeatures.kicker')} title={t('proFeatures.title')} />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-14">
-          {/* Personalização Visual */}
-          <div className="reveal card-hover rounded-2xl border hairline bg-white p-6 lg:p-7 flex flex-col">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-lg border hairline bg-surface flex items-center justify-center">
-                <Palette size={18} className="text-ink-900" strokeWidth={2} />
-              </div>
-              <span className="font-mono-label text-[10px] text-ink-400">{t('proFeatures.customization.badge')}</span>
-            </div>
-            <h3 className="font-display font-semibold text-[20px] lg:text-[22px] text-ink-900 tracking-[-0.02em] mt-6">
-              {t('proFeatures.customization.title')}
-            </h3>
-            <div className="mt-5 flex-1">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-1.5">
-                    {['bg-ink-900', 'bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'].map((color) => (
-                      <div key={color} className={`w-6 h-6 rounded-full border-2 border-white ${color}`} />
-                    ))}
-                  </div>
-                  <span className="text-[11px] text-ink-500">{t('proFeatures.customization.colorsLabel')}</span>
-                </div>
-                <div className="rounded-xl border hairline bg-surface p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-3 h-3 rounded bg-sky-500" />
-                    <span className="text-[10px] font-medium text-ink-700">{t('proFeatures.customization.fieldsLabel')}</span>
-                  </div>
-                  <div className="h-8 rounded-lg bg-gradient-to-r from-sky-50 via-sky-100 to-sky-200 border border-sky-200" />
-                </div>
-                <div className="rounded-xl border hairline bg-surface px-3 py-2 flex items-center gap-2">
-                  <span className="text-[12px] font-medium text-ink-700" style={{ fontFamily: 'serif' }}>Aa</span>
-                  <span className="text-[10px] text-ink-500">{t('proFeatures.customization.fontsLabel')}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Domínio Próprio */}
-          <div className="reveal card-hover rounded-2xl border hairline bg-white p-6 lg:p-7 flex flex-col">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-lg border hairline bg-surface flex items-center justify-center">
-                <Globe size={18} className="text-ink-900" strokeWidth={2} />
-              </div>
-              <span className="font-mono-label text-[9px] uppercase px-2 py-0.5 rounded-full bg-ink-900 text-white">{t('proFeatures.domain.badge')}</span>
-            </div>
-            <h3 className="font-display font-semibold text-[20px] lg:text-[22px] text-ink-900 tracking-[-0.02em] mt-6">
-              {t('proFeatures.domain.title')}
-            </h3>
-            <div className="mt-5 flex-1">
-              <div className="space-y-3">
-                <div className="rounded-xl border hairline bg-surface px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-[11px] font-mono-label text-ink-900">www.sualoja.com.br</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 px-1">
-                  <Shield size={12} className="text-emerald-600" />
-                  <span className="text-[11px] text-ink-500">{t('proFeatures.domain.ssl')}</span>
-                </div>
-                <div className="flex items-center gap-2 px-1">
-                  <Check size={12} strokeWidth={3} className="text-emerald-600" />
-                  <span className="text-[11px] text-ink-500">{t('proFeatures.domain.dns')}</span>
-                </div>
-                <div className="flex items-center gap-2 px-1">
-                  <Zap size={12} className="text-emerald-600" />
-                  <span className="text-[11px] text-ink-500">{t('proFeatures.domain.setup')}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* API de Integração */}
-          <div className="reveal card-hover rounded-2xl border hairline bg-white p-6 lg:p-7 flex flex-col">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-lg border hairline bg-surface flex items-center justify-center">
-                <Code2 size={18} className="text-ink-900" strokeWidth={2} />
-              </div>
-              <span className="font-mono-label text-[9px] uppercase px-2 py-0.5 rounded-full bg-ink-900 text-white">{t('proFeatures.api.badge')}</span>
-            </div>
-            <h3 className="font-display font-semibold text-[20px] lg:text-[22px] text-ink-900 tracking-[-0.02em] mt-6">
-              {t('proFeatures.api.title')}
-            </h3>
-            <div className="mt-5 flex-1">
-              <div className="space-y-3">
-                <div className="rounded-xl border hairline bg-ink-900 px-3 py-2.5 font-mono text-[10px] text-emerald-400 leading-relaxed overflow-hidden">
-                  <div className="text-ink-400">GET /api-gateway/products</div>
-                  <div className="text-white mt-1">{'{ "data": [...], "meta": { "total": 847 } }'}</div>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {['Produtos', 'Estoque', 'Pedidos', 'Cupons'].map((ep) => (
-                    <span key={ep} className="font-mono-label text-[9px] uppercase px-2 py-0.5 rounded-full border hairline bg-surface text-ink-600">
-                      {ep}
-                    </span>
+          {/* Card 07 - Sua Marca, Seu Domínio */}
+          <BentoCard
+            idx="07"
+            title={t('bento.card07Title')}
+            desc={t('bento.card07Desc')}
+            Icon={Palette}
+            badge={t('bento.card07Badge')}
+            className={showLanguagesCard ? '' : 'lg:col-span-2'}
+          >
+            <div className={`grid grid-cols-1 gap-2 ${showLanguagesCard ? '' : 'sm:grid-cols-2'}`}>
+              <div className="rounded-xl border hairline bg-white px-4 py-3 flex items-center gap-3">
+                <div className="flex -space-x-1.5">
+                  {['bg-ink-900', 'bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'].map((color) => (
+                    <div key={color} className={`w-6 h-6 rounded-full border-2 border-white ${color}`} />
                   ))}
                 </div>
-                <div className="rounded-xl border hairline bg-surface px-3 py-2 flex items-center gap-2">
-                  <Zap size={11} className="text-ink-400 flex-shrink-0" />
-                  <span className="text-[10px] text-ink-500">{t('proFeatures.api.integration')}</span>
-                </div>
+                <span className="text-[12px] text-ink-700">{t('bento.card07Colors')}</span>
+              </div>
+              <div className="rounded-xl border hairline bg-white px-4 py-3 flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                <span className="text-[12px] font-mono-label text-ink-900 flex-1 truncate">www.sualoja.com.br</span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 flex-shrink-0">
+                  <Shield size={12} />
+                  SSL
+                </span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+          </BentoCard>
 
-function DifferentiationSection({ refCode }: { refCode: string | null }) {
-  const { t } = useTranslation('landing');
-  const features = [
-    t('differentiation.features.1'),
-    t('differentiation.features.2'),
-    t('differentiation.features.3'),
-    t('differentiation.features.4'),
-    t('differentiation.features.5'),
-    t('differentiation.features.6'),
-    t('differentiation.features.7'),
-    t('differentiation.features.8'),
-  ];
-
-  return (
-    <section className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 500px' }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <div className="reveal">
-            <div className="font-mono-label uppercase text-[11px] text-ink-500">{t('differentiation.kicker')}</div>
-            <h2 className="font-display font-semibold text-[36px] sm:text-[48px] lg:text-[56px] leading-[1.05] tracking-[-0.035em] text-ink-900 mt-4">
-              {t('differentiation.title')}
-            </h2>
-            <p className="text-ink-500 text-[16px] lg:text-[18px] mt-6 leading-[1.5] max-w-xl">
-              {t('differentiation.subtitle')}
-            </p>
-            <div className="mt-8">
-              <a href={getRegisterHref(refCode)} className="btn-primary rounded-full px-7 py-3.5 font-display font-medium text-[14px] inline-flex items-center gap-2">
-                {t('differentiation.cta')}
-                <ArrowRight size={14} />
-              </a>
-            </div>
-          </div>
-          <div className="reveal">
-            <div className="rounded-2xl border hairline bg-surface p-6 lg:p-8">
-              <ul className="space-y-4">
-                {features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check size={10} strokeWidth={3} className="text-emerald-600" />
-                    </span>
-                    <span className="text-[14px] lg:text-[15px] text-ink-700 leading-snug">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function AnalyticsSection() {
-  const { t } = useTranslation('landing');
-  const metrics = [
-    { Icon: Package, l: t('analytics.metrics.products'), v: '1.847' },
-    { Icon: BarChart3, l: t('analytics.metrics.views'), v: '+58,3k' },
-    { Icon: Users, l: t('analytics.metrics.visitors'), v: '+12.490' },
-    { Icon: TrendingUp, l: t('analytics.metrics.conversions'), v: '+3,7%' },
-  ];
-  return (
-    <section id="analytics" className="py-24 lg:py-32 bg-surface border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <div className="reveal">
-            <div className="font-mono-label uppercase text-[11px] text-ink-500">{t('analytics.kicker')}</div>
-            <h2 className="font-display font-semibold text-[36px] sm:text-[48px] lg:text-[64px] leading-[1.05] tracking-[-0.035em] text-ink-900 mt-4">
-              {t('analytics.title')}
-            </h2>
-            <p className="text-ink-500 text-[16px] lg:text-[18px] mt-6 leading-[1.5] max-w-xl">
-              {t('analytics.subtitle')}
-            </p>
-            <div className="grid grid-cols-2 gap-4 mt-10">
-              {metrics.map(({ Icon, l, v }) => (
-                <div key={l} className="rounded-2xl border hairline bg-white p-5">
-                  <Icon size={18} className="text-ink-900" />
-                  <div className="font-mono-label uppercase text-[10px] text-ink-400 mt-4">{l}</div>
-                  <div className="font-display font-semibold text-[24px] text-ink-900 tracking-[-0.02em] mt-1">{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="reveal">
-            <div
-              className="rounded-3xl bg-white p-6 lg:p-8 border hairline"
-              style={{ boxShadow: '0 30px 80px -40px rgba(10,10,10,0.2)' }}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <BarChart3 size={16} className="text-ink-900" />
-                  <span className="font-display font-medium text-[14px] text-ink-900">{t('analytics.overview')}</span>
-                </div>
-                <span className="font-mono-label uppercase text-[10px] text-ink-400">{t('analytics.last30d')}</span>
-              </div>
-              <svg viewBox="0 0 400 160" className="w-full h-auto">
-                <defs>
-                  <linearGradient id="vt-area" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#0A0A0A" stopOpacity="0.14" />
-                    <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M0,120 C40,100 60,60 100,70 C140,80 160,40 200,50 C240,60 260,90 300,70 C340,50 360,30 400,40 L400,160 L0,160 Z"
-                  fill="url(#vt-area)"
-                />
-                <path
-                  d="M0,120 C40,100 60,60 100,70 C140,80 160,40 200,50 C240,60 260,90 300,70 C340,50 360,30 400,40"
-                  fill="none"
-                  stroke="#0A0A0A"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t hairline">
-                {[
-                  { l: t('analytics.metrics.views'), v: '58.3k' },
-                  { l: t('analytics.leads'), v: '2.184' },
-                ].map((m) => (
-                  <div key={m.l}>
-                    <div className="font-mono-label uppercase text-[10px] text-ink-400">{m.l}</div>
-                    <div className="font-display font-semibold text-[20px] text-ink-900 tracking-[-0.02em] mt-1">{m.v}</div>
-                  </div>
+          {/* Card 08 - Multi Idiomas: só faz sentido para quem chega de fora do Brasil */}
+          {showLanguagesCard && (
+            <BentoCard idx="08" title={t('bento.card08Title')} desc={t('bento.card08Desc')} Icon={Globe2}>
+              <div className="flex flex-wrap gap-2">
+                {['PT-BR', 'EN-US', 'ES-ES', 'BRL', 'USD', 'EUR'].map((p) => (
+                  <span key={p} className="font-mono-label text-[10px] uppercase px-2.5 py-1 rounded-full border hairline bg-white text-ink-700">
+                    {p}
+                  </span>
                 ))}
               </div>
-            </div>
-          </div>
+            </BentoCard>
+          )}
         </div>
       </div>
     </section>
@@ -910,6 +710,7 @@ function InternationalPricingSection({ currency, refCode }: { currency: PublicCu
     <section id="precos" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
       <div className="max-w-5xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker={t('pricing.kicker')} title={t('pricing.title')} />
+        <p className="reveal text-ink-500 text-[15px] leading-[1.5] max-w-2xl mt-5">{t('pricing.noCommission')}</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-14 max-w-2xl mx-auto">
           <PricingCard plan={monthlyPlan} ctaHref={getRegisterHref(refCode)} priceDisplay={formatPublicPrice(monthlyAmount, currency)} />
           <PricingCard plan={annualPlan} ctaHref={getRegisterHref(refCode)} priceDisplay={formatPublicPrice(annualMonthly, currency)} />
@@ -965,6 +766,7 @@ function BRLPricingSection({ refCode }: { refCode: string | null }) {
     <section id="precos" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
       <div className="max-w-5xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker={t('pricing.kicker')} title={t('pricing.title')} />
+        <p className="reveal text-ink-500 text-[15px] leading-[1.5] max-w-2xl mt-5">{t('pricing.noCommission')}</p>
 
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-1 p-1 rounded-full border hairline mt-8 reveal">
@@ -1165,7 +967,6 @@ function FooterLanding() {
 }
 
 const MemoizedBentoGrid = memo(BentoGrid);
-const MemoizedAnalyticsSection = memo(AnalyticsSection);
 const MemoizedSocialProofSection = memo(SocialProofSection);
 const MemoizedFaqSection = memo(FaqSection);
 const MemoizedFooterLanding = memo(FooterLanding);
@@ -1208,12 +1009,8 @@ export default function LandingPage() {
     <div className="vt-root min-h-screen bg-white text-ink-900">
       <Header refCode={refCode} />
       <Hero refCode={refCode} />
-      <HowItWorksSection refCode={refCode} />
-      <FeeComparisonSection refCode={refCode} />
+      <HowItWorksSection />
       <MemoizedBentoGrid />
-      <ProFeaturesSection refCode={refCode} />
-      <DifferentiationSection refCode={refCode} />
-      <MemoizedAnalyticsSection />
       <MemoizedSocialProofSection />
       <Suspense fallback={null}>
         <LandingTestimonials />

@@ -1,8 +1,7 @@
 {
   "nav": {
     "features": "Funcionalidades",
-    "analytics": "Analytics",
-    "integrations": "Integrações",
+    "users": "Quem usa",
     "plans": "Planos",
     "faq": "FAQ",
     "blog": "Blog",
@@ -21,94 +20,52 @@
     "kicker": "/ como funciona",
     "title": "Do zero à primeira venda em minutos",
     "steps": {
-      "1": { "title": "Crie sua conta", "desc": "Leva menos de 2 minutos." },
-      "2": { "title": "Adicione seus produtos", "desc": "Fotos, preços, variações e estoque em um painel simples." },
-      "3": { "title": "Compartilhe seu link e venda", "desc": "No WhatsApp, Instagram, Google e onde seu cliente estiver." }
+      "1": { "meta": "2 min", "title": "Crie sua conta", "desc": "Nome da loja, e-mail e senha. Sem cartão de crédito." },
+      "2": { "meta": "cadastre uma vez", "title": "Adicione seus produtos", "desc": "Foto, preço, variações e estoque em um formulário só." },
+      "3": { "meta": "onde o cliente está", "title": "Compartilhe e venda", "desc": "Um link na bio, no status do WhatsApp e nos anúncios." }
     },
-    "cta": "Criar Minha Loja Agora"
-  },
-  "feeComparison": {
-    "kicker": "/ sem comissão",
-    "title": "Quanto você deixa de perder em taxas?",
-    "marketplacesLabel": "Marketplaces tradicionais",
-    "marketplacesNote": "de comissão a cada R$ 10 mil vendidos (12% a 16%)",
-    "vitrineturboLabel": "Com VitrineTurbo",
-    "vitrineturboSuffix": "de comissão",
-    "vitrineturboNote": "Você paga só o plano fixo — a partir de R$ 57/mês, vendendo o quanto quiser.",
-    "cta": "Parar de Pagar Comissão"
+    "mock": {
+      "storeName": "Loja da Ana",
+      "createBtn": "Criar loja",
+      "status": "Status",
+      "bio": "Bio",
+      "ads": "Anúncios"
+    }
   },
   "bento": {
     "kicker": "/ funcionalidades",
     "title": "Tudo que você precisa para vender como profissional",
     "card01Title": "Gestão Completa de Produtos",
+    "card01Desc": "Fotos, variações, preço de/por e categorias. Cadastre uma vez, venda em todo lugar.",
     "card02Title": "Controle de Estoque",
-    "card02Note": "Reserva automática por 15min no carrinho",
-    "card03Title": "Gestão de Pedidos",
+    "card02Desc": "Acabou, some da vitrine. Baixou, você é avisado.",
+    "card02LowStock": "Estoque baixo",
+    "card02Note": "Vendeu, baixou: o estoque atualiza sozinho a cada pedido",
+    "card03Title": "Painel de Pedidos e Resultados",
+    "card03Desc": "Pedidos, receita e visitas em um só lugar — sem planilha.",
+    "card03Overview": "Visão geral",
+    "card03Last30d": "últimos 30d",
     "card03Orders": "Pedidos/mês",
     "card03Revenue": "Receita",
     "card04Title": "Cupons de Desconto",
-    "card05Title": "WhatsApp Integrado",
-    "card06Title": "Carrinho de Compras",
-    "card06Total": "Total",
-    "card07Title": "Pixel Meta & Google Tag",
-    "card07Active": "Ativo",
-    "card08Title": "Indique e Ganhe",
-    "card08EarnUpTo": "Ganhe até",
-    "card08PerUser": "por usuário indicado",
-    "card09Title": "Multi Idiomas e Moedas"
-  },
-  "proFeatures": {
-    "kicker": "/ profissional",
-    "title": "Recursos avançados para quem leva vendas a sério",
-    "customization": {
-      "badge": "Aparência",
-      "title": "Personalize Sua Vitrine",
-      "colorsLabel": "Cores personalizadas",
-      "fieldsLabel": "Fundo, Texto, Botões, Bordas",
-      "fontsLabel": "Fontes personalizadas via Google Fonts"
-    },
-    "domain": {
-      "badge": "Planos Pagos",
-      "title": "Domínio Próprio",
-      "ssl": "SSL gratuito incluso",
-      "dns": "DNS verificado automaticamente",
-      "setup": "Configuração simples via CNAME"
-    },
-    "api": {
-      "badge": "Plano Anual",
-      "title": "API REST Completa",
-      "integration": "Integre com Bling, Tiny e outros ERPs"
-    }
-  },
-  "differentiation": {
-    "kicker": "/ diferencial",
-    "title": "Para negócios que precisam de escala.",
-    "subtitle": "Não é só um catálogo. É uma plataforma completa para gerenciar e escalar suas vendas online, com ferramentas e funcionalidades voltadas para o seu negócio.",
-    "cta": "Criar Minha Loja",
-    "features": {
-      "1": "Sem taxa sobre vendas — pague apenas o plano",
-      "2": "Estoque automatizado com alertas de nível baixo",
-      "3": "Pedidos organizados por status em tempo real",
-      "4": "Cupons para fidelizar e atrair clientes",
-      "5": "API REST para conectar com ERPs externos",
-      "6": "Domínio próprio com SSL gratuito",
-      "7": "Personalize cores, fontes e aparência da loja",
-      "8": "Analytics completo com funil de conversão"
-    }
-  },
-  "analytics": {
-    "kicker": "/ analytics",
-    "title": "Decisões baseadas em dados reais.",
-    "subtitle": "Tenha uma visão geral do seu negócio e acompanhe suas vendas de forma simples e intuitiva.",
-    "metrics": {
-      "products": "Total de Produtos",
-      "views": "Visualizações",
-      "visitors": "Visitantes",
-      "conversions": "Conversões"
-    },
-    "overview": "Visão geral",
-    "last30d": "últimos 30d",
-    "leads": "Leads"
+    "card04Desc": "Percentual ou valor fixo, com validade e limite de uso. Aplica sozinho no carrinho.",
+    "card04Uses": "234 usos · válido até 30/09",
+    "card05Title": "Carrinho e Checkout Online",
+    "card05Desc": "O cliente escolhe como pagar e o pedido chega registrado no seu painel.",
+    "card05Total": "Total",
+    "card05Pay1": "Pix",
+    "card05Pay2": "Cartão de crédito",
+    "card05Pay3": "Combinar pelo WhatsApp",
+    "card05Cta": "Finalizar compra",
+    "card06Title": "Pixel Meta & Google Tag",
+    "card06Desc": "Instale em um clique e otimize seus anúncios por evento real de compra.",
+    "card06Active": "Ativo",
+    "card07Title": "Sua Marca, Seu Domínio",
+    "card07Desc": "Cores, fontes e seu próprio endereço com SSL grátis. É a sua loja, não uma página de marketplace.",
+    "card07Badge": "Planos Pagos",
+    "card07Colors": "Cores e fontes do seu jeito",
+    "card08Title": "Multi Idiomas e Moedas",
+    "card08Desc": "Sua loja no idioma e na moeda do seu cliente."
   },
   "socialProof": {
     "kicker": "/ usuários",
@@ -116,7 +73,8 @@
   },
   "pricing": {
     "kicker": "/ planos",
-    "title": "Escolha o plano ideal pra você"
+    "title": "Escolha o plano ideal pra você",
+    "noCommission": "Sem comissão sobre vendas: você paga só o plano. As taxas do meio de pagamento vão direto para o Mercado Pago."
   },
   "faq": {
     "kicker": "/ dúvidas",
@@ -126,7 +84,7 @@
       "2": { "q": "Preciso de cartão de crédito para começar?", "a": "Não. Você pode criar sua vitrine e explorar a plataforma sem nenhum compromisso inicial." },
       "3": { "q": "Existe taxa sobre as vendas?", "a": "Não cobramos nenhuma comissão sobre suas vendas. Você paga apenas o plano escolhido." },
       "4": { "q": "Funciona para qualquer nicho?", "a": "Sim. Moda, calçados, cosméticos, alimentos, serviços, decoração... A plataforma é flexível e se adapta ao seu negócio." },
-      "5": { "q": "Como funciona o controle de estoque?", "a": "O sistema rastreia automaticamente a quantidade de cada produto. Você recebe alertas quando o estoque está baixo, pode bloquear vendas de itens esgotados e o sistema reserva produtos no carrinho por 15 minutos para evitar vendas duplicadas." },
+      "5": { "q": "Como funciona o controle de estoque?", "a": "O sistema controla a quantidade de cada produto e variação. A cada pedido, o estoque é baixado automaticamente; quando um item chega ao nível baixo você recebe alerta, e quando esgota ele sai da vitrine sozinho — sem venda duplicada e sem planilha." },
       "6": { "q": "Posso usar meu próprio domínio?", "a": "Sim. Em qualquer plano pago, você pode conectar seu domínio personalizado (ex: www.sualoja.com.br) com SSL gratuito. Basta apontar o DNS e o sistema verifica automaticamente." },
       "7": { "q": "A API funciona com Bling, Tiny e outros ERPs?", "a": "Sim. A API REST permite integração com qualquer sistema que suporte requisições HTTP. Você pode sincronizar produtos, estoque, pedidos e cupons com ERPs como Bling, Tiny e outros." },
       "8": { "q": "Posso criar cupons de desconto?", "a": "Sim. Você pode criar cupons com desconto percentual ou valor fixo, definir limite de uso, data de expiração e valor mínimo de compra. Ideal para campanhas promocionais e fidelização." },
