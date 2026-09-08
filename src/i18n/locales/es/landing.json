@@ -89,7 +89,7 @@
       "7": { "q": "¿La API funciona con Bling, Tiny y otros ERPs?", "a": "Sí. La API REST permite integración con cualquier sistema que soporte peticiones HTTP. Puedes sincronizar productos, inventario, pedidos y cupones con ERPs como Bling, Tiny y otros." },
       "8": { "q": "¿Puedo crear cupones de descuento?", "a": "Sí. Puedes crear cupones con descuento porcentual o monto fijo, definir límite de uso, fecha de vencimiento y monto mínimo de compra. Ideal para campañas promocionales y fidelización." },
       "9": { "q": "¿Cómo funciona el Programa de Referidos?", "a": "Cada usuario recibe un enlace de referido exclusivo. Quien se suscriba por tu enlace obtiene un descuento en su primera suscripción, y tú recibes comisiones en dinero por cada referido convertido. Las ganancias están disponibles para retirar directamente desde el panel." },
-      "10": { "q": "¿Puedo cancelar en cualquier momento?", "a": "Sí. La cancelación es inmediata y sin trámites, directamente desde el panel administrativo." }
+      "10": { "q": "¿Puedo cancelar en cualquier momento?", "a": "En el plan Mensual, sí: no hay permanencia, y puedes cancelar cuando quieras, con efecto inmediato, directamente desde el panel administrativo. En los planes Semestral y Anual, el importe se cobra por adelantado por todo el período contratado; por eso, una vez contratado, no hay reembolso proporcional si cancelas antes de que termine el ciclo." }
     }
   },
   "finalCta": {

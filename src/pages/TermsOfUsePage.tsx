@@ -186,7 +186,8 @@ function StaticContent() {
         <h3>4.2 Cobrança</h3>
         <p>Os pagamentos são processados de forma segura via <strong>Mercado Pago</strong>.</p>
         <h3>4.3 Cancelamento e Reembolso</h3>
-        <p>Você pode cancelar sua assinatura a qualquer momento pelo painel.</p>
+        <p>No Plano Mensal, não há fidelidade: você pode cancelar sua assinatura a qualquer momento pelo painel, com efeito imediato.</p>
+        <p>Nos Planos Semestral e Anual, o valor é cobrado antecipadamente, referente à totalidade do período contratado, como contrapartida do desconto oferecido nessas modalidades. Por isso, uma vez efetivada a contratação, não há reembolso, total ou proporcional, em caso de cancelamento antes do fim do ciclo vigente. O cancelamento nesses planos impede apenas a renovação automática para o ciclo seguinte, permanecendo o acesso ativo até o fim do período já pago.</p>
         <h3>4.4 Inadimplência</h3>
         <p>Em caso de falha no pagamento, o acesso às funcionalidades pagas poderá ser suspenso.</p>
         <h3>4.5 Plano Gratuito</h3>

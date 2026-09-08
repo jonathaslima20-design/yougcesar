@@ -89,7 +89,7 @@
       "7": { "q": "Does the API work with Bling, Tiny and other ERPs?", "a": "Yes. The REST API integrates with any system that supports HTTP requests. You can sync products, inventory, orders and coupons with ERPs like Bling, Tiny and others." },
       "8": { "q": "Can I create discount coupons?", "a": "Yes. You can create coupons with a percentage or fixed-amount discount, set a usage limit, expiration date and minimum purchase amount. Great for promotional campaigns and customer retention." },
       "9": { "q": "How does Refer & Earn work?", "a": "Every user gets a unique referral link. Anyone who signs up through your link gets a discount on their first subscription, and you earn cash commissions for every converted referral. Earnings can be withdrawn directly from the dashboard." },
-      "10": { "q": "Can I cancel at any time?", "a": "Yes. Cancellation is immediate and hassle-free, directly from the admin dashboard." }
+      "10": { "q": "Can I cancel at any time?", "a": "On the Monthly plan, yes: there's no commitment, and you can cancel whenever you like, effective immediately, right from the admin dashboard. On the Semiannual and Annual plans, the amount is charged upfront for the full contracted period; because of that, once you've subscribed, there's no prorated refund if you cancel before the cycle ends." }
     }
   },
   "finalCta": {
