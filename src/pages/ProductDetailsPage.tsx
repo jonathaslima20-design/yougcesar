@@ -52,6 +52,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const { t } = useTranslation(language);
   const { addToCart, getItemQuantity, cart } = useCart();
   const [showCart, setShowCart] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(preselectedColor || undefined);
 
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
@@ -541,6 +542,8 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
               <ImageGallery
                 media={galleryMedia}
                 title={product.title}
+                selectedColor={selectedColor}
+                onColorSelect={setSelectedColor}
               />
 
               {/* Tiered Pricing Table - Moved right after gallery */}
@@ -568,6 +571,8 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                   inventoryEnabled={inventoryEnabled}
                   blockZeroStock={blockZeroStock}
                   onOpenVariantModal={() => setShowVariantModal(true)}
+                  selectedColor={selectedColor}
+                  onColorChange={setSelectedColor}
                 />
               )}
 

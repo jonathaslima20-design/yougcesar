@@ -171,6 +171,8 @@ export default function ProductVariantModal({
 
   const hasOptions = hasColors || hasSizes;
 
+  const colorImages = product.product_images?.filter((img) => img.associated_color) ?? [];
+
   // Debug logging for development
   if (process.env.NODE_ENV === 'development') {
     console.log('🛒 ProductVariantModal - Product data:', {
@@ -463,6 +465,27 @@ export default function ProductVariantModal({
               )}
             </div>
           </div>
+
+          {/* Color photo strip - click a photo to select its color */}
+          {hasColors && colorImages.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              {colorImages.map((img) => (
+                <button
+                  key={img.id}
+                  type="button"
+                  onClick={() => setSelectedColor(img.associated_color!)}
+                  title={img.associated_color!}
+                  className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                    selectedColor === img.associated_color
+                      ? 'border-primary shadow-md'
+                      : 'border-transparent hover:border-primary/50'
+                  }`}
+                >
+                  <img src={img.url} alt={img.associated_color!} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Variant stock indicator */}
           {inventoryEnabled && product.track_inventory && currentVariantAvailable !== null && (

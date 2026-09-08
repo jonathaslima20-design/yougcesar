@@ -10,6 +10,8 @@ import type { ProductImage } from '@/types';
 interface ImageGalleryProps {
   media: ProductImage[];
   title: string;
+  selectedColor?: string;
+  onColorSelect?: (color: string) => void;
 }
 
 interface ImageDimensions {
@@ -17,7 +19,7 @@ interface ImageDimensions {
   height: number;
 }
 
-export default function ImageGallery({ media, title }: ImageGalleryProps) {
+export default function ImageGallery({ media, title, selectedColor, onColorSelect }: ImageGalleryProps) {
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
   const [currentMainIndex, setCurrentMainIndex] = useState(0);
   const [imageDimensions, setImageDimensions] = useState<ImageDimensions[]>([]);
@@ -68,6 +70,14 @@ export default function ImageGallery({ media, title }: ImageGalleryProps) {
       loadImageDimensions();
     }
   }, [media]);
+
+  useEffect(() => {
+    if (!selectedColor) return;
+    const index = media.findIndex((item) => item.associated_color === selectedColor);
+    if (index !== -1) {
+      setCurrentMainIndex(index);
+    }
+  }, [selectedColor, media]);
 
   const handleMainClick = () => {
     const currentItem = media[currentMainIndex];
@@ -153,6 +163,9 @@ export default function ImageGallery({ media, title }: ImageGalleryProps) {
                           onClick={(e) => {
                             e.stopPropagation();
                             setCurrentMainIndex(mediaIndex);
+                            if (image.associated_color) {
+                              onColorSelect?.(image.associated_color);
+                            }
                           }}
                           onDoubleClick={open}
                           className={`cursor-pointer aspect-[4/3] overflow-hidden rounded-lg border-2 transition-all ${
