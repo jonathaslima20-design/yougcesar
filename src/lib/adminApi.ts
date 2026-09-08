@@ -190,7 +190,7 @@ export async function createUser(userData: {
  * Copy products and categories from one user to another using Edge Function
  * Uses SERVICE_ROLE_KEY to bypass RLS for admin operations
  */
-export async function copyProductsBetweenUsers(sourceUserId: string, targetUserId: string): Promise<{
+export async function copyProductsBetweenUsers(sourceUserId: string, targetUserId: string, productIds?: string[]): Promise<{
   success: boolean;
   message: string;
   stats: {
@@ -198,6 +198,7 @@ export async function copyProductsBetweenUsers(sourceUserId: string, targetUserI
     copiedProducts: number;
     copiedImages: number;
     copiedPriceTiers: number;
+    copiedWeightVariants: number;
   };
 }> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -228,24 +229,28 @@ export async function copyProductsBetweenUsers(sourceUserId: string, targetUserI
     throw new Error('Usuário de destino não encontrado');
   }
 
-  // Fetch all product IDs for the source user
-  const { data: products, error: fetchError } = await supabase
-    .from('products')
-    .select('id')
-    .eq('user_id', sourceUserId);
+  // If the caller didn't pre-filter which products to copy, fall back to every
+  // product owned by the source user (the "copy all" mode).
+  let resolvedProductIds = productIds;
+  if (!resolvedProductIds) {
+    const { data: products, error: fetchError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('user_id', sourceUserId);
 
-  if (fetchError) {
-    throw new Error(`Erro ao buscar produtos: ${fetchError.message}`);
+    if (fetchError) {
+      throw new Error(`Erro ao buscar produtos: ${fetchError.message}`);
+    }
+
+    resolvedProductIds = products?.map(product => product.id) || [];
   }
 
-  const productIds = products?.map(product => product.id) || [];
-
-  if (productIds.length === 0) {
+  if (resolvedProductIds.length === 0) {
     throw new Error('Nenhum produto encontrado para copiar');
   }
 
   const { data, error } = await supabase.functions.invoke('copy-products-between-users', {
-    body: { sourceUserId, targetUserId, productIds },
+    body: { sourceUserId, targetUserId, productIds: resolvedProductIds },
   });
 
   if (error) {

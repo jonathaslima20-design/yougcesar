@@ -16,7 +16,22 @@ interface CopyStats {
   copiedProducts: number
   copiedImages: number
   copiedPriceTiers: number
+  copiedWeightVariants: number
   copiedCategories: number
+}
+
+const STORAGE_BUCKET = 'public'
+
+// Public Storage URLs look like ".../object/public/<bucket>/<path>" — pull
+// just the "<path>" part back out so it can be passed to storage.copy().
+function getStorageObjectPath(publicUrl: string): string | null {
+  const marker = '/object/public/'
+  const idx = publicUrl.indexOf(marker)
+  if (idx === -1) return null
+  const afterMarker = publicUrl.slice(idx + marker.length)
+  const firstSlash = afterMarker.indexOf('/')
+  if (firstSlash === -1) return null
+  return afterMarker.slice(firstSlash + 1)
 }
 
 Deno.serve(async (req) => {
@@ -138,6 +153,7 @@ Deno.serve(async (req) => {
       copiedProducts: 0,
       copiedImages: 0,
       copiedPriceTiers: 0,
+      copiedWeightVariants: 0,
       copiedCategories: 0
     }
 
@@ -233,34 +249,37 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Get existing slugs for the target user to avoid conflicts
-    const { data: existingSlugs } = await supabase
+    // Get the target user's existing SKUs so a copy never collides with
+    // UNIQUE(user_id, sku) — only the colliding row's sku gets blanked, the
+    // product itself still copies fine (e.g. re-running a copy that was
+    // already done once for this pair of users).
+    const { data: existingSkuRows } = await supabase
       .from('products')
-      .select('slug')
+      .select('sku')
       .eq('user_id', targetUserId)
+      .not('sku', 'is', null)
 
-    const existingSlugSet = new Set(existingSlugs?.map(p => p.slug) || [])
+    const existingSkuSet = new Set(
+      (existingSkuRows || [])
+        .map(p => (p.sku || '').trim())
+        .filter(sku => sku.length > 0)
+    )
 
-    // Function to generate unique slug
-    const generateUniqueSlug = (baseSlug: string, existingSet: Set<string>): string => {
-      let uniqueSlug = baseSlug
-      let counter = 1
-      while (existingSet.has(uniqueSlug)) {
-        uniqueSlug = `${baseSlug}-${counter}`
-        counter++
-      }
-      existingSet.add(uniqueSlug)
-      return uniqueSlug
-    }
-
-    // Prepare products for insertion with unique slugs
+    // Prepare products for insertion. Per-merchant references (packaging
+    // preset, ERP link) must never carry over to a different user's product.
     const productsToInsert = products.map(product => {
-      const { id, created_at, updated_at, ...productData } = product
-      const uniqueSlug = generateUniqueSlug(product.slug, existingSlugSet)
+      const { id, created_at, updated_at, package_preset_id, olist_product_id, sku, ...productData } = product
+      const trimmedSku = (sku || '').trim()
+      const skuCollides = trimmedSku.length > 0 && existingSkuSet.has(trimmedSku)
+      if (trimmedSku.length > 0 && !skuCollides) {
+        existingSkuSet.add(trimmedSku)
+      }
 
       return {
         ...productData,
-        slug: uniqueSlug,
+        sku: skuCollides ? null : sku,
+        package_preset_id: null,
+        olist_product_id: null,
         user_id: targetUserId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -291,7 +310,7 @@ Deno.serve(async (req) => {
       console.error('No products were inserted')
       return new Response(
         JSON.stringify({
-          error: 'Nenhum produto foi inserido. Verifique se há conflitos de slug.'
+          error: 'Nenhum produto foi inserido.'
         }),
         {
           status: 400,
@@ -310,7 +329,9 @@ Deno.serve(async (req) => {
       }
     })
 
-    // Copy product images
+    // Copy product images — duplicate the actual file in Storage under the
+    // target user's own folder (not just the DB row), so the two accounts
+    // never end up pointing at the same physical object.
     const { data: productImages, error: imagesError } = await supabase
       .from('product_images')
       .select('*')
@@ -319,21 +340,44 @@ Deno.serve(async (req) => {
     if (imagesError) {
       console.error('Error fetching product images:', imagesError)
     } else if (productImages && productImages.length > 0) {
-      const imagesToInsert = productImages.map(image => {
+      const imagesToInsert = (await Promise.all(productImages.map(async (image) => {
         const { id, created_at, ...imageData } = image
         const newProductId = productIdMapping.get(image.product_id)
-        
+
         if (!newProductId) {
           console.error(`No mapping found for product ID: ${image.product_id}`)
           return null
         }
 
+        let newUrl = image.url
+        const oldPath = image.url ? getStorageObjectPath(image.url) : null
+
+        if (oldPath) {
+          const ext = oldPath.split('.').pop() || 'jpg'
+          const randomSuffix = Math.random().toString(36).slice(2, 11)
+          const newPath = `product/${targetUserId}/product-${newProductId}-${Date.now()}-${randomSuffix}.${ext}`
+
+          const { error: copyError } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .copy(oldPath, newPath)
+
+          if (copyError) {
+            console.error(`Error copying storage object ${oldPath} -> ${newPath}:`, copyError)
+          } else {
+            const { data: publicUrlData } = supabase.storage
+              .from(STORAGE_BUCKET)
+              .getPublicUrl(newPath)
+            newUrl = publicUrlData.publicUrl
+          }
+        }
+
         return {
           ...imageData,
+          url: newUrl,
           product_id: newProductId,
           created_at: new Date().toISOString()
         }
-      }).filter(Boolean)
+      }))).filter(Boolean)
 
       if (imagesToInsert.length > 0) {
         const { error: insertImagesError } = await supabase
@@ -389,12 +433,57 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Copy weight variants (the pricing structure for has_weight_variants
+    // products, parallel to price tiers above). products.min_variant_price /
+    // max_variant_price are recalculated automatically by the
+    // trg_pwv_recalc trigger once these rows are inserted, so they don't
+    // need to be set here.
+    const { data: weightVariants, error: weightVariantsError } = await supabase
+      .from('product_weight_variants')
+      .select('*')
+      .in('product_id', productIds)
+
+    if (weightVariantsError) {
+      console.error('Error fetching weight variants:', weightVariantsError)
+      // Non-critical error - log but don't fail
+    } else if (weightVariants && weightVariants.length > 0) {
+      const weightVariantsToInsert = weightVariants.map(variant => {
+        const { id, created_at, updated_at, ...variantData } = variant
+        const newProductId = productIdMapping.get(variant.product_id)
+
+        if (!newProductId) {
+          console.error(`No mapping found for product ID: ${variant.product_id}`)
+          return null
+        }
+
+        return {
+          ...variantData,
+          product_id: newProductId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      }).filter(Boolean)
+
+      if (weightVariantsToInsert.length > 0) {
+        const { error: insertWeightVariantsError } = await supabase
+          .from('product_weight_variants')
+          .insert(weightVariantsToInsert)
+
+        if (insertWeightVariantsError) {
+          console.error('Error copying weight variants:', insertWeightVariantsError)
+          // Non-critical error - log but don't fail
+        } else {
+          stats.copiedWeightVariants = weightVariantsToInsert.length
+        }
+      }
+    }
+
     console.log('Copy operation completed:', stats)
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully copied ${stats.copiedProducts} products with ${stats.copiedImages} images, ${stats.copiedPriceTiers} price tiers, and ${stats.copiedCategories} categories`,
+        message: `Successfully copied ${stats.copiedProducts} products with ${stats.copiedImages} images, ${stats.copiedPriceTiers} price tiers, ${stats.copiedWeightVariants} weight variants, and ${stats.copiedCategories} categories`,
         stats
       }),
       { 
