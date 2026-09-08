@@ -16,6 +16,8 @@ interface InlineVariantSelectorProps {
   inventoryEnabled: boolean;
   blockZeroStock: boolean;
   onOpenVariantModal: () => void;
+  selectedColor?: string;
+  onColorChange: (color: string | undefined) => void;
 }
 
 const LIGHT_COLORS = ['branco', 'amarelo', 'bege', 'off-white', 'creme'];
@@ -40,9 +42,10 @@ export default function InlineVariantSelector({
   inventoryEnabled,
   blockZeroStock,
   onOpenVariantModal,
+  selectedColor,
+  onColorChange,
 }: InlineVariantSelectorProps) {
   const { addToCart, getItemQuantity } = useCart();
-  const [selectedColor, setSelectedColor] = useState<string | undefined>();
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
   const [selectedFlavor, setSelectedFlavor] = useState<string | undefined>();
   const [quantity, setQuantity] = useState(1);
@@ -92,7 +95,7 @@ export default function InlineVariantSelector({
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-foreground">Cor</h3>
           {useColorDropdown ? (
-            <Select value={selectedColor || ''} onValueChange={(v) => setSelectedColor(v || undefined)}>
+            <Select value={selectedColor || ''} onValueChange={(v) => onColorChange(v || undefined)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma cor">
                   {selectedColor && (
@@ -137,7 +140,7 @@ export default function InlineVariantSelector({
                   <button
                     key={color}
                     type="button"
-                    onClick={() => setSelectedColor(color)}
+                    onClick={() => onColorChange(color)}
                     disabled={outOfStock}
                     className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border-2 bg-card transition-all ${
                       isSelected ? 'border-primary shadow-md' : 'border-border hover:border-border/80'
