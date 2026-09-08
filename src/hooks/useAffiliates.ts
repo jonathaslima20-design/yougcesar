@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { parseEdgeFunctionError } from '@/lib/adminApi';
 
 export interface Affiliate {
   id: string;
@@ -71,18 +72,6 @@ export interface CreateAffiliateInput {
   whatsapp_contact_mode: 'store_default' | 'own_whatsapp';
 }
 
-function parseEdgeFunctionError(error: any, fallback: string): string {
-  if (error?.context?.body) {
-    try {
-      const body = typeof error.context.body === 'string' ? JSON.parse(error.context.body) : error.context.body;
-      return body.error?.message || body.error || body.message || fallback;
-    } catch {
-      return error.message || fallback;
-    }
-  }
-  return error?.message || fallback;
-}
-
 export function useAffiliates() {
   const { user } = useAuth();
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
@@ -151,7 +140,7 @@ export function useAffiliates() {
 
     const { data, error } = await supabase.functions.invoke('create-affiliate', { body: input });
 
-    if (error) throw new Error(parseEdgeFunctionError(error, 'Erro ao criar afiliado'));
+    if (error) throw new Error(await parseEdgeFunctionError(error, 'Erro ao criar afiliado'));
     if (data?.error) throw new Error(data.error);
 
     await fetchAffiliates();
@@ -166,7 +155,7 @@ export function useAffiliates() {
       body: { affiliateId, password },
     });
 
-    if (error) throw new Error(parseEdgeFunctionError(error, 'Erro ao redefinir senha'));
+    if (error) throw new Error(await parseEdgeFunctionError(error, 'Erro ao redefinir senha'));
     if (data?.error) throw new Error(data.error);
   };
 

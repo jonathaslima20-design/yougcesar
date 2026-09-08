@@ -1,6 +1,32 @@
 import { supabase } from './supabase';
 
 /**
+ * Extracts a human-readable error message from a Supabase Edge Function
+ * invocation error. `error.context` is the raw fetch Response object (per
+ * @supabase/functions-js), so its body must be read asynchronously via
+ * .json()/.text() — accessing `.body` directly only ever returns the
+ * unread ReadableStream, which silently masked every real error message
+ * behind the generic fallback text.
+ */
+export async function parseEdgeFunctionError(error: any, fallback: string): Promise<string> {
+  if (error?.context && typeof error.context.json === 'function') {
+    try {
+      const body = await error.context.clone().json();
+      const message = body?.error?.message || body?.error || body?.message;
+      if (message) return message;
+    } catch {
+      try {
+        const text = await error.context.clone().text();
+        if (text) return text;
+      } catch {
+        // fall through to default below
+      }
+    }
+  }
+  return error?.message || fallback;
+}
+
+/**
  * Update user email using admin privileges
  */
 export async function updateUserEmailAdmin(userId: string, newEmail: string): Promise<void> {
@@ -15,22 +41,7 @@ export async function updateUserEmailAdmin(userId: string, newEmail: string): Pr
   });
 
   if (error) {
-    // Extract detailed error message from Edge Function response
-    let errorMessage = 'Erro ao atualizar email';
-    if (error.context?.body) {
-      try {
-        const errorBody = typeof error.context.body === 'string' 
-          ? JSON.parse(error.context.body) 
-          : error.context.body;
-        errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        errorMessage = error.message || errorMessage;
-      }
-    } else {
-      errorMessage = error.message || errorMessage;
-    }
-    throw new Error(errorMessage);
+    throw new Error(await parseEdgeFunctionError(error, 'Erro ao atualizar email'));
   }
 
   if (data?.error) {
@@ -53,22 +64,7 @@ export async function changeUserPassword(userId: string, newPassword: string): P
   });
 
   if (error) {
-    // Extract detailed error message from Edge Function response
-    let errorMessage = 'Erro ao alterar senha';
-    if (error.context?.body) {
-      try {
-        const errorBody = typeof error.context.body === 'string' 
-          ? JSON.parse(error.context.body) 
-          : error.context.body;
-        errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        errorMessage = error.message || errorMessage;
-      }
-    } else {
-      errorMessage = error.message || errorMessage;
-    }
-    throw new Error(errorMessage);
+    throw new Error(await parseEdgeFunctionError(error, 'Erro ao alterar senha'));
   }
 
   if (data?.error) {
@@ -108,22 +104,7 @@ export async function cloneUserComplete(
   });
 
   if (error) {
-    // Extract detailed error message from Edge Function response
-    let errorMessage = 'Erro ao clonar usuário';
-    if (error.context?.body) {
-      try {
-        const errorBody = typeof error.context.body === 'string'
-          ? JSON.parse(error.context.body)
-          : error.context.body;
-        errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        errorMessage = error.message || errorMessage;
-      }
-    } else {
-      errorMessage = error.message || errorMessage;
-    }
-    throw new Error(errorMessage);
+    throw new Error(await parseEdgeFunctionError(error, 'Erro ao clonar usuário'));
   }
 
   if (data?.error) {
@@ -163,20 +144,7 @@ export async function createUser(userData: {
   });
 
   if (error) {
-    let errorMessage = 'Erro ao criar usuário';
-    if (error.context?.body) {
-      try {
-        const errorBody = typeof error.context.body === 'string'
-          ? JSON.parse(error.context.body)
-          : error.context.body;
-        errorMessage = errorBody.error?.message || errorBody.error || errorBody.message || errorMessage;
-      } catch (parseError) {
-        errorMessage = error.message || errorMessage;
-      }
-    } else {
-      errorMessage = error.message || errorMessage;
-    }
-    throw new Error(errorMessage);
+    throw new Error(await parseEdgeFunctionError(error, 'Erro ao criar usuário'));
   }
 
   if (data?.error) {
@@ -254,36 +222,27 @@ export async function copyProductsBetweenUsers(sourceUserId: string, targetUserI
   });
 
   if (error) {
-    let errorMessage = 'Erro ao copiar produtos';
-    let details = '';
-
     console.error('Edge function error:', { error, context: error.context });
 
-    if (error.context?.body) {
+    let errorMessage = await parseEdgeFunctionError(error, 'Erro ao copiar produtos');
+    let details = '';
+
+    if (error.context && typeof error.context.json === 'function') {
       try {
-        const errorBody = typeof error.context.body === 'string'
-          ? JSON.parse(error.context.body)
-          : error.context.body;
-
-        errorMessage = errorBody.error || errorBody.message || errorMessage;
-        details = errorBody.details?.message || errorBody.details || '';
-
-        // More specific error messages
-        if (typeof errorMessage === 'string') {
-          if (errorMessage.includes('Erro ao inserir')) {
-            errorMessage = 'Erro ao inserir produtos: Verifique se há conflitos de nomes de produtos.';
-          } else if (errorMessage.includes('No products found')) {
-            errorMessage = 'O usuário de origem não possui produtos para copiar.';
-          } else if (errorMessage.includes('Missing')) {
-            errorMessage = 'Dados obrigatórios ausentes. Verifique se os usuários foram selecionados corretamente.';
-          }
-        }
-      } catch (parseError) {
-        console.error('Error parsing error body:', parseError);
-        errorMessage = error.message || errorMessage;
+        const errorBody = await error.context.clone().json();
+        details = errorBody?.details?.message || errorBody?.details || '';
+      } catch {
+        // no JSON body to pull extra details from — errorMessage above still stands
       }
-    } else {
-      errorMessage = error.message || errorMessage;
+    }
+
+    // More specific error messages
+    if (errorMessage.includes('Erro ao inserir')) {
+      errorMessage = 'Erro ao inserir produtos: Verifique se há conflitos de nomes de produtos.';
+    } else if (errorMessage.includes('No products found')) {
+      errorMessage = 'O usuário de origem não possui produtos para copiar.';
+    } else if (errorMessage.includes('Missing')) {
+      errorMessage = 'Dados obrigatórios ausentes. Verifique se os usuários foram selecionados corretamente.';
     }
 
     const fullMessage = details ? `${errorMessage} (${details})` : errorMessage;
