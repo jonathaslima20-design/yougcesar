@@ -267,6 +267,9 @@ function AppContent() {
         {isCustomDomain && customDomainSlug && (
           <Route element={<PublicLayout />}>
             <Route path="/" element={<CorretorPage customDomainSlug={customDomainSlug} />} />
+            {/* Affiliate storefront link on a custom domain: /{affiliateSlug} (e.g. paraguaishopexpress.com/gabi) —
+                mirrors the /{storeSlug}/{affiliateSlug} path used on vitrineturbo.com. */}
+            <Route path="/:affiliateSlug" element={<CorretorPage customDomainSlug={customDomainSlug} />} />
             <Route path="/produtos/:productId" element={<ProductDetailsPage customDomainSlug={customDomainSlug} />} />
           </Route>
         )}
