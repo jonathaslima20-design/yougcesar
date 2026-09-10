@@ -8,7 +8,6 @@ import { PAID_PLANS, type PricingPlan } from '@/lib/pricingPlans';
 import { PAID_BENEFIT_KEYS, translateBenefit } from '@/lib/pricingBenefitKeys';
 import { useDetectedCountry } from '@/lib/billing/useDetectedCountry';
 import { PUBLIC_PRICING_BY_CURRENCY, formatPublicPrice, annualMonthlyEquivalent, annualSavingsPercent, type PublicCurrency } from '@/lib/billing/publicPricing';
-import { PIX_INSTALLMENTS, parseBRLAmount, formatBRLAmount, PIX_SUPPORT_WHATSAPP_HREF } from '@/lib/pixInstallments';
 import { useReveal } from '@/hooks/useReveal';
 import { supabase } from '@/lib/supabase';
 
@@ -723,7 +722,6 @@ function InternationalPricingSection({ currency, refCode }: { currency: PublicCu
 function BRLPricingSection({ refCode }: { refCode: string | null }) {
   const { t } = useTranslation('landing');
   const { t: tp } = useTranslation('pricing');
-  const [paymentTab, setPaymentTab] = useState<'avista' | 'parcelado'>('avista');
 
   const translatedPlans = PAID_PLANS.map((plan) => ({
     ...plan,
@@ -735,80 +733,17 @@ function BRLPricingSection({ refCode }: { refCode: string | null }) {
     benefits: plan.benefits.map((b) => translateBenefit(tp, PAID_BENEFIT_KEYS, b)),
   }));
 
-  // Only the plans long enough to split (semestral, anual) get a Pix parcelado card;
-  // "mensal" is dropped from this tab entirely — same rule as PlansSharePage.tsx.
-  const parceladoPlans = translatedPlans
-    .filter((plan) => PIX_INSTALLMENTS[plan.id])
-    .map((plan) => {
-      const installment = PIX_INSTALLMENTS[plan.id];
-      const total = installment.count * parseBRLAmount(installment.amount);
-      return {
-        ...plan,
-        priceUnit: tp('installments.unit'),
-        savingsBadge: tp('installments.badge'),
-        billedNote: tp('installments.totalNote', {
-          total: `R$ ${formatBRLAmount(total)}`,
-          count: installment.count,
-        }),
-      };
-    });
-
-  const parceladoPriceDisplays: Record<string, string> = Object.fromEntries(
-    Object.entries(PIX_INSTALLMENTS).map(([id, { count, amount }]) => [id, `${count}x R$ ${amount}`])
-  );
-
-  const activePlans = paymentTab === 'parcelado' ? parceladoPlans : translatedPlans;
-  const gridClass = paymentTab === 'parcelado'
-    ? 'grid grid-cols-1 md:grid-cols-2 gap-5 mt-14 max-w-2xl mx-auto'
-    : 'grid grid-cols-1 md:grid-cols-3 gap-5 mt-14';
-
   return (
     <section id="precos" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
       <div className="max-w-5xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker={t('pricing.kicker')} title={t('pricing.title')} />
         <p className="reveal text-ink-500 text-[15px] leading-[1.5] max-w-2xl mt-5">{t('pricing.noCommission')}</p>
 
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-1 p-1 rounded-full border hairline mt-8 reveal">
-            <button
-              type="button"
-              onClick={() => setPaymentTab('avista')}
-              className={`font-mono-label uppercase text-[11px] px-4 py-2 rounded-full transition-colors ${
-                paymentTab === 'avista' ? 'bg-ink-900 text-white' : 'text-ink-500 hover:text-ink-900'
-              }`}
-            >
-              {tp('installments.toggleAvista')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaymentTab('parcelado')}
-              className={`font-mono-label uppercase text-[11px] px-4 py-2 rounded-full transition-colors ${
-                paymentTab === 'parcelado' ? 'bg-ink-900 text-white' : 'text-ink-500 hover:text-ink-900'
-              }`}
-            >
-              {tp('installments.toggleParcelado')}
-            </button>
-          </div>
-        </div>
-
-        <div className={gridClass}>
-          {activePlans.map((plan) => (
-            <PricingCard
-              key={plan.id}
-              plan={plan}
-              ctaHref={paymentTab === 'parcelado' ? PIX_SUPPORT_WHATSAPP_HREF : getRegisterHref(refCode)}
-              ctaLabel={paymentTab === 'parcelado' ? tp('installments.whatsappCta') : undefined}
-              ctaExternal={paymentTab === 'parcelado'}
-              priceDisplay={paymentTab === 'parcelado' ? parceladoPriceDisplays[plan.id] : undefined}
-            />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-14">
+          {translatedPlans.map((plan) => (
+            <PricingCard key={plan.id} plan={plan} ctaHref={getRegisterHref(refCode)} />
           ))}
         </div>
-
-        {paymentTab === 'parcelado' && (
-          <p className="text-ink-400 text-[12px] mt-6 max-w-2xl mx-auto text-center reveal">
-            {tp('installments.disclaimer')}
-          </p>
-        )}
       </div>
     </section>
   );
