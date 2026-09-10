@@ -38,6 +38,7 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
       label: 'Comercial',
       items: [
         { name: 'Planos', href: '/admin/plans', icon: CreditCard, roles: ['admin'] },
+        { name: 'Desconto de Boas-vindas', href: '/admin/signup-discount', icon: Tag, roles: ['admin'] },
         { name: 'Ofertas Promocionais', href: '/admin/offers', icon: Megaphone, roles: ['admin'] },
         { name: 'Mercado Pago', href: '/admin/mercadopago', icon: Wallet, roles: ['admin'] },
         { name: 'Integrações (ERP)', href: '/admin/integrations', icon: Boxes, roles: ['admin'] },

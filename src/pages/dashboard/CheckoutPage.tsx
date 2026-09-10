@@ -569,7 +569,7 @@ export default function CheckoutPage() {
     const loadOffer = async () => {
       setOfferLoading(true);
       try {
-        const info: OfferCheckoutInfo | null = await fetchOfferForCheckout(offerId, user.id);
+        const info: OfferCheckoutInfo | null = await fetchOfferForCheckout(offerId, user.id, plan.id);
         if (cancelled || !info) {
           if (!cancelled && offerId) {
             toast.warning('Oferta indisponivel - prosseguindo com preco normal');

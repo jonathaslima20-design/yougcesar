@@ -2,26 +2,30 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscriptionModal } from '@/contexts/SubscriptionModalContext';
+import { useSignupOffer } from '@/hooks/useSignupOffer';
 import SubscriptionModal from '@/components/subscription/SubscriptionModal';
+import { getSubscriberAccess } from '@/lib/subscriptionAccess';
 
 export default function SubscriptionBlocker() {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const { isOpen, isForced, limitReason, offerDiscount, setForced, openModal, closeModal, forceClose } = useSubscriptionModal();
+  const { isOpen, isForced, limitReason, offerDiscount, signupOffer, setForced, openModal, closeModal, forceClose } = useSubscriptionModal();
 
   const isOnCheckout = location.pathname === '/dashboard/checkout';
+
+  const { isSubscriber: hasActivePlan, isFreePlan, isExpired, isSuspended } = getSubscriberAccess(user?.plan_status);
+  const isAdminOrPartner = user?.role === 'admin' || user?.role === 'parceiro';
+  // The "boas-vindas" signup offer only makes sense for users who never had a
+  // plan (plan_status = 'inactive') — not for expired/suspended renewals, which
+  // land on the same forced modal but without this offer.
+  const isNewUnsubscribed = !isAdminOrPartner && !isFreePlan && !hasActivePlan && !isExpired && !isSuspended;
+
+  useSignupOffer(!loading && !!user && isNewUnsubscribed && !isOnCheckout);
 
   useEffect(() => {
     if (loading || !user) return;
 
-    const isAdmin = user.role === 'admin';
-    const isParceiro = user.role === 'parceiro';
-    const hasActivePlan = user.plan_status === 'active';
-    const isFreePlan = user.plan_status === 'free';
-    const isExpired = user.plan_status === 'expired';
-    const isSuspended = user.plan_status === 'suspended';
-
-    if (isAdmin || isParceiro) {
+    if (isAdminOrPartner) {
       forceClose();
       return;
     }
@@ -58,6 +62,7 @@ export default function SubscriptionBlocker() {
       limitReason={limitReason}
       planStatus={user?.plan_status}
       offerDiscount={offerDiscount}
+      signupOffer={signupOffer}
     />
   );
 }

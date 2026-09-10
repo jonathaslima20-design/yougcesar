@@ -73,11 +73,26 @@ async function compressOfferImage(file: File, maxWidth: number, quality: number)
 // --- Admin CRUD Operations ---
 
 export async function fetchOffers(): Promise<PromotionalOffer[]> {
-  const { data, error } = await supabase
+  // The "Desconto de Boas-vindas" (Admin > Desconto de Boas-vindas) lives in this
+  // same table for storage reasons, but is managed through its own dedicated
+  // screen — it must never show up in the general Ofertas list.
+  const { data: welcomeConfigs } = await supabase
+    .from('offer_display_config')
+    .select('offer_id')
+    .eq('gatilho_acao', 'bloqueio_planos');
+  const hiddenIds = (welcomeConfigs || []).map(c => c.offer_id);
+
+  let query = supabase
     .from('promotional_offers')
     .select('*')
     .order('prioridade', { ascending: true })
     .order('created_at', { ascending: false });
+
+  if (hiddenIds.length > 0) {
+    query = query.not('id', 'in', `(${hiddenIds.join(',')})`);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return data || [];
@@ -607,6 +622,23 @@ function evaluateSingleRule(
   }
 }
 
+// --- Shared exclusion rule ---
+
+// Promotional offers target regular (corretor) accounts only:
+// - admins and both partner role variants ('parceiro' legacy, 'partner' VitrineTurbo
+//   Partners) never subscribe to a plan themselves.
+// - accounts a partner created or that self-registered through a partner's referral
+//   link (`managed_by_partner_id` is set either way) already get their plan/pricing
+//   arranged through the partner, so the generic new-user promo doesn't apply.
+// - referred users get the referral discount instead; the two don't stack.
+export function isExcludedFromOffers(user: { role?: string; managed_by_partner_id?: string | null; referred_by?: string | null } | null | undefined): boolean {
+  if (!user) return true;
+  if (user.role === 'admin' || user.role === 'parceiro' || user.role === 'partner') return true;
+  if (user.managed_by_partner_id) return true;
+  if (user.referred_by) return true;
+  return false;
+}
+
 // --- Count eligible users for targeting preview ---
 
 export async function countEligibleUsers(rules: Omit<OfferTargetingRule, 'id' | 'offer_id' | 'created_at'>[]): Promise<number> {
@@ -682,7 +714,7 @@ export interface OfferCheckoutInfo {
   } | null;
 }
 
-export async function fetchOfferForCheckout(offerId: string, userId: string): Promise<OfferCheckoutInfo | null> {
+export async function fetchOfferForCheckout(offerId: string, userId: string, planId?: string | null): Promise<OfferCheckoutInfo | null> {
   const now = new Date().toISOString();
 
   const { data: offer, error } = await supabase
@@ -705,13 +737,38 @@ export async function fetchOfferForCheckout(offerId: string, userId: string): Pr
 
   const hasManualAssignment = !!assignment && assignment.status !== 'expirada';
 
-  if (!hasManualAssignment) {
+  // The "Desconto de Boas-vindas" (contador_modo = 'apos_cadastro') has no manual
+  // assignment and no targeting rules by design — its own personal-countdown
+  // check right below is what proves eligibility, not the generic rules table.
+  const isSignupDiscount = offer.contador_modo === 'apos_cadastro';
+
+  if (!hasManualAssignment && !isSignupDiscount) {
     const { data: rules } = await supabase
       .from('offer_targeting_rules')
       .select('*')
       .eq('offer_id', offerId);
 
     if (!rules || rules.length === 0) return null;
+  }
+
+  // Signup offer's personal countdown: re-check server-side against this user's
+  // own signup date, so a bookmarked/shared checkout link can't keep applying
+  // the discount after that user's individual window has closed.
+  if (offer.contador_modo === 'apos_cadastro' && offer.contador_horas_apos_cadastro) {
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('created_at')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!userRow) return null;
+    const deadline = new Date(userRow.created_at).getTime() + offer.contador_horas_apos_cadastro * 60 * 60 * 1000;
+    if (Date.now() > deadline) return null;
+  }
+
+  // If the offer restricts which plans get the discount, the chosen plan must be in that list.
+  if (planId && offer.planos_aplicaveis && offer.planos_aplicaveis.length > 0 && !offer.planos_aplicaveis.includes(planId)) {
+    return null;
   }
 
   let coupon: OfferCheckoutInfo['coupon'] = null;

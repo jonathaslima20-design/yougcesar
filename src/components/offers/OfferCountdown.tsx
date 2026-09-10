@@ -4,6 +4,7 @@ interface OfferCountdownProps {
   dataFim: string;
   corDestaque?: string;
   compact?: boolean;
+  hideDays?: boolean;
   onExpired?: () => void;
 }
 
@@ -26,7 +27,7 @@ function getTimeLeft(target: Date): TimeLeft {
   };
 }
 
-export function OfferCountdown({ dataFim, corDestaque = '#10b981', compact = false, onExpired }: OfferCountdownProps) {
+export function OfferCountdown({ dataFim, corDestaque = '#10b981', compact = false, hideDays = false, onExpired }: OfferCountdownProps) {
   const targetDate = new Date(dataFim);
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(getTimeLeft(targetDate));
   const [expired, setExpired] = useState(false);
@@ -53,22 +54,27 @@ export function OfferCountdown({ dataFim, corDestaque = '#10b981', compact = fal
   }
 
   const pad = (n: number) => n.toString().padStart(2, '0');
+  const displayHours = hideDays ? timeLeft.days * 24 + timeLeft.hours : timeLeft.hours;
 
   if (compact) {
     return (
       <div className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: corDestaque }}>
         <span>Termina em</span>
-        {timeLeft.days > 0 && <span>{timeLeft.days}d</span>}
-        <span>{pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}</span>
+        {!hideDays && timeLeft.days > 0 && <span>{timeLeft.days}d</span>}
+        <span>{pad(displayHours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}</span>
       </div>
     );
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      <TimeBlock value={timeLeft.days} label="dias" color={corDestaque} />
-      <Separator />
-      <TimeBlock value={timeLeft.hours} label="hrs" color={corDestaque} />
+      {!hideDays && (
+        <>
+          <TimeBlock value={timeLeft.days} label="dias" color={corDestaque} />
+          <Separator />
+        </>
+      )}
+      <TimeBlock value={displayHours} label="hrs" color={corDestaque} />
       <Separator />
       <TimeBlock value={timeLeft.minutes} label="min" color={corDestaque} />
       <Separator />

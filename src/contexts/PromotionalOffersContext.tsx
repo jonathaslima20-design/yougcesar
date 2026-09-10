@@ -11,6 +11,7 @@ import {
   trackImpression,
   updateAssignmentStatus,
   evaluateTargetingRules,
+  isExcludedFromOffers,
   OFFER_PUSH_CHANNEL,
   type OfferPushPayload,
 } from '../lib/offerService';
@@ -41,19 +42,6 @@ const BLOCKED_PATH_PREFIXES = ['/dashboard/checkout', '/login', '/register'];
 
 function isPathBlocked(pathname: string): boolean {
   return BLOCKED_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
-}
-
-// Promotional offers target regular (corretor) accounts only:
-// - admins and both partner role variants ('parceiro' legacy, 'partner' VitrineTurbo
-//   Partners) never subscribe to a plan themselves.
-// - accounts a partner created or that self-registered through a partner's referral
-//   link (`managed_by_partner_id` is set either way) already get their plan/pricing
-//   arranged through the partner, so the generic new-user promo doesn't apply.
-function isExcludedFromOffers(user: { role?: string; managed_by_partner_id?: string | null } | null | undefined): boolean {
-  if (!user) return true;
-  if (user.role === 'admin' || user.role === 'parceiro' || user.role === 'partner') return true;
-  if (user.managed_by_partner_id) return true;
-  return false;
 }
 
 export function usePromotionalOffers() {
@@ -88,12 +76,6 @@ export function PromotionalOffersProvider({ children }: { children: React.ReactN
 
   const loadEligibleOffers = useCallback(async () => {
     if (!user || isExcludedFromOffers(user)) return;
-
-    // Referred users cannot receive promotional offers
-    if (user.referred_by) {
-      setOfferQueue([]);
-      return;
-    }
 
     try {
       const offers = await fetchUserEligibleOffers(user.id);
@@ -152,6 +134,11 @@ export function PromotionalOffersProvider({ children }: { children: React.ReactN
         const offerRules = (rules || []).filter(r => r.offer_id === offer.id);
         const config = configs.find(c => c.offer_id === offer.id) || null;
         const isManual = assignedActiveOfferIds.has(offer.id);
+
+        // 'bloqueio_planos' offers are fused into the forced plan-selection modal
+        // (see useSignupOffer) — they must never also appear as a dismissible
+        // floating overlay here, which would double-show the same campaign.
+        if (config?.gatilho_acao === 'bloqueio_planos') continue;
 
         if (!isManual && offerRules.length > 0) {
           const passes = evaluateTargetingRules(offerRules, userContext);
