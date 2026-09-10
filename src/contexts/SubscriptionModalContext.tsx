@@ -8,13 +8,28 @@ export interface OfferDiscountInfo {
   offer_title: string;
 }
 
+// Enriched variant used only for the "boas-vindas" offer fused into the forced
+// plan-selection modal (never the dismissible overlay flow above): carries the
+// visual/countdown info SubscriptionModal needs to render it inline.
+export interface SignupOfferInfo extends OfferDiscountInfo {
+  subtitulo: string;
+  cor_destaque: string;
+  cor_fundo: string;
+  mostrar_contador: boolean;
+  deadline: string | null;
+  planos_aplicaveis: string[] | null;
+}
+
 interface SubscriptionModalContextType {
   isOpen: boolean;
   isForced: boolean;
   limitReason: LimitReason;
   offerDiscount: OfferDiscountInfo | null;
+  signupOffer: SignupOfferInfo | null;
   openModal: (forced?: boolean, reason?: LimitReason) => void;
   openModalWithOffer: (offer: OfferDiscountInfo) => void;
+  openForcedModalWithOffer: (offer: SignupOfferInfo) => void;
+  clearSignupOffer: () => void;
   closeModal: () => void;
   forceClose: () => void;
   setForced: (forced: boolean) => void;
@@ -27,6 +42,7 @@ export function SubscriptionModalProvider({ children }: { children: ReactNode })
   const [isForced, setIsForced] = useState(false);
   const [limitReason, setLimitReason] = useState<LimitReason>(null);
   const [offerDiscount, setOfferDiscount] = useState<OfferDiscountInfo | null>(null);
+  const [signupOffer, setSignupOffer] = useState<SignupOfferInfo | null>(null);
 
   const isForcedRef = useRef(false);
 
@@ -44,6 +60,26 @@ export function SubscriptionModalProvider({ children }: { children: ReactNode })
     setLimitReason(null);
   }, []);
 
+  // Distinct from openModalWithOffer above: this keeps isForced=true, so the
+  // signup discount banner never doubles as a way to unlock the mandatory
+  // plan-selection gate for users without an active plan.
+  const openForcedModalWithOffer = useCallback((offer: SignupOfferInfo) => {
+    isForcedRef.current = true;
+    setSignupOffer(offer);
+    setIsOpen(true);
+    setIsForced(true);
+    setLimitReason(null);
+  }, []);
+
+  const clearSignupOffer = useCallback(() => {
+    setSignupOffer(null);
+  }, []);
+
+  // Deliberately does NOT clear signupOffer: this also runs when navigating to
+  // checkout (SubscriptionModal calls onOpenChange(false) on "Assinar Agora"),
+  // and the offer/countdown must still be there if the user comes back without
+  // completing payment. It's cleared only when it actually expires
+  // (clearSignupOffer) or the user gets an active plan (forceClose).
   const closeModal = useCallback(() => {
     setIsOpen(false);
     setLimitReason(null);
@@ -56,6 +92,7 @@ export function SubscriptionModalProvider({ children }: { children: ReactNode })
     setIsOpen(false);
     setLimitReason(null);
     setOfferDiscount(null);
+    setSignupOffer(null);
   }, []);
 
   const setForcedState = useCallback((forced: boolean) => {
@@ -68,8 +105,11 @@ export function SubscriptionModalProvider({ children }: { children: ReactNode })
     isForced,
     limitReason,
     offerDiscount,
+    signupOffer,
     openModal,
     openModalWithOffer,
+    openForcedModalWithOffer,
+    clearSignupOffer,
     closeModal,
     forceClose,
     setForced: setForcedState,

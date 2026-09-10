@@ -2,7 +2,8 @@ export type OfferType = 'upgrade' | 'renovacao' | 'parceiro' | 'desconto_geral';
 export type OfferTemplate = 'fullscreen' | 'modal_central' | 'banner_topo' | 'slide_lateral';
 export type OfferAssignmentStatus = 'pendente' | 'visualizada' | 'aceita' | 'dispensada' | 'expirada';
 export type OfferImpressionAction = 'exibida' | 'clicada' | 'fechada' | 'convertida';
-export type OfferTrigger = 'ao_entrar' | 'apos_cadastrar_produto' | 'apos_atingir_limite' | 'ao_navegar_planos' | 'manual_apenas';
+export type OfferTrigger = 'ao_entrar' | 'apos_cadastrar_produto' | 'apos_atingir_limite' | 'ao_navegar_planos' | 'manual_apenas' | 'bloqueio_planos';
+export type OfferCountdownMode = 'fixo' | 'apos_cadastro';
 export type TargetingRuleType = 'plan_status' | 'dias_cadastro' | 'qtd_produtos' | 'billing_cycle' | 'dias_ate_vencimento' | 'atividade_recente' | 'plano_especifico';
 export type TargetingOperator = 'igual' | 'diferente' | 'maior_que' | 'menor_que' | 'entre' | 'contem';
 
@@ -29,6 +30,9 @@ export interface PromotionalOffer {
   data_inicio: string;
   data_fim?: string | null;
   mostrar_contador: boolean;
+  planos_aplicaveis?: string[] | null;
+  contador_modo: OfferCountdownMode;
+  contador_horas_apos_cadastro?: number | null;
   parceiro_nome?: string | null;
   parceiro_logo_url?: string | null;
   is_parceiro: boolean;
@@ -138,6 +142,9 @@ export interface OfferFormData {
   data_inicio: string;
   data_fim?: string | null;
   mostrar_contador: boolean;
+  planos_aplicaveis?: string[] | null;
+  contador_modo: OfferCountdownMode;
+  contador_horas_apos_cadastro?: number | null;
   is_parceiro: boolean;
   parceiro_nome?: string | null;
   parceiro_logo_url?: string | null;
