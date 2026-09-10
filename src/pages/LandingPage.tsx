@@ -709,7 +709,6 @@ function InternationalPricingSection({ currency, refCode }: { currency: PublicCu
     <section id="precos" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
       <div className="max-w-5xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker={t('pricing.kicker')} title={t('pricing.title')} />
-        <p className="reveal text-ink-500 text-[15px] leading-[1.5] max-w-2xl mt-5">{t('pricing.noCommission')}</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-14 max-w-2xl mx-auto">
           <PricingCard plan={monthlyPlan} ctaHref={getRegisterHref(refCode)} priceDisplay={formatPublicPrice(monthlyAmount, currency)} />
           <PricingCard plan={annualPlan} ctaHref={getRegisterHref(refCode)} priceDisplay={formatPublicPrice(annualMonthly, currency)} />
@@ -737,7 +736,6 @@ function BRLPricingSection({ refCode }: { refCode: string | null }) {
     <section id="precos" className="py-24 lg:py-32 bg-white border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}>
       <div className="max-w-5xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker={t('pricing.kicker')} title={t('pricing.title')} />
-        <p className="reveal text-ink-500 text-[15px] leading-[1.5] max-w-2xl mt-5">{t('pricing.noCommission')}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-14">
           {translatedPlans.map((plan) => (
