@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PricingCard from '@/components/pricing/PricingCard';
 import { PAID_PLANS, type PricingPlan } from '@/lib/pricingPlans';
@@ -6,15 +5,11 @@ import { PAID_BENEFIT_KEYS, translateBenefit } from '@/lib/pricingBenefitKeys';
 import { useReveal } from '@/hooks/useReveal';
 import { useDetectedCountry } from '@/lib/billing/useDetectedCountry';
 import { PUBLIC_PRICING_BY_CURRENCY, formatPublicPrice, annualMonthlyEquivalent, annualSavingsPercent, type PublicCurrency } from '@/lib/billing/publicPricing';
-import { PIX_INSTALLMENTS, parseBRLAmount, formatBRLAmount } from '@/lib/pixInstallments';
-
-type PaymentTab = 'avista' | 'parcelado';
 
 export default function PlansSharePage() {
   useReveal();
   const { t } = useTranslation('pricing');
   const { currency } = useDetectedCountry();
-  const [paymentTab, setPaymentTab] = useState<PaymentTab>('avista');
 
   const anualBenefits = PAID_PLANS.find((p) => p.id === 'anual')!.benefits;
 
@@ -58,34 +53,7 @@ export default function PlansSharePage() {
         annual: formatPublicPrice(annualMonthlyEquivalent(currency as PublicCurrency), currency as PublicCurrency),
       };
 
-  // Only the plans long enough to split (semestral, anual) get a Pix parcelado card;
-  // "mensal" is dropped from this tab entirely.
-  const parceladoPlans: PricingPlan[] = currency === 'BRL'
-    ? translatedPlans
-        .filter((plan) => PIX_INSTALLMENTS[plan.id])
-        .map((plan) => {
-          const installment = PIX_INSTALLMENTS[plan.id];
-          const total = installment.count * parseBRLAmount(installment.amount);
-          return {
-            ...plan,
-            priceUnit: t('installments.unit'),
-            savingsBadge: t('installments.badge'),
-            billedNote: t('installments.totalNote', {
-              total: `R$ ${formatBRLAmount(total)}`,
-              count: installment.count,
-            }),
-          };
-        })
-    : [];
-
-  const parceladoPriceDisplays: Record<string, string> = Object.fromEntries(
-    Object.entries(PIX_INSTALLMENTS).map(([id, { count, amount }]) => [id, `${count}x R$ ${amount}`])
-  );
-
-  const activePlans = paymentTab === 'parcelado' ? parceladoPlans : translatedPlans;
-  const activePriceDisplays = paymentTab === 'parcelado' ? parceladoPriceDisplays : priceDisplays;
-
-  const gridClass = currency === 'BRL' && paymentTab === 'avista'
+  const gridClass = currency === 'BRL'
     ? 'grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mt-10 sm:mt-14'
     : 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 mt-10 sm:mt-14 max-w-2xl';
 
@@ -123,40 +91,11 @@ export default function PlansSharePage() {
             </p>
           </div>
 
-          {currency === 'BRL' && (
-            <div className="inline-flex items-center gap-1 p-1 rounded-full border hairline mt-8 reveal">
-              <button
-                type="button"
-                onClick={() => setPaymentTab('avista')}
-                className={`font-mono-label uppercase text-[11px] px-4 py-2 rounded-full transition-colors ${
-                  paymentTab === 'avista' ? 'bg-ink-900 text-white' : 'text-ink-500 hover:text-ink-900'
-                }`}
-              >
-                {t('installments.toggleAvista')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentTab('parcelado')}
-                className={`font-mono-label uppercase text-[11px] px-4 py-2 rounded-full transition-colors ${
-                  paymentTab === 'parcelado' ? 'bg-ink-900 text-white' : 'text-ink-500 hover:text-ink-900'
-                }`}
-              >
-                {t('installments.toggleParcelado')}
-              </button>
-            </div>
-          )}
-
           <div className={gridClass}>
-            {activePlans.map((plan) => (
-              <PricingCard key={plan.id} plan={plan} priceDisplay={activePriceDisplays[plan.id]} />
+            {translatedPlans.map((plan) => (
+              <PricingCard key={plan.id} plan={plan} priceDisplay={priceDisplays[plan.id]} />
             ))}
           </div>
-
-          {currency === 'BRL' && paymentTab === 'parcelado' && (
-            <p className="text-ink-400 text-[12px] mt-6 reveal max-w-2xl">
-              {t('installments.disclaimer')}
-            </p>
-          )}
         </div>
       </main>
     </div>
