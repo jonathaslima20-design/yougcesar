@@ -50,7 +50,8 @@ async function resolveOfferDiscount(
   admin: ReturnType<typeof createClient>,
   offerId: string | undefined,
   userId: string,
-  basePrice: number
+  basePrice: number,
+  planId?: string | null
 ): Promise<ResolvedDiscount | null> {
   if (!offerId) return null;
 
@@ -66,7 +67,7 @@ async function resolveOfferDiscount(
 
   const { data: offer } = await admin
     .from("promotional_offers")
-    .select("id, is_active, data_inicio, data_fim, desconto_percentual, desconto_valor_fixo, cupom_id")
+    .select("id, is_active, data_inicio, data_fim, desconto_percentual, desconto_valor_fixo, cupom_id, contador_modo, contador_horas_apos_cadastro, planos_aplicaveis")
     .eq("id", offerId)
     .maybeSingle();
 
@@ -82,12 +83,37 @@ async function resolveOfferDiscount(
     .maybeSingle();
   const hasAssignment = !!assignment && assignment.status !== "expirada";
 
-  if (!hasAssignment) {
+  // The "Desconto de Boas-vindas" (contador_modo = 'apos_cadastro') has no manual
+  // assignment and no targeting rules by design — its personal countdown below is
+  // what proves eligibility, not the generic rules table. Mirrors the same
+  // isSignupDiscount check in offerService.ts (fetchOfferForCheckout) on the
+  // frontend; without it this offer always failed the rules-count check here and
+  // silently charged full price at payment time.
+  const isSignupDiscount = offer.contador_modo === "apos_cadastro";
+
+  if (!hasAssignment && !isSignupDiscount) {
     const { count } = await admin
       .from("offer_targeting_rules")
       .select("id", { count: "exact", head: true })
       .eq("offer_id", offerId);
     if (!count || count === 0) return null;
+  }
+
+  // Signup offer's personal countdown: re-check server-side against this user's
+  // own signup date, so it can't keep being applied after that user's window closed.
+  if (isSignupDiscount && offer.contador_horas_apos_cadastro) {
+    const { data: userRow } = await admin
+      .from("users")
+      .select("created_at")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!userRow) return null;
+    const deadline = new Date(userRow.created_at).getTime() + offer.contador_horas_apos_cadastro * 60 * 60 * 1000;
+    if (Date.now() > deadline) return null;
+  }
+
+  if (planId && offer.planos_aplicaveis && offer.planos_aplicaveis.length > 0 && !offer.planos_aplicaveis.includes(planId)) {
+    return null;
   }
 
   let discountType: "percent" | "fixed" | null = null;
@@ -419,7 +445,7 @@ Deno.serve(async (req: Request) => {
 
         const basePrice = Number(plan.price);
         const referralInfo = await resolveReferralDiscount(admin, referral_code, user.id, basePrice);
-        const discountInfo = referralInfo ? null : await resolveOfferDiscount(admin, offer_id, user.id, basePrice);
+        const discountInfo = referralInfo ? null : await resolveOfferDiscount(admin, offer_id, user.id, basePrice, plan.id);
         const finalPrice = referralInfo ? referralInfo.final_amount : (discountInfo ? discountInfo.final_amount : basePrice);
         const amountCents = Math.round(finalPrice * 100);
         const config = await getConfig(admin);
@@ -564,7 +590,7 @@ Deno.serve(async (req: Request) => {
 
         const basePrice = Number(plan.price);
         const referralInfo = await resolveReferralDiscount(admin, referral_code, user.id, basePrice);
-        const discountInfo = referralInfo ? null : await resolveOfferDiscount(admin, offer_id, user.id, basePrice);
+        const discountInfo = referralInfo ? null : await resolveOfferDiscount(admin, offer_id, user.id, basePrice, plan.id);
         const finalPrice = referralInfo ? referralInfo.final_amount : (discountInfo ? discountInfo.final_amount : basePrice);
         const amountCents = Math.round(finalPrice * 100);
         const config = await getConfig(admin);
