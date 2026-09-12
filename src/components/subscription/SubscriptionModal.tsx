@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trackViewPricing, trackInitiateCheckout } from '@/lib/metaEvents';
+import { logActivity } from '@/lib/activityLogger';
 import { trackGoogleAdsCheckout } from '@/lib/googleAdsEvents';
 import {
   Dialog,
@@ -470,6 +471,14 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
                           if (googleAdsConfig) {
                             trackGoogleAdsCheckout(googleAdsConfig.tagId, googleAdsConfig.checkoutId);
                           }
+                          logActivity(
+                            'subscription.plan_selected',
+                            hasOfferDiscount
+                              ? `Clicou para assinar o plano "${plan.name}" aproveitando a oferta "${effectiveDiscount?.offer_title}"`
+                              : `Clicou para assinar o plano "${plan.name}"`,
+                            'subscription_plan',
+                            plan.id
+                          );
                           onOpenChange(false);
                           const params = new URLSearchParams({ plan: plan.id, cycle: plan.duration });
                           if (effectiveDiscount) params.set('offer_id', effectiveDiscount.offer_id);

@@ -1,4 +1,4 @@
-export type BillingProvider = 'mercadopago' | 'stripe';
+export type BillingProvider = 'mercadopago' | 'stripe' | 'cakto';
 export type BillingCurrency = 'BRL' | 'MXN' | 'CLP' | 'EUR' | 'USD';
 
 const COUNTRY_CURRENCY: Record<string, BillingCurrency> = {
@@ -28,4 +28,33 @@ export function getProviderForCountry(country: string | null | undefined): Provi
   }
 
   return { provider: 'stripe', currency: COUNTRY_CURRENCY[normalized] ?? 'USD' };
+}
+
+/**
+ * Dentro do Brasil, um segundo nível de roteamento decide entre Mercado
+ * Pago e Cakto — controlado inteiramente pelo toggle `cakto_config.is_active`
+ * no admin (não pelo usuário). Falha ao consultar (Cakto não configurada,
+ * erro de rede) sempre cai para Mercado Pago, que é o provedor estabelecido.
+ */
+export async function getActiveBrProvider(): Promise<'mercadopago' | 'cakto'> {
+  try {
+    const { supabase } = await import('@/lib/supabase');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return 'mercadopago';
+
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cakto`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'getPublicKey' }),
+    });
+
+    if (!resp.ok) return 'mercadopago';
+    const data = await resp.json();
+    return data?.sdk_client_id ? 'cakto' : 'mercadopago';
+  } catch {
+    return 'mercadopago';
+  }
 }

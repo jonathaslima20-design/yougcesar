@@ -60,7 +60,7 @@ export interface User {
   subscription_end_date?: string;
   subscription_plan_name?: string;
   country?: string;
-  billing_provider?: 'mercadopago' | 'stripe';
+  billing_provider?: 'mercadopago' | 'stripe' | 'cakto';
   billing_currency?: string;
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
@@ -87,6 +87,7 @@ export interface User {
 }
 
 export type ActivityAction =
+  | 'auth.register'
   | 'auth.login'
   | 'auth.logout'
   | 'product.create'
@@ -101,8 +102,11 @@ export type ActivityAction =
   | 'profile.slug'
   | 'appearance.update'
   | 'order.status_change'
+  | 'subscription.plan_selected'
   | 'subscription.activated'
   | 'subscription.expired'
+  | 'payment.pix_generated'
+  | 'payment.card_form_started'
   | 'referral.copy_link'
   | 'referral.copy_code';
 

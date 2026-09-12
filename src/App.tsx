@@ -110,6 +110,7 @@ import { OrphanedFilesPage } from '@/pages/admin/OrphanedFilesPage.tsx';
 import BannerClientsPage from '@/pages/admin/BannerClientsPage.tsx';
 import MercadoPagoPage from '@/pages/admin/MercadoPagoPage.tsx';
 import StripePage from '@/pages/admin/StripePage.tsx';
+import CaktoPage from '@/pages/admin/CaktoPage.tsx';
 import LegalCenterPage from '@/pages/admin/LegalCenterPage.tsx';
 import PrivacyRequestsPage from '@/pages/admin/PrivacyRequestsPage.tsx';
 import LandingHeroPage from '@/pages/admin/LandingHeroPage.tsx';
@@ -388,6 +389,7 @@ function AppContent() {
             <Route path="/admin/blog" element={<BlogManagementPage />} />
             <Route path="/admin/mercadopago" element={<MercadoPagoPage />} />
             <Route path="/admin/stripe" element={<StripePage />} />
+            <Route path="/admin/cakto" element={<CaktoPage />} />
             <Route path="/admin/banner-clients" element={<BannerClientsPage />} />
             <Route path="/admin/legal" element={<LegalCenterPage />} />
             <Route path="/admin/privacy-requests" element={<PrivacyRequestsPage />} />

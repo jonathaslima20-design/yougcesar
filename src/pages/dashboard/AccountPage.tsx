@@ -68,11 +68,15 @@ export default function AccountPage() {
   const navigateToCheckout = async (earlyRenewal = false) => {
     setRenewLoading(true);
     try {
+      // Cakto payments live in their own table (cakto_payments), same shape
+      // as mp_payments but a separate provider — pick the one matching this
+      // user's current billing_provider instead of assuming Mercado Pago.
+      const isCaktoUser = user?.billing_provider === 'cakto';
       const { data } = await supabase
-        .from('mp_payments')
+        .from(isCaktoUser ? 'cakto_payments' : 'mp_payments')
         .select('plan_id, billing_cycle')
         .eq('user_id', user?.id)
-        .eq('status', 'approved')
+        .eq('status', isCaktoUser ? 'paid' : 'approved')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Landmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +42,7 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
         { name: 'Ofertas Promocionais', href: '/admin/offers', icon: Megaphone, roles: ['admin'] },
         { name: 'Mercado Pago', href: '/admin/mercadopago', icon: Wallet, roles: ['admin'] },
         { name: 'Stripe (Internacional)', href: '/admin/stripe', icon: Globe, roles: ['admin'] },
+        { name: 'Cakto', href: '/admin/cakto', icon: Landmark, roles: ['admin'] },
         { name: 'Integrações (ERP)', href: '/admin/integrations', icon: Boxes, roles: ['admin'] },
         { name: 'Indicacoes', href: '/admin/referrals', icon: Gift, roles: ['admin', 'parceiro'] },
         { name: 'Partners', href: '/admin/partners', icon: Handshake, roles: ['admin'] },

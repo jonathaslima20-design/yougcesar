@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LogIn, LogOut, Package, Pencil, Trash2, FolderPlus, Folder as FolderEdit, FolderMinus, UserCog, Camera, Link2, Palette, ShoppingCart, CreditCard, Clock, Loader as Loader2, Activity, Filter } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Package, Pencil, Trash2, FolderPlus, Folder as FolderEdit, FolderMinus, UserCog, Camera, Link2, Palette, ShoppingCart, CreditCard, Clock, QrCode, Tag, Loader as Loader2, Activity, Filter } from 'lucide-react';
 import { formatDistanceToNow, subDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ActivityLog, ActivityAction } from '@/types';
@@ -11,6 +11,7 @@ import type { ActivityLog, ActivityAction } from '@/types';
 const PAGE_SIZE = 50;
 
 const ACTION_CONFIG: Record<string, { icon: typeof Package; color: string; label: string }> = {
+  'auth.register': { icon: UserPlus, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950', label: 'Autenticação' },
   'auth.login': { icon: LogIn, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950', label: 'Autenticação' },
   'auth.logout': { icon: LogOut, color: 'text-slate-500 bg-slate-50 dark:bg-slate-950', label: 'Autenticação' },
   'product.create': { icon: Package, color: 'text-green-500 bg-green-50 dark:bg-green-950', label: 'Produtos' },
@@ -25,8 +26,11 @@ const ACTION_CONFIG: Record<string, { icon: typeof Package; color: string; label
   'profile.slug': { icon: Link2, color: 'text-sky-500 bg-sky-50 dark:bg-sky-950', label: 'Perfil' },
   'appearance.update': { icon: Palette, color: 'text-pink-500 bg-pink-50 dark:bg-pink-950', label: 'Aparência' },
   'order.status_change': { icon: ShoppingCart, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950', label: 'Pedidos' },
+  'subscription.plan_selected': { icon: Tag, color: 'text-violet-500 bg-violet-50 dark:bg-violet-950', label: 'Assinatura' },
   'subscription.activated': { icon: CreditCard, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950', label: 'Assinatura' },
   'subscription.expired': { icon: Clock, color: 'text-red-500 bg-red-50 dark:bg-red-950', label: 'Assinatura' },
+  'payment.pix_generated': { icon: QrCode, color: 'text-cyan-500 bg-cyan-50 dark:bg-cyan-950', label: 'Pagamento' },
+  'payment.card_form_started': { icon: CreditCard, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950', label: 'Pagamento' },
 };
 
 const CATEGORY_FILTERS = [
@@ -38,6 +42,7 @@ const CATEGORY_FILTERS = [
   { value: 'appearance', label: 'Aparência' },
   { value: 'order', label: 'Pedidos' },
   { value: 'subscription', label: 'Assinatura' },
+  { value: 'payment', label: 'Pagamento' },
 ];
 
 const PERIOD_FILTERS = [
