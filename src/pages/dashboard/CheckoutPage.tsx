@@ -21,6 +21,7 @@ import {
   type OfferCheckoutInfo,
 } from '@/lib/offerService';
 import { validateReferralCoupon, calculateReferralDiscount } from '@/lib/referralUtils';
+import { logActivity } from '@/lib/activityLogger';
 import { LEGACY_TRIMESTRAL_PLAN } from '@/lib/legacyTrimestralPlan';
 import { toast } from 'sonner';
 import { QrCode, CreditCard, Copy, Check, Loader as Loader2, ArrowLeft, ShieldCheck, Clock, CircleCheck as CheckCircle2, Circle as XCircle, CircleAlert as AlertCircle, CalendarClock, Tag, Ticket, Lock } from 'lucide-react';
@@ -159,6 +160,12 @@ function PixSection({ plan, onSuccess, earlyRenewal, offerContext, referralCode 
         referral_code: referralCode,
       });
       setPixResult(result);
+      logActivity(
+        'payment.pix_generated',
+        `Gerou QR Code Pix para o plano "${plan.name}" (${formatCurrencyI18n(offerContext?.final_price ?? plan.price)})`,
+        'plan',
+        plan.id
+      );
       startPolling(result.payment_id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao gerar PIX');
@@ -330,6 +337,7 @@ function CardSection({ plan, onSuccess, earlyRenewal, offerContext, referralCode
   offerIdRef.current = offerContext?.offer_id;
   const referralCodeRef = useRef(referralCode);
   referralCodeRef.current = referralCode;
+  const cardFillLoggedRef = useRef(false);
 
   const handleSubmit = useCallback(async (formData: any) => {
     return new Promise<void>(async (resolve, reject) => {
@@ -372,6 +380,17 @@ function CardSection({ plan, onSuccess, earlyRenewal, offerContext, referralCode
 
   const handleError = useCallback((error: any) => {
     console.error('CardPayment Brick error:', error);
+  }, []);
+
+  const handleBinChange = useCallback((bin: string) => {
+    if (!bin || cardFillLoggedRef.current) return;
+    cardFillLoggedRef.current = true;
+    logActivity(
+      'payment.card_form_started',
+      `Iniciou o preenchimento dos dados do cartão para o plano "${planRef.current.name}"`,
+      'plan',
+      planRef.current.id
+    );
   }, []);
 
   const effectiveAmount = offerContext?.final_price ?? plan.price;
@@ -438,6 +457,7 @@ function CardSection({ plan, onSuccess, earlyRenewal, offerContext, referralCode
           onSubmit={handleSubmit}
           onReady={handleReady}
           onError={handleError}
+          onBinChange={handleBinChange}
         />
       </div>
 

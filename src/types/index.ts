@@ -82,6 +82,7 @@ export interface User {
 }
 
 export type ActivityAction =
+  | 'auth.register'
   | 'auth.login'
   | 'auth.logout'
   | 'product.create'
@@ -96,8 +97,11 @@ export type ActivityAction =
   | 'profile.slug'
   | 'appearance.update'
   | 'order.status_change'
+  | 'subscription.plan_selected'
   | 'subscription.activated'
   | 'subscription.expired'
+  | 'payment.pix_generated'
+  | 'payment.card_form_started'
   | 'referral.copy_link'
   | 'referral.copy_code';
 

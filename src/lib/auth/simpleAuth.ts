@@ -557,7 +557,9 @@ export async function registerUser(
         description: 'Criou conta no sistema',
         user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
       })
-      .then(() => {});
+      .then(({ error }) => {
+        if (error) console.error('⚠️ auth.register activity log failed:', error.message, error);
+      });
 
     userProfile.last_login_at = new Date().toISOString();
     userProfile.login_count = 1;
@@ -755,7 +757,9 @@ export async function completeGoogleProfile(
         description: 'Criou conta no sistema via Google',
         user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
       })
-      .then(() => {});
+      .then(({ error }) => {
+        if (error) console.error('⚠️ auth.register (Google) activity log failed:', error.message, error);
+      });
 
     userProfile.last_login_at = now;
     userProfile.login_count = 1;
