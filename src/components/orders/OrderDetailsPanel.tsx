@@ -12,6 +12,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import OrderStatusBadge from './OrderStatusBadge';
 import PaymentStatusBadge from './PaymentStatusBadge';
 import InventoryDeductionDialog from './InventoryDeductionDialog';
@@ -20,6 +30,7 @@ import { updateOrderStatus, updateOrderTracking, fetchOrderInventoryInfo } from 
 import { OrderShippingAddress } from '@/components/buyer/OrderShippingAddress';
 import { OrderPickupInfo } from '@/components/buyer/OrderPickupInfo';
 import { deductStockForOrder, restoreStockForOrder } from '@/lib/stockUtils';
+import { refundOrderPayment } from '@/lib/merchantPayments';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
 import { generateWhatsAppUrl } from '@/lib/utils';
 import { formatCpfCnpj } from '@/lib/document';
@@ -27,7 +38,7 @@ import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLogger';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Order, OrderStatus } from '@/types';
+import type { Order, OrderStatus, OrderPaymentStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface OrderPaymentRow {
@@ -46,6 +57,7 @@ interface OrderDetailsPanelProps {
   onOpenChange: (open: boolean) => void;
   onStatusUpdate: (orderId: string, newStatus: OrderStatus) => void;
   onTrackingUpdate?: (orderId: string, tracking: { carrier: string | null; tracking_code: string | null }) => void;
+  onPaymentStatusUpdate?: (orderId: string, paymentStatus: OrderPaymentStatus) => void;
 }
 
 const STATUS_TRANSITIONS: Record<string, { label: string; next: OrderStatus }[]> = {
@@ -77,6 +89,7 @@ export default function OrderDetailsPanel({
   onOpenChange,
   onStatusUpdate,
   onTrackingUpdate,
+  onPaymentStatusUpdate,
 }: OrderDetailsPanelProps) {
   const [updating, setUpdating] = useState(false);
   const { user } = useAuth();
@@ -92,13 +105,53 @@ export default function OrderDetailsPanel({
   const [carrier, setCarrier] = useState('');
   const [trackingCode, setTrackingCode] = useState('');
   const [savingTracking, setSavingTracking] = useState(false);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refunding, setRefunding] = useState(false);
 
   useEffect(() => {
     setPaymentHistoryOpen(false);
     setPaymentHistory(null);
     setCarrier(order?.carrier || '');
     setTrackingCode(order?.tracking_code || '');
+    setRefundDialogOpen(false);
   }, [order?.id]);
+
+  const handleRefund = async () => {
+    if (!order) return;
+    setRefunding(true);
+    try {
+      const { data: payment, error: paymentError } = await supabase
+        .from('order_payments')
+        .select('id')
+        .eq('order_id', order.id)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (paymentError || !payment) {
+        toast.error('Pagamento aprovado não encontrado para este pedido');
+        return;
+      }
+
+      await refundOrderPayment(payment.id);
+      toast.success('Pagamento reembolsado com sucesso');
+      onPaymentStatusUpdate?.(order.id, 'refunded');
+      if (paymentHistoryOpen) {
+        const { data } = await supabase
+          .from('order_payments')
+          .select('id, payment_method, status, status_detail, amount_cents, card_last4, created_at')
+          .eq('order_id', order.id)
+          .order('created_at', { ascending: false });
+        setPaymentHistory(data || []);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao reembolsar pagamento');
+    } finally {
+      setRefunding(false);
+      setRefundDialogOpen(false);
+    }
+  };
 
   const handleSaveTracking = async () => {
     if (!order) return;
@@ -668,6 +721,16 @@ export default function OrderDetailsPanel({
                       )}
                     </div>
                   )}
+                  {order.payment_status === 'approved' && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setRefundDialogOpen(true)}
+                    >
+                      Reembolsar pagamento
+                    </Button>
+                  )}
                 </div>
               </>
             )}
@@ -708,6 +771,29 @@ export default function OrderDetailsPanel({
         onConfirm={handleInventoryConfirm}
         onSkip={handleInventorySkip}
       />
+
+      <AlertDialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reembolsar este pagamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O valor total será devolvido ao comprador pelo Mercado Pago e o estoque deste pedido será restaurado. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={refunding}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleRefund();
+              }}
+              disabled={refunding}
+            >
+              {refunding ? 'Reembolsando...' : 'Reembolsar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

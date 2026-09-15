@@ -48,6 +48,10 @@ export function testMerchantPaymentCredentials() {
   return callMerchantPaymentSettings('testCredentials');
 }
 
+export function refundOrderPayment(orderPaymentId: string) {
+  return callMerchantPaymentSettings('refundPayment', { order_payment_id: orderPaymentId });
+}
+
 // Storefront/checkout calls authenticate as the logged-in BUYER, using the
 // separate buyer Supabase client/session (see src/lib/supabaseBuyer.ts).
 async function getBuyerAuthHeaders(): Promise<Record<string, string>> {
