@@ -170,15 +170,38 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: credentials } = await admin
-      .from("merchant_payment_credentials")
-      .select("access_token, webhook_secret")
-      .eq("user_id", paymentRow.store_owner_id)
-      .eq("provider", "mercadopago")
-      .maybeSingle();
+    // credentials.access_token is resolved per-merchant (environment ->
+    // access_token_test/prod, populated by the OAuth "Conectar com Mercado
+    // Pago" flow — see merchant-payment-settings' exchangeCode), but the
+    // x-signature secret is no longer per-merchant: split payments are all
+    // created under the platform's own MP Application, so MP signs every
+    // notification with that Application's single webhook secret
+    // (mercadopago_marketplace_config.webhook_secret), regardless of which
+    // connected seller the payment belongs to.
+    const [{ data: credentialsRow }, { data: marketplaceConfig }] = await Promise.all([
+      admin
+        .from("merchant_payment_credentials")
+        .select("environment, access_token_test, access_token_prod")
+        .eq("user_id", paymentRow.store_owner_id)
+        .eq("provider", "mercadopago")
+        .maybeSingle(),
+      admin
+        .from("mercadopago_marketplace_config")
+        .select("webhook_secret")
+        .eq("id", 1)
+        .maybeSingle(),
+    ]);
 
-    const validSignature = credentials
-      ? await verifySignature(req, dataId, credentials.webhook_secret)
+    const credentials = credentialsRow
+      ? {
+          access_token: credentialsRow.environment === "production"
+            ? credentialsRow.access_token_prod
+            : credentialsRow.access_token_test,
+        }
+      : null;
+
+    const validSignature = marketplaceConfig
+      ? await verifySignature(req, dataId, marketplaceConfig.webhook_secret)
       : false;
 
     if (!validSignature) {
