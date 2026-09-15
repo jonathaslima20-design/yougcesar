@@ -82,6 +82,21 @@ async function isPaymentsEnabledForStore(
   return !!platformSettings?.online_payments_enabled || !!storeOwner?.payments_test_override;
 }
 
+// The platform's commission on every sale, applied via Mercado Pago's own
+// split-payment mechanism (application_fee) — only works because
+// credentials.access_token is obtained via OAuth (see
+// merchant-payment-settings' getAuthorizeUrl/exchangeCode), never with a
+// manually pasted token.
+async function getPlatformFeePercentage(admin: ReturnType<typeof createClient>): Promise<number> {
+  const { data, error } = await admin
+    .from("mercadopago_marketplace_config")
+    .select("fee_percentage")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return Number(data?.fee_percentage ?? 0);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -178,6 +193,18 @@ Deno.serve(async (req: Request) => {
           );
         }
 
+        // application_fee (the platform's split commission) only works with
+        // an OAuth-obtained access token — a row left over from the old
+        // paste-your-own-key flow (or one that started "Conectar" but never
+        // finished) has no refresh_token, so it's treated as not connected
+        // rather than silently processing payments with no platform fee.
+        if (!credentials.refresh_token) {
+          return new Response(
+            JSON.stringify({ error: "Reconecte sua conta Mercado Pago em Configurações > Pagamento." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         // Reserve stock before ever contacting Mercado Pago — idempotent, so
         // this is a no-op when the order already holds a reservation (the
         // common case) and only does real work on a first attempt or a retry
@@ -199,6 +226,11 @@ Deno.serve(async (req: Request) => {
         const amountCents = Math.round(finalAmount * 100);
         const accessToken = credentials.access_token;
         const notificationUrl = `${supabaseUrl}/functions/v1/merchant-payment-webhook`;
+
+        // application_fee is in the same currency unit as transaction_amount
+        // (decimal reais), never cents.
+        const feePercentage = await getPlatformFeePercentage(admin);
+        const applicationFee = Number((finalAmount * feePercentage / 100).toFixed(2));
 
         if (action === "createPixPayment") {
           const { payer } = payload as PixPaymentPayload;
@@ -234,6 +266,7 @@ Deno.serve(async (req: Request) => {
             },
             notification_url: notificationUrl,
             external_reference: paymentRow.id,
+            application_fee: applicationFee,
           };
 
           const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
@@ -349,6 +382,7 @@ Deno.serve(async (req: Request) => {
           },
           notification_url: notificationUrl,
           external_reference: paymentRow.id,
+          application_fee: applicationFee,
         };
 
         const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
