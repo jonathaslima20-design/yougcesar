@@ -310,6 +310,105 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      case "refundPayment": {
+        const { order_payment_id } = payload as { order_payment_id: string };
+
+        const { data: payment, error: paymentError } = await admin
+          .from("order_payments")
+          .select("id, order_id, store_owner_id, status, mp_payment_id")
+          .eq("id", order_payment_id)
+          .maybeSingle();
+
+        if (paymentError) throw new Error(paymentError.message);
+
+        if (!payment || payment.store_owner_id !== user.id) {
+          return new Response(
+            JSON.stringify({ error: "Pagamento não encontrado" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (payment.status !== "approved" || !payment.mp_payment_id) {
+          return new Response(
+            JSON.stringify({ error: "Este pagamento não pode ser reembolsado" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: credentials, error: credentialsError } = await admin
+          .from("merchant_payment_credentials")
+          .select("environment, access_token_test, access_token_prod")
+          .eq("user_id", user.id)
+          .eq("provider", "mercadopago")
+          .maybeSingle();
+
+        if (credentialsError) throw new Error(credentialsError.message);
+
+        const accessToken = credentials?.environment === "production"
+          ? credentials?.access_token_prod
+          : credentials?.access_token_test;
+
+        if (!accessToken) {
+          return new Response(
+            JSON.stringify({ error: "Credenciais do Mercado Pago não configuradas" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Reembolso total (sem body = 100% do valor). A API do Mercado Pago
+        // aceita { amount } para parcial, mas o payment_status de orders é
+        // binário (approved -> refunded) e não haveria regra óbvia de quanto
+        // estoque devolver num parcial — fora de escopo por ora.
+        const mpResponse = await fetch(
+          `https://api.mercadopago.com/v1/payments/${payment.mp_payment_id}/refunds`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+              "X-Idempotency-Key": `${payment.id}-refund`,
+            },
+          }
+        );
+
+        const mpData = await mpResponse.json();
+
+        if (!mpResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: mpData.message || "Erro ao reembolsar pagamento" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        await admin
+          .from("order_payments")
+          .update({ status: "refunded", raw_response: mpData, updated_at: new Date().toISOString() })
+          .eq("id", payment.id);
+
+        await admin
+          .from("orders")
+          .update({ payment_status: "refunded" })
+          .eq("id", payment.order_id);
+
+        // Mesma logica do merchant-payment-webhook ao ver 'refunded' vindo de
+        // um pagamento que estava 'approved' — devolve o estoque real que
+        // havia sido deduzido. Duplicada de proposito (nao compartilhada com
+        // o webhook) para dar feedback imediato aqui; quando a notificacao
+        // assincrona do MP chegar depois, o webhook ve o status ja
+        // 'refunded' e nao faz nada de novo (idempotente).
+        const { error: restoreError } = await admin.rpc("restore_stock_for_order", {
+          p_order_id: payment.order_id,
+        });
+        if (restoreError) {
+          console.error("Failed to restore stock after refund:", payment.order_id, restoreError);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, status: "refunded" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: "Ação não reconhecida" }),

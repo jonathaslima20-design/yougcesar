@@ -152,6 +152,15 @@ export default function OrdersPage() {
     }
   };
 
+  const handlePaymentStatusUpdate = (orderId: string, paymentStatus: OrderPaymentStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, payment_status: paymentStatus } : o))
+    );
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder((prev) => (prev ? { ...prev, payment_status: paymentStatus } : null));
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6">
       <div>
@@ -428,6 +437,7 @@ export default function OrdersPage() {
         onOpenChange={setDetailsOpen}
         onStatusUpdate={handleStatusUpdate}
         onTrackingUpdate={handleTrackingUpdate}
+        onPaymentStatusUpdate={handlePaymentStatusUpdate}
       />
     </div>
   );
