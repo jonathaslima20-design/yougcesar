@@ -1,5 +1,6 @@
 import './lib/earlyBuyerOAuthCapture';
 import './lib/earlyErpOAuthCapture';
+import './lib/earlyMercadoPagoOAuthCapture';
 import './i18n/config';
 import { createRoot } from 'react-dom/client';
 import { Component, type ErrorInfo, type ReactNode } from 'react';

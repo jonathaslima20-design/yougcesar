@@ -28,24 +28,29 @@ async function callMerchantPaymentSettings(action: string, payload?: unknown) {
   return data;
 }
 
-export function getMerchantPaymentConfig() {
+export interface MerchantPaymentConfig {
+  connected: boolean;
+  environment: string;
+  mp_account_email: string;
+  mp_user_id: string | null;
+  is_active: boolean;
+  updated_at: string;
+}
+
+export function getMerchantPaymentConfig(): Promise<{ config: MerchantPaymentConfig | null; store_currency: string }> {
   return callMerchantPaymentSettings('getConfig');
 }
 
-export function saveMerchantPaymentConfig(payload: {
-  environment: string;
-  public_key_test: string;
-  access_token_test: string;
-  public_key_prod: string;
-  access_token_prod: string;
-  webhook_secret: string;
-  is_active: boolean;
-}) {
-  return callMerchantPaymentSettings('saveConfig', payload);
+export function getMercadoPagoAuthorizeUrl(): Promise<{ authorize_url: string }> {
+  return callMerchantPaymentSettings('getAuthorizeUrl');
 }
 
-export function testMerchantPaymentCredentials() {
-  return callMerchantPaymentSettings('testCredentials');
+export function exchangeMercadoPagoCode(args: { code: string; state: string }) {
+  return callMerchantPaymentSettings('exchangeCode', args);
+}
+
+export function disconnectMercadoPago() {
+  return callMerchantPaymentSettings('disconnect');
 }
 
 export function refundOrderPayment(orderPaymentId: string) {
