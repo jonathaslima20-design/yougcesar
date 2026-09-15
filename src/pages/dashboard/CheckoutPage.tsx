@@ -22,9 +22,7 @@ import {
 } from '@/lib/offerService';
 import { validateReferralCoupon, calculateReferralDiscount } from '@/lib/referralUtils';
 import { logActivity } from '@/lib/activityLogger';
-import { getProviderForCountry, getActiveBrProvider } from '@/lib/billing/provider';
-import { getPublicKey as getCaktoPublicKey } from '@/lib/caktoPayments';
-import { CaktoPixSection, CaktoCardSection } from './CaktoPaymentSection';
+import { getProviderForCountry } from '@/lib/billing/provider';
 import { LEGACY_TRIMESTRAL_PLAN } from '@/lib/legacyTrimestralPlan';
 import StripeCheckoutRedirect from './StripeCheckoutRedirect';
 import { toast } from 'sonner';
@@ -506,16 +504,6 @@ export default function CheckoutPage() {
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkError, setSdkError] = useState(false);
-  const [brProvider, setBrProvider] = useState<'mercadopago' | 'cakto'>('mercadopago');
-  const [providerResolved, setProviderResolved] = useState(false);
-  const [caktoPixEnabled, setCaktoPixEnabled] = useState(false);
-  const [caktoSdkClientId, setCaktoSdkClientId] = useState('');
-
-  useEffect(() => {
-    if (brProvider === 'cakto' && !caktoPixEnabled) {
-      setActiveTab('card');
-    }
-  }, [brProvider, caktoPixEnabled]);
   const [offerContext, setOfferContext] = useState<OfferContext | null>(null);
   const [offerLoading, setOfferLoading] = useState(false);
   const [googleAdsConfig, setGoogleAdsConfig] = useState<{ tagId: string; purchaseId: string } | null>(null);
@@ -761,69 +749,35 @@ export default function CheckoutPage() {
     setReferralValidating(false);
   };
 
-  const initSdk = useCallback(async () => {
-    setProviderResolved(false);
-    // Within Brazil, a second routing layer (cakto_config.is_active in the
-    // admin) decides between Mercado Pago and Cakto — see
-    // src/lib/billing/provider.ts. International users go through Stripe
-    // (handled by the early return below this component's hooks), so this
-    // check only matters for BR.
-    if (getProviderForCountry(user?.country).provider !== 'mercadopago') {
-      setSdkReady(true);
-      setProviderResolved(true);
-      return;
-    }
+  useEffect(() => {
+    let cancelled = false;
 
-    const active = await getActiveBrProvider();
-    setBrProvider(active);
-
-    if (active === 'cakto') {
+    const initSdk = async () => {
       try {
-        const info = await getCaktoPublicKey();
-        if (!info.sdk_client_id) {
+        // Load in parallel with the public key fetch — the fingerprint
+        // takes a moment to finish running, so starting it as early as
+        // possible gives it the best chance of being ready by the time the
+        // buyer actually submits the card form.
+        loadMpDeviceFingerprintScript();
+        const info = await getPublicKey();
+        if (cancelled) return;
+        if (!info.public_key) {
           setSdkError(true);
           return;
         }
-        setCaktoPixEnabled(!!info.pix_enabled);
-        setCaktoSdkClientId(info.sdk_client_id);
+        initMercadoPago(info.public_key, { locale: 'pt-BR' });
         setSdkReady(true);
       } catch (error) {
-        console.error('Cakto SDK init failed:', error);
-        setSdkError(true);
-      } finally {
-        setProviderResolved(true);
+        if (!cancelled) {
+          console.error('MercadoPago SDK init failed:', error);
+          setSdkError(true);
+        }
       }
-      return;
-    }
+    };
 
-    try {
-      // Load in parallel with the public key fetch — the fingerprint
-      // takes a moment to finish running, so starting it as early as
-      // possible gives it the best chance of being ready by the time the
-      // buyer actually submits the card form.
-      loadMpDeviceFingerprintScript();
-      const info = await getPublicKey();
-      if (!info.public_key) {
-        setSdkError(true);
-        return;
-      }
-      initMercadoPago(info.public_key, { locale: 'pt-BR' });
-      setSdkReady(true);
-    } catch (error) {
-      console.error('MercadoPago SDK init failed:', error);
-      setSdkError(true);
-    } finally {
-      setProviderResolved(true);
-    }
-  }, [user?.country]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!cancelled) await initSdk();
-    })();
+    initSdk();
     return () => { cancelled = true; };
-  }, [initSdk]);
+  }, []);
 
   useEffect(() => {
     supabase
@@ -840,8 +794,18 @@ export default function CheckoutPage() {
   const handleRetrySDK = useCallback(async () => {
     setSdkError(false);
     setSdkReady(false);
-    await initSdk();
-  }, [initSdk]);
+    try {
+      const info = await getPublicKey();
+      if (!info.public_key) {
+        setSdkError(true);
+        return;
+      }
+      initMercadoPago(info.public_key, { locale: 'pt-BR' });
+      setSdkReady(true);
+    } catch {
+      setSdkError(true);
+    }
+  }, []);
 
   const handleSuccess = useCallback(async () => {
     setPaymentComplete(true);
@@ -930,11 +894,6 @@ export default function CheckoutPage() {
       />
     );
   };
-
-  // Pix isn't offered through Cakto until pix_enabled is flipped in the
-  // admin (requires an active Cakto Banking account) — force the card tab
-  // in that case rather than showing a Pix button that will always fail.
-  const showPixTab = brProvider !== 'cakto' || caktoPixEnabled;
 
   // Referral discount takes priority over promotional offers
   const effectiveOfferContext = referralDiscount ? null : offerContext;
@@ -1075,29 +1034,6 @@ export default function CheckoutPage() {
               <PaymentSuccess />
             </CardContent>
           </Card>
-        ) : !providerResolved ? (
-          <Card>
-            <CardContent className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ) : sdkError ? (
-          <Card>
-            <CardContent className="text-center space-y-4 py-8">
-              <div className="flex justify-center">
-                <div className="h-14 w-14 rounded-full bg-red-500/10 flex items-center justify-center">
-                  <AlertCircle className="h-7 w-7 text-red-500" />
-                </div>
-              </div>
-              <h3 className="text-lg font-semibold">Erro ao carregar formulário</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Não foi possível inicializar o sistema de pagamento. Verifique sua conexão.
-              </p>
-              <Button variant="outline" onClick={handleRetrySDK}>
-                Tentar novamente
-              </Button>
-            </CardContent>
-          </Card>
         ) : (
           <Card>
             <CardHeader className="pb-4">
@@ -1105,21 +1041,19 @@ export default function CheckoutPage() {
               <CardDescription>Escolha como deseja pagar</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className={cn('grid gap-2', showPixTab ? 'grid-cols-2' : 'grid-cols-1')}>
-                {showPixTab && (
-                  <button
-                    onClick={() => setActiveTab('pix')}
-                    className={cn(
-                      'flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
-                      activeTab === 'pix'
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-muted hover:border-muted-foreground/30 text-muted-foreground'
-                    )}
-                  >
-                    <QrCode className="h-4 w-4" />
-                    <span className="text-sm font-medium">Pix</span>
-                  </button>
-                )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setActiveTab('pix')}
+                  className={cn(
+                    'flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
+                    activeTab === 'pix'
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-muted hover:border-muted-foreground/30 text-muted-foreground'
+                  )}
+                >
+                  <QrCode className="h-4 w-4" />
+                  <span className="text-sm font-medium">Pix</span>
+                </button>
                 <button
                   onClick={() => setActiveTab('card')}
                   className={cn(
@@ -1136,14 +1070,8 @@ export default function CheckoutPage() {
 
               <Separator />
 
-              {activeTab === 'pix' && showPixTab ? (
-                brProvider === 'cakto' ? (
-                  <CaktoPixSection plan={plan} sdkClientId={caktoSdkClientId} onSuccess={handleSuccess} earlyRenewal={earlyRenewal} offerContext={effectiveOfferContext} referralCode={validatedReferralCode} />
-                ) : (
-                  <PixSection plan={plan} onSuccess={handleSuccess} earlyRenewal={earlyRenewal} offerContext={effectiveOfferContext} referralCode={validatedReferralCode} />
-                )
-              ) : brProvider === 'cakto' ? (
-                <CaktoCardSection plan={plan} sdkClientId={caktoSdkClientId} onSuccess={handleSuccess} earlyRenewal={earlyRenewal} offerContext={effectiveOfferContext} referralCode={validatedReferralCode} />
+              {activeTab === 'pix' ? (
+                <PixSection plan={plan} onSuccess={handleSuccess} earlyRenewal={earlyRenewal} offerContext={effectiveOfferContext} referralCode={validatedReferralCode} />
               ) : (
                 renderCardContent()
               )}
@@ -1153,7 +1081,7 @@ export default function CheckoutPage() {
 
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <ShieldCheck className="h-4 w-4" />
-          <span>Pagamento seguro processado por {brProvider === 'cakto' ? 'Cakto' : 'Mercado Pago'}</span>
+          <span>Pagamento seguro processado por Mercado Pago</span>
         </div>
       </div>
     </div>

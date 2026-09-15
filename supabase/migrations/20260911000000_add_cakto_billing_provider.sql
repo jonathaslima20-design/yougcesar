@@ -2,9 +2,13 @@
   # Add Cakto as a third billing provider (Brazil, alongside Mercado Pago)
 
   Cakto replicates the same "cobrança avulsa por ciclo" model Mercado Pago
-  already uses in this project (no native recurring subscription/Pix
-  Automático — those require a Cakto Banking account this merchant doesn't
-  have yet). check-expiring-subscriptions already treats any
+  already uses in this project (this is a scope choice, not a platform
+  limitation — Cakto's public API does support native recurring
+  subscriptions and Pix Automático via POST /public_api/subscriptions/,
+  gated only by the merchant's regular Cakto account being fully approved,
+  same as any other charge; see cakto_config.pix_enabled below). Native
+  recurring billing (subscription webhooks, renewal tracking) is left for a
+  future migration. check-expiring-subscriptions already treats any
   billing_provider != 'stripe' uniformly, so Cakto users need no cron
   changes: they just need to land in users/subscriptions with the same
   shape mp_payments's activatePlan() already produces.
@@ -15,8 +19,11 @@
     POST /public_api/token/) and the browser-safe SDK client_id (tokenização
     scope only, used by the Cakto JS SDK for card tokenization/antifraud).
     is_active is the BR routing switch (mercadopago vs cakto); pix_enabled
-    stays false until Cakto Banking is confirmed active for this account —
-    Pix charges 400 without it.
+    stays false until this merchant's Cakto account (app.cakto.com.br) is
+    confirmed fully approved — "abertura concluída", ativa, principal do
+    produtor, fora de encerramento (checked manually in the Cakto dashboard;
+    the public API exposes no status endpoint for it) — Pix charges 400
+    without it, per Cakto's docs.
   - cakto_offers: maps (plan_id, billing_cycle) -> the Oferta id created
     manually in the Cakto dashboard, same role as stripe_prices.
   - cakto_payments: mirrors mp_payments's shape/RLS exactly, one row per

@@ -60,7 +60,7 @@ export interface User {
   subscription_end_date?: string;
   subscription_plan_name?: string;
   country?: string;
-  billing_provider?: 'mercadopago' | 'stripe' | 'cakto';
+  billing_provider?: 'mercadopago' | 'stripe';
   billing_currency?: string;
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
