@@ -33,6 +33,13 @@ export interface MarketplaceConfig {
 export interface MarketplaceConfigResult {
   config: MarketplaceConfig | null;
   redirect_uri: string;
+  notification_url: string;
+}
+
+export interface TestConnectionResult {
+  success: boolean;
+  error?: string;
+  account?: { id: number | string; email?: string; nickname?: string };
 }
 
 export function getMarketplaceConfig(): Promise<MarketplaceConfigResult> {
@@ -41,4 +48,8 @@ export function getMarketplaceConfig(): Promise<MarketplaceConfigResult> {
 
 export function saveMarketplaceConfig(payload: MarketplaceConfig) {
   return callMarketplaceAdmin('saveConfig', payload);
+}
+
+export function testMarketplaceConnection(): Promise<TestConnectionResult> {
+  return callMarketplaceAdmin('testConnection');
 }

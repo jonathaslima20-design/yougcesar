@@ -14,6 +14,7 @@ const corsHeaders = {
 // the way a normal app callback might. Same reasoning as Olist's own
 // REDIRECT_URI constant in merchant-erp-settings/index.ts.
 const REDIRECT_URI = "https://vitrineturbo.com/dashboard/settings/payment/mercadopago/callback";
+const OAUTH_TOKEN_URL = "https://api.mercadopago.com/oauth/token";
 
 function maskSecret(value: string): string {
   if (!value || value.length < 8) return "****";
@@ -93,6 +94,7 @@ Deno.serve(async (req: Request) => {
                 }
               : null,
             redirect_uri: REDIRECT_URI,
+            notification_url: `${supabaseUrl}/functions/v1/merchant-payment-webhook`,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -162,6 +164,68 @@ Deno.serve(async (req: Request) => {
 
         return new Response(
           JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "testConnection": {
+        const { data: config, error: configError } = await admin
+          .from("mercadopago_marketplace_config")
+          .select("client_id, client_secret")
+          .eq("id", 1)
+          .maybeSingle();
+
+        if (configError) throw new Error(configError.message);
+
+        if (!config?.client_id || !config.client_secret) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Configure e salve o Client ID/Secret antes de testar." }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // client_credentials is the only OAuth grant that validates
+        // client_id/client_secret on their own, with no seller involved —
+        // it returns an access_token tied to the Application's own MP
+        // account (the account that will receive the platform's 1% fees),
+        // which /users/me then identifies.
+        const tokenResponse = await fetch(OAUTH_TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: config.client_id,
+            client_secret: config.client_secret,
+            grant_type: "client_credentials",
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Client ID/Secret inválidos ou não correspondem ao ambiente selecionado." }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const tokenData = await tokenResponse.json() as { access_token: string };
+
+        const meResponse = await fetch("https://api.mercadopago.com/users/me", {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+
+        if (!meResponse.ok) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Credenciais válidas, mas não foi possível ler a conta." }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const me = await meResponse.json();
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            account: { id: me.id, email: me.email, nickname: me.nickname },
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

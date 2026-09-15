@@ -1,23 +1,29 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, Eye, EyeOff, Copy, Percent, Link2 } from 'lucide-react';
+import { Loader as Loader2, Eye, EyeOff, Copy, Percent, Link2, RefreshCw, CircleCheck as CheckCircle2, Circle as XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   getMarketplaceConfig,
   saveMarketplaceConfig,
+  testMarketplaceConnection,
   type MarketplaceConfig,
 } from '@/lib/mercadopagoMarketplaceAdmin';
 
 export default function MercadoPagoMarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
   const [redirectUri, setRedirectUri] = useState('');
+  const [notificationUrl, setNotificationUrl] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'failed'>('unknown');
+  const [accountInfo, setAccountInfo] = useState<{ email?: string; nickname?: string } | null>(null);
 
   const [config, setConfig] = useState<MarketplaceConfig>({
     client_id: '',
@@ -35,6 +41,7 @@ export default function MercadoPagoMarketplacePage() {
     try {
       const data = await getMarketplaceConfig();
       setRedirectUri(data.redirect_uri || '');
+      setNotificationUrl(data.notification_url || '');
       if (data.config) {
         setConfig({
           client_id: data.config.client_id || '',
@@ -64,9 +71,37 @@ export default function MercadoPagoMarketplacePage() {
     }
   };
 
+  const handleTestConnection = async () => {
+    setTesting(true);
+    setConnectionStatus('unknown');
+    try {
+      const result = await testMarketplaceConnection();
+      if (result.success) {
+        setConnectionStatus('connected');
+        setAccountInfo(result.account || null);
+        toast.success(`Conectado como ${result.account?.email || result.account?.nickname}`);
+      } else {
+        setConnectionStatus('failed');
+        setAccountInfo(null);
+        toast.error(result.error || 'Client ID/Secret inválidos');
+      }
+    } catch (error) {
+      setConnectionStatus('failed');
+      setAccountInfo(null);
+      toast.error(error instanceof Error ? error.message : 'Erro ao testar conexão');
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const handleCopyRedirectUri = () => {
     navigator.clipboard.writeText(redirectUri);
     toast.success('Redirect URL copiada!');
+  };
+
+  const handleCopyNotificationUrl = () => {
+    navigator.clipboard.writeText(notificationUrl);
+    toast.success('URL de notificação copiada!');
   };
 
   if (loading) {
@@ -104,6 +139,41 @@ export default function MercadoPagoMarketplacePage() {
       </Alert>
 
       <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Status da Conexão</CardTitle>
+            <div className="flex items-center gap-2">
+              {connectionStatus === 'connected' && (
+                <Badge className="bg-green-500/10 text-green-600 border-transparent">
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> Conectado
+                </Badge>
+              )}
+              {connectionStatus === 'failed' && (
+                <Badge className="bg-red-500/10 text-red-600 border-transparent">
+                  <XCircle className="h-3 w-3 mr-1" /> Falha
+                </Badge>
+              )}
+              {connectionStatus === 'unknown' && <Badge variant="secondary">Não verificado</Badge>}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {accountInfo && (
+            <div className="text-sm text-muted-foreground mb-3">
+              Conta que recebe a taxa: <span className="font-medium text-foreground">{accountInfo.email || accountInfo.nickname}</span>
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={handleTestConnection} disabled={testing}>
+            {testing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Testar Conexão
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            Valida o Client ID/Secret salvos direto com o Mercado Pago e mostra qual conta recebe o split.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Link2 className="h-4 w-4 text-muted-foreground" />
@@ -117,6 +187,25 @@ export default function MercadoPagoMarketplacePage() {
           <div className="flex gap-2">
             <Input value={redirectUri} readOnly className="font-mono text-xs" />
             <Button variant="outline" size="icon" onClick={handleCopyRedirectUri} className="shrink-0">
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">URL de Notificação (Webhook)</CardTitle>
+          <CardDescription>
+            Configure essa URL no painel de Webhooks da Aplicação (Developers &gt; Webhooks), marcando o
+            evento "Pagamentos". O Mercado Pago gera um segredo de assinatura ao salvar — cole ele no
+            campo "Webhook Secret" mais abaixo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input value={notificationUrl} readOnly className="font-mono text-xs" />
+            <Button variant="outline" size="icon" onClick={handleCopyNotificationUrl} className="shrink-0">
               <Copy className="h-4 w-4" />
             </Button>
           </div>
