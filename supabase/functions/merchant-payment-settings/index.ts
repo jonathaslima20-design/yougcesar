@@ -8,24 +8,17 @@ const corsHeaders = {
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-function maskToken(token: string): string {
-  if (!token || token.length < 12) return "****";
-  return "****" + token.slice(-8);
-}
+// Fixed, not derived from the request: Mercado Pago requires the redirect
+// URI to be an exact match of whatever is registered in the Application's
+// own OAuth settings (MP Developers panel) — same constant used by the
+// admin config screen (mercadopago-marketplace-admin/index.ts).
+const REDIRECT_URI = "https://vitrineturbo.com/dashboard/settings/payment/mercadopago/callback";
+const OAUTH_AUTHORIZE_URL = "https://auth.mercadopago.com/authorization";
+const OAUTH_TOKEN_URL = "https://api.mercadopago.com/oauth/token";
 
-// Mercado Pago credentials are self-describing by prefix: production public
-// keys/access tokens always start with "APP_USR-", sandbox ones with
-// "TEST-". Catches the classic "pasted the wrong credential in the wrong
-// slot" mistake before it reaches checkout — same check used in the admin's
-// own Mercado Pago settings (supabase/functions/mp-admin/index.ts).
-function validateCredentialPrefix(label: string, value: string, expectedPrefix: string): string | null {
-  if (!value) return null;
-  if (!value.startsWith(expectedPrefix)) {
-    const envLabel = expectedPrefix === "TEST-" ? "teste" : "produção";
-    return `${label} não parece ser uma credencial de ${envLabel} (deveria começar com "${expectedPrefix}")`;
-  }
-  return null;
-}
+// state freshness window for the CSRF check on callback — same value used by
+// the Olist ERP OAuth flow (merchant-erp-settings/index.ts).
+const STATE_TTL_MINUTES = 15;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -84,7 +77,7 @@ Deno.serve(async (req: Request) => {
       case "getConfig": {
         const { data: config, error: configError } = await admin
           .from("merchant_payment_credentials")
-          .select("*")
+          .select("environment, is_active, mp_account_email, mp_user_id, refresh_token, updated_at")
           .eq("user_id", user.id)
           .eq("provider", "mercadopago")
           .maybeSingle();
@@ -95,155 +88,210 @@ Deno.serve(async (req: Request) => {
           JSON.stringify({
             config: config
               ? {
-                  id: config.id,
+                  connected: !!config.refresh_token,
                   environment: config.environment,
-                  public_key_test: config.public_key_test,
-                  access_token_test: maskToken(config.access_token_test),
-                  public_key_prod: config.public_key_prod,
-                  access_token_prod: maskToken(config.access_token_prod),
-                  webhook_secret: config.webhook_secret ? "****configurado" : "",
-                  mp_account_id: config.mp_account_id,
                   mp_account_email: config.mp_account_email,
+                  mp_user_id: config.mp_user_id,
                   is_active: config.is_active,
-                  last_validated_at: config.last_validated_at,
+                  updated_at: config.updated_at,
                 }
               : null,
-            notification_url: `${supabaseUrl}/functions/v1/merchant-payment-webhook`,
             store_currency: merchant.currency || "BRL",
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      case "saveConfig": {
-        const {
-          environment,
-          public_key_test,
-          access_token_test,
-          public_key_prod,
-          access_token_prod,
-          webhook_secret,
-          is_active,
-        } = payload as {
-          environment: string;
-          public_key_test: string;
-          access_token_test: string;
-          public_key_prod: string;
-          access_token_prod: string;
-          webhook_secret: string;
-          is_active: boolean;
-        };
-
-        const { data: existing, error: existingError } = await admin
-          .from("merchant_payment_credentials")
-          .select("id, access_token_test, access_token_prod, webhook_secret")
-          .eq("user_id", user.id)
-          .eq("provider", "mercadopago")
-          .maybeSingle();
-
-        if (existingError) throw new Error(existingError.message);
-
-        const resolvedEnvironment = environment === "test" ? "test" : "production";
-        const updateData: Record<string, unknown> = {
-          environment: resolvedEnvironment,
-          public_key_test: public_key_test || "",
-          public_key_prod: public_key_prod || "",
-          updated_at: new Date().toISOString(),
-        };
-
-        if (access_token_test && !access_token_test.startsWith("****")) {
-          updateData.access_token_test = access_token_test;
-        } else if (existing) {
-          updateData.access_token_test = existing.access_token_test;
-        }
-
-        if (access_token_prod && !access_token_prod.startsWith("****")) {
-          updateData.access_token_prod = access_token_prod;
-        } else if (existing) {
-          updateData.access_token_prod = existing.access_token_prod;
-        }
-
-        if (webhook_secret && !webhook_secret.startsWith("****")) {
-          updateData.webhook_secret = webhook_secret;
-        } else if (existing) {
-          updateData.webhook_secret = existing.webhook_secret;
-        }
-
-        // Same "wrong credential in the wrong slot" guard as the admin's own
-        // Mercado Pago settings (mp-admin/index.ts).
-        const credentialErrors = [
-          validateCredentialPrefix("Public Key de teste", updateData.public_key_test as string, "TEST-"),
-          validateCredentialPrefix("Access Token de teste", updateData.access_token_test as string, "TEST-"),
-          validateCredentialPrefix("Public Key de produção", updateData.public_key_prod as string, "APP_USR-"),
-          validateCredentialPrefix("Access Token de produção", updateData.access_token_prod as string, "APP_USR-"),
-        ].filter((e): e is string => !!e);
-
-        if (credentialErrors.length > 0) {
+      case "getAuthorizeUrl": {
+        const storeCurrency = (merchant.currency || "BRL").toUpperCase();
+        if (storeCurrency !== "BRL") {
           return new Response(
-            JSON.stringify({ error: credentialErrors.join(" | ") }),
+            JSON.stringify({ error: "Pagamento online disponível apenas para lojas em Real (BRL) por enquanto." }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
-        const finalAccessToken = resolvedEnvironment === "production"
-          ? (updateData.access_token_prod as string) || ""
-          : (updateData.access_token_test as string) || "";
-        const finalPublicKey = resolvedEnvironment === "production"
-          ? (updateData.public_key_prod as string) || ""
-          : (updateData.public_key_test as string) || "";
-        const finalWebhookSecret = (updateData.webhook_secret as string) || "";
-        const storeCurrency = (merchant.currency || "BRL").toUpperCase();
+        const { data: platformSettings, error: platformError } = await admin
+          .from("platform_payment_settings")
+          .select("online_payments_enabled")
+          .maybeSingle();
 
-        if (is_active) {
-          const { data: platformSettings, error: platformError } = await admin
-            .from("platform_payment_settings")
-            .select("online_payments_enabled")
-            .maybeSingle();
+        if (platformError) throw new Error(platformError.message);
 
-          if (platformError) throw new Error(platformError.message);
-
-          if (!platformSettings?.online_payments_enabled && !merchant.payments_test_override) {
-            return new Response(
-              JSON.stringify({ error: "Pagamento online está temporariamente indisponível na plataforma." }),
-              { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-
-          if (!finalAccessToken || !finalPublicKey) {
-            return new Response(
-              JSON.stringify({ error: "Configure a Public Key e o Access Token antes de ativar." }),
-              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          if (!finalWebhookSecret) {
-            return new Response(
-              JSON.stringify({ error: "Configure o Webhook Secret antes de ativar o pagamento online." }),
-              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          if (storeCurrency !== "BRL") {
-            return new Response(
-              JSON.stringify({ error: "Pagamento online disponível apenas para lojas em Real (BRL) por enquanto." }),
-              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
+        if (!platformSettings?.online_payments_enabled && !merchant.payments_test_override) {
+          return new Response(
+            JSON.stringify({ error: "Pagamento online está temporariamente indisponível na plataforma." }),
+            { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
 
-        updateData.is_active = !!is_active;
+        const { data: marketplace, error: marketplaceError } = await admin
+          .from("mercadopago_marketplace_config")
+          .select("client_id")
+          .eq("id", 1)
+          .maybeSingle();
+
+        if (marketplaceError) throw new Error(marketplaceError.message);
+
+        if (!marketplace?.client_id) {
+          return new Response(
+            JSON.stringify({ error: "Split de pagamentos ainda não configurado pela plataforma." }),
+            { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const state = crypto.randomUUID();
+
+        const { data: existing } = await admin
+          .from("merchant_payment_credentials")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("provider", "mercadopago")
+          .maybeSingle();
 
         if (existing) {
           const { error } = await admin
             .from("merchant_payment_credentials")
-            .update(updateData)
+            .update({ oauth_state: state, updated_at: new Date().toISOString() })
             .eq("id", existing.id);
-
           if (error) throw error;
         } else {
           const { error } = await admin
             .from("merchant_payment_credentials")
-            .insert({ ...updateData, user_id: user.id, provider: "mercadopago" });
-
+            .insert({ user_id: user.id, provider: "mercadopago", oauth_state: state });
           if (error) throw error;
+        }
+
+        const url = new URL(OAUTH_AUTHORIZE_URL);
+        url.searchParams.set("client_id", marketplace.client_id);
+        url.searchParams.set("response_type", "code");
+        url.searchParams.set("platform_id", "mp");
+        url.searchParams.set("redirect_uri", REDIRECT_URI);
+        url.searchParams.set("state", state);
+
+        return new Response(
+          JSON.stringify({ authorize_url: url.toString() }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "exchangeCode": {
+        const { code, state } = payload as { code: string; state: string };
+
+        if (!code || !state) {
+          return new Response(
+            JSON.stringify({ error: "Retorno do Mercado Pago incompleto (code/state ausente)." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: existing } = await admin
+          .from("merchant_payment_credentials")
+          .select("id, oauth_state, updated_at")
+          .eq("user_id", user.id)
+          .eq("provider", "mercadopago")
+          .maybeSingle();
+
+        if (!existing || !existing.oauth_state || existing.oauth_state !== state) {
+          return new Response(
+            JSON.stringify({ error: "Estado de autorização inválido. Tente conectar novamente." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const stateAgeMs = Date.now() - new Date(existing.updated_at).getTime();
+        if (stateAgeMs > STATE_TTL_MINUTES * 60 * 1000) {
+          return new Response(
+            JSON.stringify({ error: "Autorização expirada. Tente conectar novamente." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: marketplace, error: marketplaceError } = await admin
+          .from("mercadopago_marketplace_config")
+          .select("client_id, client_secret, environment")
+          .eq("id", 1)
+          .maybeSingle();
+
+        if (marketplaceError) throw new Error(marketplaceError.message);
+
+        if (!marketplace?.client_id || !marketplace.client_secret) {
+          return new Response(
+            JSON.stringify({ error: "Split de pagamentos ainda não configurado pela plataforma." }),
+            { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const tokenResponse = await fetch(OAUTH_TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: marketplace.client_id,
+            client_secret: marketplace.client_secret,
+            grant_type: "authorization_code",
+            code,
+            redirect_uri: REDIRECT_URI,
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          const errorBody = await tokenResponse.text().catch(() => "");
+          console.error("Mercado Pago token exchange failed:", tokenResponse.status, errorBody);
+          return new Response(
+            JSON.stringify({ error: "Não foi possível concluir a conexão com o Mercado Pago." }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const tokenData = await tokenResponse.json() as {
+          access_token: string;
+          refresh_token: string;
+          expires_in: number;
+          public_key: string;
+          user_id: number | string;
+        };
+
+        const resolvedEnvironment = marketplace.environment === "production" ? "production" : "test";
+        const updateData: Record<string, unknown> = {
+          environment: resolvedEnvironment,
+          refresh_token: tokenData.refresh_token,
+          token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+          mp_user_id: String(tokenData.user_id ?? ""),
+          is_active: true,
+          oauth_state: null,
+          updated_at: new Date().toISOString(),
+        };
+        if (resolvedEnvironment === "production") {
+          updateData.access_token_prod = tokenData.access_token;
+          updateData.public_key_prod = tokenData.public_key || "";
+        } else {
+          updateData.access_token_test = tokenData.access_token;
+          updateData.public_key_test = tokenData.public_key || "";
+        }
+
+        const { error } = await admin
+          .from("merchant_payment_credentials")
+          .update(updateData)
+          .eq("id", existing.id);
+        if (error) throw error;
+
+        // Best-effort account label for display in the dashboard — not
+        // required for payments to work (the OAuth access_token already
+        // identifies the seller), so a failure here doesn't fail the whole
+        // connection.
+        try {
+          const meResponse = await fetch("https://api.mercadopago.com/users/me", {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+          });
+          if (meResponse.ok) {
+            const me = await meResponse.json();
+            await admin
+              .from("merchant_payment_credentials")
+              .update({ mp_account_email: me.email ?? "" })
+              .eq("id", existing.id);
+          }
+        } catch (e) {
+          console.error("Failed to fetch MP account label after OAuth connect:", e);
         }
 
         return new Response(
@@ -252,60 +300,24 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      case "testCredentials": {
-        const { data: existing, error: existingError } = await admin
-          .from("merchant_payment_credentials")
-          .select("environment, access_token_test, access_token_prod")
-          .eq("user_id", user.id)
-          .eq("provider", "mercadopago")
-          .maybeSingle();
-
-        if (existingError) throw new Error(existingError.message);
-
-        const accessToken = existing?.environment === "production"
-          ? existing?.access_token_prod
-          : existing?.access_token_test;
-
-        if (!accessToken) {
-          return new Response(
-            JSON.stringify({ success: false, error: "Access Token não configurado" }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        const testResponse = await fetch("https://api.mercadopago.com/users/me", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-
-        if (!testResponse.ok) {
-          return new Response(
-            JSON.stringify({ success: false, error: "Credenciais inválidas" }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        const mpUser = await testResponse.json();
-
-        await admin
+      case "disconnect": {
+        const { error } = await admin
           .from("merchant_payment_credentials")
           .update({
-            mp_account_id: String(mpUser.id ?? ""),
-            mp_account_email: mpUser.email ?? "",
-            last_validated_at: new Date().toISOString(),
+            refresh_token: null,
+            token_expires_at: null,
+            mp_user_id: null,
+            mp_account_email: "",
+            oauth_state: null,
+            is_active: false,
+            updated_at: new Date().toISOString(),
           })
           .eq("user_id", user.id)
           .eq("provider", "mercadopago");
+        if (error) throw error;
 
         return new Response(
-          JSON.stringify({
-            success: true,
-            account: {
-              id: mpUser.id,
-              email: mpUser.email,
-              nickname: mpUser.nickname,
-              site_id: mpUser.site_id,
-            },
-          }),
+          JSON.stringify({ success: true }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

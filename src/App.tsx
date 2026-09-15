@@ -78,6 +78,7 @@ import DashboardPage from '@/pages/dashboard/DashboardPage.tsx';
 import ReportsPage from '@/pages/dashboard/ReportsPage.tsx';
 import SettingsPage from '@/pages/dashboard/SettingsPage.tsx';
 import OlistCallbackPage from '@/pages/dashboard/OlistCallbackPage.tsx';
+import MercadoPagoConnectCallbackPage from '@/pages/dashboard/MercadoPagoConnectCallbackPage.tsx';
 import ListingsPage from '@/pages/dashboard/ListingsPage.tsx';
 import CreateProductPage from '@/pages/dashboard/CreateProductPage.tsx';
 import EditProductPage from '@/pages/dashboard/EditProductPage.tsx';
@@ -345,6 +346,7 @@ function AppContent() {
         {/* Protected Dashboard Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard/settings/integrations/olist/callback" element={<OlistCallbackPage />} />
+          <Route path="/dashboard/settings/payment/mercadopago/callback" element={<MercadoPagoConnectCallbackPage />} />
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/dashboard/reports" element={<ReportsPage />} />
