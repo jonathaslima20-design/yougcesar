@@ -83,6 +83,12 @@ export default function CartModal({
   // popup, so this can't be looked up inline at send time.
   const affiliateWhatsAppOverride = useAffiliateWhatsAppOverride(corretor?.id);
   const [sendingOrder, setSendingOrder] = useState(false);
+  // Resultado exibido apos handleSendOrder em vez de navegar a aba pro
+  // WhatsApp automaticamente: em varios navegadores mobile (inclusive
+  // in-app browsers como Instagram/Facebook) essa navegacao automatica
+  // some sem aviso e derruba o comprador de volta no catalogo sem nenhuma
+  // confirmacao, mesmo quando o pedido foi gravado com sucesso.
+  const [orderResult, setOrderResult] = useState<{ success: boolean; whatsappUrl: string } | null>(null);
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingVariant, setEditingVariant] = useState<string | null>(null);
   const [productTiers, setProductTiers] = useState<Map<string, { tiers: PriceTier[], hasTieredPricing: boolean }>>(new Map());
@@ -510,15 +516,6 @@ export default function CartModal({
       return;
     }
 
-    // Uma aba EM BRANCO e aberta agora, ainda dentro do gesto sincrono do
-    // clique — e o unico jeito de nao ser bloqueada no iOS Safari / Android
-    // Chrome. So no fim, depois do pedido estar gravado, ela e apontada para
-    // o WhatsApp. Antes o WhatsApp abria aqui ja com a mensagem do pedido, e
-    // qualquer coisa que desse errado depois (estoque insuficiente, falha de
-    // rede, aba suspensa pelo app do WhatsApp assumindo a tela) deixava o
-    // lojista com um pedido no chat que nunca chegou no menu Vendas.
-    const popup = window.open('', '_blank');
-
     try {
       setSendingOrder(true);
 
@@ -557,7 +554,6 @@ export default function CartModal({
         ]);
 
         if (shortfalls.length > 0) {
-          popup?.close();
           // Distribution (wholesale) shortfalls can't be safely auto-adjusted —
           // shrinking one color/size within a tiered bulk allocation would
           // throw off the applied tier price, so those still block with the
@@ -623,26 +619,16 @@ export default function CartModal({
         console.error('Failed to save order, proceeding with WhatsApp:', err);
       }
 
-      // O pedido ja esta gravado (ou falhou de forma conhecida) — so agora o
-      // WhatsApp entra em cena. Se a gravacao falhou, o comprador ainda
-      // consegue enviar pelo chat, mas e avisado de que a confirmacao vem
-      // pelo WhatsApp — e o carrinho fica intacto (nao limpo abaixo) caso
-      // ele prefira tentar de novo em vez de so confiar no chat.
-      if (createdOrder?.id) {
-        toast.success('Pedido registrado! Abrindo WhatsApp...');
-      } else {
-        toast.warning('Nao conseguimos registrar seu pedido automaticamente. Envie pelo WhatsApp que o vendedor confirma por la — seu carrinho foi mantido caso prefira tentar novamente.');
-      }
-
+      // O pedido ja esta gravado (ou falhou de forma conhecida). Em vez de
+      // navegar a aba pro WhatsApp automaticamente — o que em varios
+      // navegadores mobile some sem aviso e derruba o comprador de volta no
+      // catalogo, parecendo que nada foi enviado — mostramos um resultado
+      // claro com um link real que o proprio comprador clica (gesto do
+      // usuario, nunca bloqueado por popup blocker). Se a gravacao falhou,
+      // o carrinho fica intacto (nao limpo abaixo) caso prefira tentar de
+      // novo em vez de so confiar no chat.
       await trackWhatsAppClick('storefront', 'product', 'cart_checkout');
-
-      if (popup) {
-        popup.location.href = whatsappUrl;
-      } else {
-        // Aba bloqueada pelo navegador — navega a propria aba, agora que as
-        // escritas do pedido e da baixa de estoque ja terminaram.
-        window.location.href = whatsappUrl;
-      }
+      setOrderResult({ success: !!createdOrder?.id, whatsappUrl });
 
       if (createdOrder?.id) {
         clearCart();
@@ -651,7 +637,6 @@ export default function CartModal({
         setSelectedPaymentMethod(null);
         setSelectedDeliveryOption(null);
         setInsuranceOptIn(false);
-        setStep('cart');
         setCustomerName('');
         setCustomerPhone('');
         setCustomerCountryCode(corretor.country_code || '55');
@@ -661,12 +646,9 @@ export default function CartModal({
         setShippingQuotes([]);
         setShippingQuotesError(false);
         setFormErrors({});
-        onOpenChange(false);
       }
     } catch (error) {
       console.error('Error sending order:', error);
-      // Nao deixa a aba em branco orfa se algo estourou antes de aponta-la.
-      popup?.close();
       toast.error('Nao foi possivel enviar o pedido. Tente novamente.');
     } finally {
       setSendingOrder(false);
@@ -703,7 +685,13 @@ export default function CartModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setOrderResult(null);
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -711,14 +699,59 @@ export default function CartModal({
             Carrinho de Compras
           </DialogTitle>
           <DialogDescription>
-            {cart.items.length === 0 && cart.distributions.length === 0
-              ? 'Seu carrinho está vazio'
-              : `${cart.itemCount} ${cart.itemCount === 1 ? 'item' : 'itens'} no carrinho`
+            {orderResult
+              ? (orderResult.success ? 'Pedido enviado' : 'Revise e tente novamente')
+              : cart.items.length === 0 && cart.distributions.length === 0
+                ? 'Seu carrinho está vazio'
+                : `${cart.itemCount} ${cart.itemCount === 1 ? 'item' : 'itens'} no carrinho`
             }
           </DialogDescription>
         </DialogHeader>
 
-        {cart.items.length === 0 && cart.distributions.length === 0 ? (
+        {orderResult ? (
+          <div className="flex flex-col items-center text-center gap-4 py-8">
+            <div className={`h-14 w-14 rounded-full flex items-center justify-center ${orderResult.success ? 'bg-green-500/10' : 'bg-amber-500/10'}`}>
+              {orderResult.success ? (
+                <Check className="h-7 w-7 text-green-600" />
+              ) : (
+                <Info className="h-7 w-7 text-amber-500" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">
+                {orderResult.success ? 'Pedido registrado!' : 'Não conseguimos registrar automaticamente'}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                {orderResult.success
+                  ? 'Agora é só enviar a mensagem abaixo no WhatsApp para o vendedor confirmar seu pedido.'
+                  : 'Envie a mensagem abaixo pelo WhatsApp que o vendedor confirma seu pedido por lá. Seu carrinho foi mantido caso prefira tentar novamente.'}
+              </p>
+            </div>
+            <a
+              href={orderResult.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors w-full"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Abrir WhatsApp
+            </a>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                const wasSuccess = orderResult.success;
+                setOrderResult(null);
+                if (wasSuccess) {
+                  setStep('cart');
+                  onOpenChange(false);
+                }
+              }}
+            >
+              {orderResult.success ? 'Fechar' : 'Voltar'}
+            </Button>
+          </div>
+        ) : cart.items.length === 0 && cart.distributions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
