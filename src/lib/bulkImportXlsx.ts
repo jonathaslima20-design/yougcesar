@@ -92,6 +92,46 @@ async function loadExcelJS() {
   return (await import('exceljs')).default;
 }
 
+async function loadJSZip() {
+  return (await import('jszip')).default;
+}
+
+/**
+ * Some tools (e.g. WPS Office, Google Sheets exports) write worksheet cell
+ * comments/notes to non-standard part paths (e.g. `xl/comments/comment1.xml`
+ * instead of ExcelJS's expected `xl/commentsN.xml`). ExcelJS crashes while
+ * reconciling those relationships. We don't need comments for import, so we
+ * strip the comments/vmlDrawing relationships before handing the file to ExcelJS.
+ */
+async function stripCommentRelationships(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const JSZip = await loadJSZip();
+  const zip = await JSZip.loadAsync(buffer);
+  const relsPaths = Object.keys(zip.files).filter((name) => /^xl\/worksheets\/_rels\/.*\.rels$/.test(name));
+
+  for (const relsPath of relsPaths) {
+    const file = zip.file(relsPath);
+    if (!file) continue;
+    const xml = await file.async('string');
+    if (!xml.includes('/comments') && !xml.toLowerCase().includes('vmldrawing')) continue;
+
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const rels = Array.from(doc.getElementsByTagName('Relationship'));
+    let changed = false;
+    for (const rel of rels) {
+      const type = rel.getAttribute('Type') || '';
+      if (type.endsWith('/comments') || type.endsWith('/vmlDrawing')) {
+        rel.parentNode?.removeChild(rel);
+        changed = true;
+      }
+    }
+    if (changed) {
+      zip.file(relsPath, new XMLSerializer().serializeToString(doc));
+    }
+  }
+
+  return zip.generateAsync({ type: 'arraybuffer' });
+}
+
 export async function generateBulkImportXlsxTemplate(): Promise<Blob> {
   const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
@@ -226,7 +266,8 @@ function rowToStrings(row: ExcelJSType.Row, count: number): string[] {
 export async function parseBulkImportXlsxFile(file: File): Promise<BulkImportParseResult> {
   const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
-  const buffer = await file.arrayBuffer();
+  const rawBuffer = await file.arrayBuffer();
+  const buffer = await stripCommentRelationships(rawBuffer);
   await workbook.xlsx.load(buffer);
 
   const sheet = workbook.worksheets[0];
