@@ -44,6 +44,7 @@ import { PhoneInputWithCountry, COUNTRIES } from '@/components/ui/phone-input-wi
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCouponValidation } from '@/hooks/useCouponValidation';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
+import { useCashbackBalance } from '@/hooks/useCashbackBalance';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -114,6 +115,8 @@ export default function CartModal({
   const navigate = useNavigate();
   const { customer: buyerAccount } = useBuyerAuth();
   const orderMode: 'whatsapp' | 'ecommerce' = checkoutSettings.onlinePaymentEnabled ? 'ecommerce' : 'whatsapp';
+  const { balance: cashbackBalance } = useCashbackBalance(buyerAccount?.id, corretor?.id);
+  const [useCashback, setUseCashback] = useState(false);
 
   const enabledPaymentMethods = checkoutSettings.paymentMethods.filter(m => m.enabled);
   // A lightweight CEP field (see below) resolves buyer city/state so local-scope
@@ -182,6 +185,7 @@ export default function CartModal({
     if (!selectedDeliveryConfig) return 0;
     if (selectedDeliveryConfig.quoteOnRequest) return 0;
     if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscounts >= selectedDeliveryConfig.freeAbove) return 0;
+    if (checkoutSettings.freeShippingThreshold && subtotalAfterDiscounts >= checkoutSettings.freeShippingThreshold) return 0;
     return selectedDeliveryConfig.fee;
   })();
 
@@ -192,7 +196,14 @@ export default function CartModal({
     ? Math.round(subtotalAfterDiscounts * (insuranceRate / 100) * 100) / 100
     : 0;
 
-  const finalTotal = Math.max(0, cart.total - discountAmount - paymentMethodDiscount + deliveryFee + insuranceFee);
+  const cashbackUsed = checkoutSettings.cashback?.enabled && useCashback
+    ? Math.min(cashbackBalance, subtotalAfterDiscounts)
+    : 0;
+
+  const finalTotal = Math.max(0, cart.total - discountAmount - paymentMethodDiscount - cashbackUsed + deliveryFee + insuranceFee);
+
+  const freeShippingThreshold = checkoutSettings.freeShippingThreshold ?? 0;
+  const freeShippingRemaining = freeShippingThreshold > 0 ? Math.max(0, freeShippingThreshold - cart.total) : 0;
 
   // Payment method, delivery, and insurance are only picked in the WhatsApp
   // tab's own form — the "Pagar Agora" flow re-collects all three itself on
@@ -606,6 +617,7 @@ export default function CartModal({
             delivery_is_quote: selectedDeliveryConfig?.quoteOnRequest || false,
             pickup_instructions: selectedDeliveryConfig?.scope === 'pickup' ? buildPickupInstructionsSnapshot(selectedDeliveryConfig) : null,
             insurance_fee: insuranceFee,
+            cashback_used: cashbackUsed,
             affiliate_id: affiliateId,
             shipping_city: selectedDeliveryConfig?.scope === 'pickup' ? null : customerCity.trim() || null,
             shipping_state: selectedDeliveryConfig?.scope === 'pickup' ? null : customerState.trim() || null,
@@ -637,6 +649,7 @@ export default function CartModal({
         setSelectedPaymentMethod(null);
         setSelectedDeliveryOption(null);
         setInsuranceOptIn(false);
+        setUseCashback(false);
         setCustomerName('');
         setCustomerPhone('');
         setCustomerCountryCode(corretor.country_code || '55');
@@ -1187,6 +1200,27 @@ export default function CartModal({
                   </span>
                 </div>
 
+                {freeShippingThreshold > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {freeShippingRemaining <= 0 ? (
+                        <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                      ) : (
+                        <Truck className="h-3.5 w-3.5 shrink-0" />
+                      )}
+                      <span>
+                        {freeShippingRemaining <= 0
+                          ? 'Você garantiu frete grátis!'
+                          : `Faltam ${formatCurrencyI18n(freeShippingRemaining, currency, language)} para frete grátis`}
+                      </span>
+                    </div>
+                    <Progress
+                      value={Math.min(100, (cart.total / freeShippingThreshold) * 100)}
+                      className={`h-1.5 ${freeShippingRemaining <= 0 ? '[&_[data-state]]:bg-green-600 dark:[&_[data-state]]:bg-green-400' : ''}`}
+                    />
+                  </div>
+                )}
+
                 {minPurchaseActive && (
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -1534,6 +1568,25 @@ export default function CartModal({
                           </span>
                         </label>
                       )}
+
+                      {checkoutSettings.cashback?.enabled && cashbackBalance > 0 && (
+                        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer">
+                          <Checkbox
+                            checked={useCashback}
+                            onCheckedChange={(checked) => setUseCashback(checked === true)}
+                            className="mt-0.5"
+                          />
+                          <span className="text-xs">
+                            <span className="font-medium flex items-center gap-1.5">
+                              <Wallet className="h-3.5 w-3.5" />
+                              Usar meu cashback
+                            </span>
+                            <span className="text-muted-foreground block">
+                              Você tem {formatCurrencyI18n(cashbackBalance, currency, language)} de saldo nesta loja
+                            </span>
+                          </span>
+                        </label>
+                      )}
                     </>
                   )}
 
@@ -1595,6 +1648,15 @@ export default function CartModal({
                             Seguro de frete
                           </span>
                           <span>+{formatCurrencyI18n(insuranceFee, currency, language)}</span>
+                        </div>
+                      )}
+                      {orderMode === 'whatsapp' && cashbackUsed > 0 && (
+                        <div className="flex justify-between items-center text-green-600 dark:text-green-400">
+                          <span className="flex items-center gap-1.5">
+                            <Wallet className="h-3 w-3" />
+                            Cashback usado
+                          </span>
+                          <span>-{formatCurrencyI18n(cashbackUsed, currency, language)}</span>
                         </div>
                       )}
                     </div>

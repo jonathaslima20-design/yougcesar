@@ -382,6 +382,22 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleToggleCashbackEnabled = async (enabled: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ cashback_enabled: enabled })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, cashback_enabled: enabled });
+      toast.success(enabled ? 'Cashback liberado para este usuário' : 'Cashback desativado para este usuário');
+    } catch (error) {
+      console.error('Error toggling cashback enabled:', error);
+      toast.error('Erro ao atualizar liberação do cashback');
+    }
+  };
+
   const handleImageLimitUpdate = async (maxImages: number) => {
     if (!user) return;
     try {
@@ -759,6 +775,23 @@ export default function UserDetailPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Libera a configuração de seguro de frete (aba Checkout) para esse usuário. Quando desativado, o card de seguro fica oculto nas configurações de checkout do vendedor e a opção nunca aparece para os compradores da loja, mesmo que o vendedor já tenha configurado uma taxa antes.
+                    </p>
+                  </div>
+
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Gift className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">Cashback</span>
+                      </div>
+                      <Switch
+                        checked={!!user.cashback_enabled}
+                        onCheckedChange={handleToggleCashbackEnabled}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Libera a configuração de cashback (aba Checkout) para esse usuário. Só tem efeito com pagamento online ativo — o crédito é gerado quando o pagamento é aprovado. Quando desativado, o card de cashback fica oculto nas configurações de checkout do vendedor.
                     </p>
                   </div>
 

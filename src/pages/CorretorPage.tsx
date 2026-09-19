@@ -13,6 +13,7 @@ import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
 import { useServerSideProductSearch } from '@/hooks/useServerSideProductSearch';
 import { useCategoryPagination } from '@/hooks/useCategoryPagination';
 import CorretorHeader from '@/components/corretor/CorretorHeader';
+import OffersCarousel from '@/components/corretor/OffersCarousel';
 import ProductSearch from '@/components/product/ProductSearch';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductCardSkeleton } from '@/components/product/ProductCardSkeleton';
@@ -553,6 +554,18 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
           <PromotionalBanner corretor={corretor} />
         </Suspense>
       </div>
+
+      <OffersCarousel
+        products={allProducts}
+        corretorSlug={corretor.slug || ''}
+        currency={currency}
+        language={language}
+        inventoryEnabled={inventoryEnabled}
+        showStockOnStorefront={showStockOnStorefront}
+        blockZeroStock={blockZeroStock}
+        cartEnabled={cartEnabled}
+        priceTiersMap={priceTiersMap}
+      />
 
       <div className="container mx-auto px-4 py-1">
         <ProductSearch

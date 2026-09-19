@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck, Clock, ExternalLink, UserRound } from 'lucide-react';
+import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck, Clock, ExternalLink, UserRound, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCouponValidation } from '@/hooks/useCouponValidation';
+import { useCashbackBalance } from '@/hooks/useCashbackBalance';
 import { fetchCustomerAddresses, createCustomerAddress, type CustomerAddress } from '@/lib/customerAddressService';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { createOrder } from '@/lib/orderService';
@@ -64,6 +65,7 @@ export default function CheckoutAddressPage() {
   // a disponibilidade antes de criar o pedido.
   const { inventoryEnabled } = useInventoryEnabledForStore(corretor?.id);
   const { loading: couponLoading, error: couponError, validateCoupon, clearCoupon, setError: setCouponError } = useCouponValidation();
+  const { balance: cashbackBalance } = useCashbackBalance(buyerAccount?.id, corretor?.id);
 
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(true);
@@ -76,6 +78,7 @@ export default function CheckoutAddressPage() {
   const [couponCode, setCouponCode] = useState('');
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string | null>(null);
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
+  const [useCashback, setUseCashback] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [shippingQuotes, setShippingQuotes] = useState<ShippingQuote[]>([]);
   const [shippingQuotesLoading, setShippingQuotesLoading] = useState(false);
@@ -258,6 +261,7 @@ export default function CheckoutAddressPage() {
   const deliveryFee = (() => {
     if (!selectedDeliveryConfig) return 0;
     if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscount >= selectedDeliveryConfig.freeAbove) return 0;
+    if (checkoutSettings.freeShippingThreshold && subtotalAfterDiscount >= checkoutSettings.freeShippingThreshold) return 0;
     return selectedDeliveryConfig.fee;
   })();
 
@@ -268,7 +272,14 @@ export default function CheckoutAddressPage() {
     ? Math.round(subtotalAfterDiscount * (insuranceRate / 100) * 100) / 100
     : 0;
 
-  const finalTotal = Math.max(0, cart.total - discountAmount + deliveryFee + insuranceFee);
+  const cashbackUsed = checkoutSettings.cashback?.enabled && useCashback
+    ? Math.min(cashbackBalance, subtotalAfterDiscount)
+    : 0;
+
+  const freeShippingThreshold = checkoutSettings.freeShippingThreshold ?? 0;
+  const freeShippingRemaining = freeShippingThreshold > 0 ? Math.max(0, freeShippingThreshold - cart.total) : 0;
+
+  const finalTotal = Math.max(0, cart.total - discountAmount - cashbackUsed + deliveryFee + insuranceFee);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || !corretor) return;
@@ -481,6 +492,7 @@ export default function CheckoutAddressPage() {
           delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
           pickup_instructions: isPickupSelected ? buildPickupInstructionsSnapshot(selectedDeliveryConfig) : null,
           insurance_fee: insuranceFee,
+          cashback_used: cashbackUsed,
           affiliate_id: affiliateId,
           buyer_id: buyerAccount.id,
           payment_status: 'pending',
@@ -509,6 +521,7 @@ export default function CheckoutAddressPage() {
 
       clearCart();
       clearAppliedCoupon();
+      setUseCashback(false);
       navigate(`/${corretor.slug}/pedido/${order.id}/pagamento`);
     } catch (error) {
       console.error('Error creating order:', error);
@@ -838,6 +851,43 @@ export default function CheckoutAddressPage() {
 
             <Separator />
 
+            {freeShippingThreshold > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {freeShippingRemaining <= 0 ? (
+                  <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                ) : (
+                  <Truck className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span>
+                  {freeShippingRemaining <= 0
+                    ? 'Você garantiu frete grátis!'
+                    : `Faltam ${formatCurrencyI18n(freeShippingRemaining)} para frete grátis`}
+                </span>
+              </div>
+            )}
+
+            {checkoutSettings.cashback?.enabled && cashbackBalance > 0 && (
+              <>
+                <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer">
+                  <Checkbox
+                    checked={useCashback}
+                    onCheckedChange={(checked) => setUseCashback(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium flex items-center gap-1.5">
+                      <Wallet className="h-3.5 w-3.5" />
+                      Usar meu cashback
+                    </span>
+                    <span className="text-muted-foreground block">
+                      Você tem {formatCurrencyI18n(cashbackBalance)} de saldo nesta loja
+                    </span>
+                  </span>
+                </label>
+                <Separator />
+              </>
+            )}
+
             {checkoutSettings.shippingInsurance?.enabled && insuranceRate > 0 && (
               <>
                 <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer">
@@ -867,6 +917,7 @@ export default function CheckoutAddressPage() {
                 delivery_fee: deliveryFee,
                 insurance_fee: insuranceFee,
                 discount_amount: discountAmount,
+                cashback_used: cashbackUsed,
                 total: finalTotal,
               }}
             />

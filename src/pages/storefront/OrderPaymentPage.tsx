@@ -55,6 +55,7 @@ interface OrderInfo {
   pickup_instructions: string | null;
   insurance_fee: number | null;
   discount_amount: number | null;
+  cashback_used: number | null;
   shipping_street: string | null;
   shipping_number: string | null;
   shipping_complement: string | null;
@@ -517,7 +518,7 @@ export default function OrderPaymentPage() {
       const { data } = await supabaseBuyer
         .from('orders')
         .select(
-          'id, store_owner_id, status, total, payment_status, subtotal, delivery_fee, delivery_option, delivery_scope, pickup_instructions, insurance_fee, discount_amount, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code, customer_cpf'
+          'id, store_owner_id, status, total, payment_status, subtotal, delivery_fee, delivery_option, delivery_scope, pickup_instructions, insurance_fee, discount_amount, cashback_used, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code, customer_cpf'
         )
         .eq('id', orderId)
         .maybeSingle();

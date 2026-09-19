@@ -20,6 +20,7 @@ export interface OrderTotals {
   delivery_is_quote?: boolean | null;
   insurance_fee: number | null;
   discount_amount: number | null;
+  cashback_used?: number | null;
   total: number;
 }
 
@@ -73,6 +74,12 @@ export function OrderItemsSummary({ items, totals }: { items: OrderItemRow[]; to
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>Desconto</span>
           <span>-{formatMoney(totals.discount_amount)}</span>
+        </div>
+      )}
+      {!!totals.cashback_used && (
+        <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+          <span>Cashback usado</span>
+          <span>-{formatMoney(totals.cashback_used)}</span>
         </div>
       )}
       <div className="flex justify-between font-semibold">

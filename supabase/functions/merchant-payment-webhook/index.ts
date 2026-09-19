@@ -265,6 +265,16 @@ Deno.serve(async (req: Request) => {
     if (mpStatus === "approved" && paymentRow.status !== "approved") {
       await admin.from("orders").update({ payment_status: "approved" }).eq("id", paymentRow.order_id);
       await deductStockForApprovedOrder(admin, paymentRow.order_id);
+
+      // Cashback e um beneficio best-effort: uma falha aqui nunca pode
+      // derrubar a resposta do webhook nem a aprovacao do pagamento em si.
+      const { error: cashbackError } = await admin.rpc("credit_cashback_for_order", {
+        p_order_id: paymentRow.order_id,
+        p_payment_id: paymentRow.id,
+      });
+      if (cashbackError) {
+        console.error("Failed to credit cashback for order:", paymentRow.order_id, cashbackError);
+      }
     } else if (
       ["rejected", "cancelled", "refunded", "charged_back"].includes(mpStatus) &&
       paymentRow.status !== mpStatus
