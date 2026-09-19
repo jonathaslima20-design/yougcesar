@@ -30,6 +30,7 @@ interface OrderDetailRow {
   pickup_instructions: string | null;
   insurance_fee: number | null;
   discount_amount: number | null;
+  cashback_used: number | null;
   total: number;
   created_at: string;
   shipping_street: string | null;
@@ -84,7 +85,7 @@ export default function BuyerOrderDetailPage() {
       const { data: orderRow } = await supabaseBuyer
         .from('orders')
         .select(
-          'id, store_owner_id, status, payment_status, order_type, subtotal, delivery_fee, delivery_is_quote, delivery_option, delivery_scope, pickup_instructions, insurance_fee, discount_amount, total, created_at, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code, carrier, tracking_code'
+          'id, store_owner_id, status, payment_status, order_type, subtotal, delivery_fee, delivery_is_quote, delivery_option, delivery_scope, pickup_instructions, insurance_fee, discount_amount, cashback_used, total, created_at, shipping_street, shipping_number, shipping_complement, shipping_neighborhood, shipping_city, shipping_state, shipping_zip_code, carrier, tracking_code'
         )
         .eq('id', orderId)
         .eq('buyer_id', customer.id)

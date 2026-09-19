@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, CreditCard, Plus, Trash2, Percent, ShoppingCart, Minimize2, Wallet, AlertTriangle, Info } from 'lucide-react';
+import { Loader as Loader2, CreditCard, Plus, Trash2, Percent, ShoppingCart, Minimize2, Wallet, AlertTriangle, Info, Gift } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,6 +110,26 @@ export default function CheckoutSettingsContent() {
     save({ ...settings, cartEnabled: checked });
   };
 
+  const toggleCashback = (enabled: boolean) => {
+    save({
+      ...settings,
+      cashback: {
+        ...(settings.cashback ?? { percentageRate: 0 }),
+        enabled,
+      },
+    });
+  };
+
+  const updateCashbackRate = (percentageRate: number) => {
+    save({
+      ...settings,
+      cashback: {
+        ...(settings.cashback ?? { enabled: false }),
+        percentageRate,
+      },
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -193,6 +213,58 @@ export default function CheckoutSettingsContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Cashback — only visible when admin has granted this merchant access, and
+          only meaningful with online payment on (credited on payment approval) */}
+      {(user?.cashback_enabled ?? false) && onlinePaymentEnabled && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Cashback</CardTitle>
+            </div>
+            <CardDescription>Devolve um percentual do valor pago como saldo, pra usar numa próxima compra na sua loja.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="cashback-enabled">Oferecer cashback</Label>
+              </div>
+              <Switch
+                id="cashback-enabled"
+                checked={settings.cashback?.enabled ?? false}
+                onCheckedChange={toggleCashback}
+                disabled={saving}
+              />
+            </div>
+
+            {(settings.cashback?.enabled ?? false) && (
+              <div className="space-y-2">
+                <Label htmlFor="cashback-rate" className="flex items-center gap-1.5">
+                  Percentual de cashback
+                  <Hint text="Calculado sobre o valor efetivamente pago online e creditado quando o pagamento é aprovado." />
+                </Label>
+                <div className="relative w-40">
+                  <Input
+                    id="cashback-rate"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={settings.cashback?.percentageRate ?? 0}
+                    onChange={(e) =>
+                      updateCashbackRate(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
+                    }
+                    className="pr-7"
+                    disabled={saving}
+                  />
+                  <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cart Enable/Disable */}
       <Card>

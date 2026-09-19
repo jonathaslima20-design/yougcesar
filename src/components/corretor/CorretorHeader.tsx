@@ -1,10 +1,16 @@
 import { motion } from 'framer-motion';
-import { Phone, MapPin, ShoppingCart, UserRound } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Phone, MapPin, ShoppingCart, UserRound, ChevronDown, Package, Wallet, User as UserIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { getInitials, getWhatsAppContactUrl, formatWhatsAppForDisplay } from '@/lib/utils';
 import type { User } from '@/types';
 import { trackWhatsAppClick, STOREFRONT_UUID } from '@/lib/tracking';
@@ -35,12 +41,12 @@ export default function CorretorHeader({
   const { t } = useTranslation(language);
   const { cart } = useCart();
   const { customer } = useBuyerAuth();
-  const location = useLocation();
   const [showCart, setShowCart] = useState(false);
 
-  const accountLink = customer
-    ? '/conta/pedidos'
-    : `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent(location.pathname)}`;
+  // Ao contrário do checkout (que precisa devolver o comprador pra onde
+  // estava pra concluir a compra), login pelo menu da vitrine leva direto
+  // pro ambiente de comprador — não de volta pra loja.
+  const loginLink = `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent('/conta/pedidos')}`;
 
   const aspectRatio = useResponsiveAspectRatio({
     mobile: 960 / 860,
@@ -73,13 +79,52 @@ export default function CorretorHeader({
     <div className="px-4 pt-4 pb-0">
       {onlineSalesEnabled && (
         <div className="container mx-auto flex justify-end mb-2">
-          <Link
-            to={accountLink}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <UserRound className="h-3.5 w-3.5" />
-            {customer ? 'Minha conta' : 'Entrar'}
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border border-border px-3 py-1.5">
+                <UserRound className="h-3.5 w-3.5" />
+                {customer ? 'Minha conta' : 'Entrar'}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {customer ? (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link to="/conta/pedidos" className="flex items-center gap-2 cursor-pointer">
+                      <Package className="h-4 w-4" />
+                      Meus pedidos
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/conta/cashback" className="flex items-center gap-2 cursor-pointer">
+                      <Wallet className="h-4 w-4" />
+                      Meu cashback
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/conta/enderecos" className="flex items-center gap-2 cursor-pointer">
+                      <MapPin className="h-4 w-4" />
+                      Endereços
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/conta/perfil" className="flex items-center gap-2 cursor-pointer">
+                      <UserIcon className="h-4 w-4" />
+                      Perfil
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem asChild>
+                  <Link to={loginLink} className="flex items-center gap-2 cursor-pointer">
+                    <UserRound className="h-4 w-4" />
+                    Entrar
+                  </Link>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
       <div className="container mx-auto">
