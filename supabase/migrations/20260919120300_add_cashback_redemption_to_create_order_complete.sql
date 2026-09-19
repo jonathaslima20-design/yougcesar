@@ -21,11 +21,23 @@
      - After the existing `coupon_usages` insert block, a matching block
        debits `cashback_balances` and records a `'redeemed'`
        `cashback_transactions` row when the effective amount is positive.
-     - This is a straight `CREATE OR REPLACE` of the same function (not a
-       new/forked copy) — it already runs inside one transaction with a
-       blanket exception handler, so a cashback bug fails exactly like a
-       coupon bug would today: caught, `{success:false}`, no partial state.
+
+  3. Important: DROP before CREATE
+     - Adding a new parameter changes the function's argument-type identity,
+       so `CREATE OR REPLACE FUNCTION` with an extra trailing parameter does
+       NOT replace the existing 33-argument function — it silently creates a
+       second, distinct 34-argument overload alongside it. Postgres then
+       can't resolve an unqualified `GRANT ... ON FUNCTION` (or a PostgREST
+       RPC call) unambiguously. The old 33-argument signature is dropped
+       explicitly first so only one `create_order_complete` ever exists.
 */
+
+DROP FUNCTION IF EXISTS public.create_order_complete(
+  uuid, text, text, text, text, numeric, numeric, text, text, text,
+  uuid, text, numeric, text, numeric, numeric, text, jsonb, uuid, text,
+  text, text, text, text, text, text, text, numeric, uuid, text,
+  boolean, text, text
+);
 
 CREATE OR REPLACE FUNCTION public.create_order_complete(
   p_store_owner_id uuid,
@@ -286,4 +298,9 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $function$;
 
-GRANT EXECUTE ON FUNCTION public.create_order_complete TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_order_complete(
+  uuid, text, text, text, text, numeric, numeric, text, text, text,
+  uuid, text, numeric, text, numeric, numeric, text, jsonb, uuid, text,
+  text, text, text, text, text, text, text, numeric, uuid, text,
+  boolean, text, text, numeric
+) TO anon, authenticated;
