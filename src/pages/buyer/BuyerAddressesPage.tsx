@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { Loader, MapPin, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import {
   fetchCustomerAddresses,
   createCustomerAddress,
@@ -75,6 +76,7 @@ const emptyAddress: AddressFormValues = {
 export default function BuyerAddressesPage() {
   const { customer, loading: authLoading } = useBuyerAuth();
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [orderCountsByZip, setOrderCountsByZip] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<CustomerAddress | null>(null);
@@ -89,8 +91,17 @@ export default function BuyerAddressesPage() {
     if (!customer) return;
     setLoading(true);
     try {
-      const data = await fetchCustomerAddresses(customer.id);
+      const [data, { data: orderRows }] = await Promise.all([
+        fetchCustomerAddresses(customer.id),
+        supabaseBuyer.from('orders').select('shipping_zip_code').not('shipping_zip_code', 'is', null),
+      ]);
       setAddresses(data);
+      const counts: Record<string, number> = {};
+      (orderRows || []).forEach((o) => {
+        if (!o.shipping_zip_code) return;
+        counts[o.shipping_zip_code] = (counts[o.shipping_zip_code] || 0) + 1;
+      });
+      setOrderCountsByZip(counts);
     } catch {
       toast.error('Erro ao carregar endereços');
     } finally {
@@ -354,13 +365,23 @@ export default function BuyerAddressesPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {addresses.map((address) => (
-                  <div key={address.id} className="border border-border rounded-lg p-4">
+                {addresses.map((address) => {
+                  const usageCount = orderCountsByZip[address.zip_code] || 0;
+                  return (
+                  <div
+                    key={address.id}
+                    className={`border rounded-lg p-4 ${address.is_default ? 'border-l-4 border-l-primary border-border' : 'border-border'}`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium">{address.label}</p>
                           {address.is_default && <Badge variant="secondary">Padrão</Badge>}
+                          {usageCount > 0 && (
+                            <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                              Usado em {usageCount} {usageCount === 1 ? 'pedido' : 'pedidos'}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
                           {address.street}, {address.number}
@@ -399,7 +420,8 @@ export default function BuyerAddressesPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

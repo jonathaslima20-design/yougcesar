@@ -185,7 +185,6 @@ export default function CartModal({
     if (!selectedDeliveryConfig) return 0;
     if (selectedDeliveryConfig.quoteOnRequest) return 0;
     if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscounts >= selectedDeliveryConfig.freeAbove) return 0;
-    if (checkoutSettings.freeShippingThreshold && subtotalAfterDiscounts >= checkoutSettings.freeShippingThreshold) return 0;
     return selectedDeliveryConfig.fee;
   })();
 
@@ -201,9 +200,6 @@ export default function CartModal({
     : 0;
 
   const finalTotal = Math.max(0, cart.total - discountAmount - paymentMethodDiscount - cashbackUsed + deliveryFee + insuranceFee);
-
-  const freeShippingThreshold = checkoutSettings.freeShippingThreshold ?? 0;
-  const freeShippingRemaining = freeShippingThreshold > 0 ? Math.max(0, freeShippingThreshold - cart.total) : 0;
 
   // Payment method, delivery, and insurance are only picked in the WhatsApp
   // tab's own form — the "Pagar Agora" flow re-collects all three itself on
@@ -1199,27 +1195,6 @@ export default function CartModal({
                     {formatCurrencyI18n(cart.total, currency, language)}
                   </span>
                 </div>
-
-                {freeShippingThreshold > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {freeShippingRemaining <= 0 ? (
-                        <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
-                      ) : (
-                        <Truck className="h-3.5 w-3.5 shrink-0" />
-                      )}
-                      <span>
-                        {freeShippingRemaining <= 0
-                          ? 'Você garantiu frete grátis!'
-                          : `Faltam ${formatCurrencyI18n(freeShippingRemaining, currency, language)} para frete grátis`}
-                      </span>
-                    </div>
-                    <Progress
-                      value={Math.min(100, (cart.total / freeShippingThreshold) * 100)}
-                      className={`h-1.5 ${freeShippingRemaining <= 0 ? '[&_[data-state]]:bg-green-600 dark:[&_[data-state]]:bg-green-400' : ''}`}
-                    />
-                  </div>
-                )}
 
                 {minPurchaseActive && (
                   <div className="space-y-1.5">

@@ -22,6 +22,7 @@ import CartModal from './CartModal';
 import type { SupportedCurrency } from '@/types';
 import { useResponsiveAspectRatio } from '@/hooks/useResponsiveAspectRatio';
 import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
+import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 
 interface CorretorHeaderProps {
   corretor: User;
@@ -41,12 +42,17 @@ export default function CorretorHeader({
   const { t } = useTranslation(language);
   const { cart } = useCart();
   const { customer } = useBuyerAuth();
+  // Buscado aqui dentro (em vez de receber como prop da CorretorPage) para
+  // manter a CorretorPage intocada — só este componente precisa saber se o
+  // cashback está disponível pra decidir se mostra o item no menu.
+  const { settings: cashbackCheckoutSettings } = useCheckoutSettingsForStore(corretor.id);
+  const cashbackEnabled = !!cashbackCheckoutSettings.cashback?.enabled;
   const [showCart, setShowCart] = useState(false);
 
   // Ao contrário do checkout (que precisa devolver o comprador pra onde
   // estava pra concluir a compra), login pelo menu da vitrine leva direto
   // pro ambiente de comprador — não de volta pra loja.
-  const loginLink = `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent('/conta/pedidos')}`;
+  const loginLink = `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent('/conta')}`;
 
   const aspectRatio = useResponsiveAspectRatio({
     mobile: 960 / 860,
@@ -96,12 +102,14 @@ export default function CorretorHeader({
                       Meus pedidos
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/conta/cashback" className="flex items-center gap-2 cursor-pointer">
-                      <Wallet className="h-4 w-4" />
-                      Meu cashback
-                    </Link>
-                  </DropdownMenuItem>
+                  {cashbackEnabled && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/conta/cashback" className="flex items-center gap-2 cursor-pointer">
+                        <Wallet className="h-4 w-4" />
+                        Meu cashback
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/conta/enderecos" className="flex items-center gap-2 cursor-pointer">
                       <MapPin className="h-4 w-4" />

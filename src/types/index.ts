@@ -809,5 +809,4 @@ export interface CheckoutSettings {
   superFrete?: SuperFreteConfig;
   requireDeliveryCep?: boolean; // missing = treated as true (back-compat) — false skips CEP/city matching entirely and shows every enabled delivery option, for merchants who ship nationwide and don't need geographic filtering
   cashback?: CashbackConfig;
-  freeShippingThreshold?: number; // subtotal (after coupon discount) at/above which delivery_fee is waived; unset/0 = feature off
 }

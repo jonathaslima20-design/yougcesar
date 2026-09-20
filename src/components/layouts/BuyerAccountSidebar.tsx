@@ -1,10 +1,12 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Package, MapPin, User, LogOut, Menu, X, ShoppingCart, Wallet } from 'lucide-react';
+import { LayoutDashboard, Package, MapPin, User, LogOut, Menu, X, ShoppingCart, Wallet } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useBuyerAccountSummary } from '@/hooks/useBuyerAccountSummary';
+import { useLastStoreCashbackEnabled } from '@/hooks/useLastStoreCashbackEnabled';
 import { getLastVisitedStore } from '@/lib/lastVisitedStore';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { cn, getInitials } from '@/lib/utils';
@@ -21,20 +23,40 @@ interface LastStoreInfo {
 // account area (Pedidos/Endereços/Perfil), so the buyer environment reads as
 // the same product as the merchant dashboard instead of a bolted-on afterthought.
 
-const NAV_ITEMS = [
+interface NavItemDef {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+}
+
+const BASE_NAV_ITEMS: NavItemDef[] = [
+  { name: 'Visão Geral', href: '/conta', icon: LayoutDashboard, exact: true },
   { name: 'Pedidos', href: '/conta/pedidos', icon: Package },
   { name: 'Carrinho', href: '/conta/carrinho', icon: ShoppingCart },
-  { name: 'Cashback', href: '/conta/cashback', icon: Wallet },
   { name: 'Endereços', href: '/conta/enderecos', icon: MapPin },
   { name: 'Perfil', href: '/conta/perfil', icon: User },
 ];
+
+const CASHBACK_NAV_ITEM: NavItemDef = { name: 'Cashback', href: '/conta/cashback', icon: Wallet };
+
+function formatCashbackBadge(value: number): string | undefined {
+  if (value <= 0) return undefined;
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
 
 export default function BuyerAccountSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [lastStore, setLastStore] = useState<LastStoreInfo | null>(null);
   const { customer, signOut } = useBuyerAuth();
   const { cart } = useCart();
+  const { cashbackTotal } = useBuyerAccountSummary(customer?.id);
+  const cashbackAvailable = useLastStoreCashbackEnabled();
   const navigate = useNavigate();
+
+  const navItems = cashbackAvailable
+    ? [...BASE_NAV_ITEMS.slice(0, 3), CASHBACK_NAV_ITEM, ...BASE_NAV_ITEMS.slice(3)]
+    : BASE_NAV_ITEMS;
 
   // A conta do comprador não pertence a uma loja só (ele pode ter pedidos em
   // várias) — não existe "a" logo do lojista para fixar aqui. Em vez disso,
@@ -97,13 +119,20 @@ export default function BuyerAccountSidebar() {
 
       <div className="flex-1 overflow-y-auto px-3 py-2">
         <nav className="space-y-0.5">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <InkNavItem
               key={item.href}
               name={item.name}
               href={item.href}
               icon={item.icon}
-              badge={item.href === '/conta/carrinho' && cart.itemCount > 0 ? cart.itemCount : undefined}
+              exact={item.exact}
+              badge={
+                item.href === '/conta/carrinho' && cart.itemCount > 0
+                  ? cart.itemCount
+                  : item.href === '/conta/cashback'
+                    ? formatCashbackBadge(cashbackTotal)
+                    : undefined
+              }
               onClick={() => isMobile && toggleMobileSidebar()}
             />
           ))}
@@ -182,13 +211,14 @@ interface InkNavItemProps {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
+  badge?: number | string;
+  exact?: boolean;
   onClick?: () => void;
 }
 
-function InkNavItem({ name, href, icon: Icon, badge, onClick }: InkNavItemProps) {
+function InkNavItem({ name, href, icon: Icon, badge, exact, onClick }: InkNavItemProps) {
   const location = useLocation();
-  const isActive = location.pathname.startsWith(href);
+  const isActive = exact ? location.pathname === href : location.pathname.startsWith(href);
 
   return (
     <NavLink
