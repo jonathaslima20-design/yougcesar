@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Link } from 'react-router-dom';
-import { Wallet, Medal, Package, MapPin, ArrowRight } from 'lucide-react';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
+import { Wallet, Medal, Package, MapPin, ArrowRight, ShoppingCart, Loader } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { useBuyerAccountSummary } from '@/hooks/useBuyerAccountSummary';
 import { useLastStoreCashbackEnabled } from '@/hooks/useLastStoreCashbackEnabled';
+import { useBuyAgainItems, type BuyAgainItem } from '@/hooks/useBuyAgainItems';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { fetchCustomerAddresses, type CustomerAddress } from '@/lib/customerAddressService';
+import { reorderItems, type ReorderItemInput } from '@/lib/buyerReorder';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import type { OrderStatus } from '@/types';
+
+const FALLBACK_IMAGE = 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg';
 
 interface RecentOrder {
   id: string;
@@ -36,12 +43,43 @@ function formatMemberSince(dateStr?: string) {
 
 export default function BuyerOverviewPage() {
   const { customer, loading: authLoading } = useBuyerAuth();
+  const { addToCart } = useCart();
+  const navigate = useNavigate();
   const summary = useBuyerAccountSummary(customer?.id);
   const cashbackAvailable = useLastStoreCashbackEnabled();
+  const { items: buyAgainItems, stores: buyAgainStores } = useBuyAgainItems(customer?.id, 4);
+  const [buyingAgainId, setBuyingAgainId] = useState<string | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [stores, setStores] = useState<Record<string, StoreInfo>>({});
   const [defaultAddress, setDefaultAddress] = useState<CustomerAddress | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const handleBuyAgain = async (item: BuyAgainItem) => {
+    const store = buyAgainStores[item.store_owner_id];
+    if (!store?.slug) return;
+
+    setBuyingAgainId(item.product_id);
+    try {
+      const input: ReorderItemInput = {
+        product_id: item.product_id,
+        product_title: item.product_title,
+        quantity: 1,
+        selected_color: item.selected_color,
+        selected_size: item.selected_size,
+        selected_flavor: item.selected_flavor,
+        selected_variant_label: null,
+      };
+      const result = await reorderItems([input], addToCart);
+      if (result.addedCount > 0) {
+        toast.success('Adicionado ao carrinho!');
+        navigate(`/${store.slug}`);
+      } else {
+        toast.error('Este produto não está mais disponível.');
+      }
+    } finally {
+      setBuyingAgainId(null);
+    }
+  };
 
   useEffect(() => {
     if (!customer) return;
@@ -133,6 +171,44 @@ export default function BuyerOverviewPage() {
           </CardContent>
         </Card>
       </div>
+
+      {buyAgainItems.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+            <ShoppingCart className="h-3.5 w-3.5" />
+            Compre de novo
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {buyAgainItems.map((item) => (
+              <div key={item.product_id} className="flex flex-col gap-2 border border-border rounded-lg p-3 w-32 shrink-0">
+                <div className="w-full aspect-square bg-white rounded-md overflow-hidden border border-border/60">
+                  <img
+                    src={item.product_image_url || FALLBACK_IMAGE}
+                    alt={item.product_title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <p className="text-xs font-medium truncate" title={item.product_title}>
+                  {item.product_title}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={buyingAgainId === item.product_id}
+                  onClick={() => handleBuyAgain(item)}
+                >
+                  {buyingAgainId === item.product_id ? (
+                    <Loader className="h-3 w-3 animate-spin" />
+                  ) : (
+                    'Comprar de novo'
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-3">

@@ -6,6 +6,7 @@ import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { reorderItems, type ReorderItemInput } from '@/lib/buyerReorder';
+import { useBuyAgainItems, type BuyAgainItem } from '@/hooks/useBuyAgainItems';
 import { getBuyerTier, type BuyerTier } from '@/lib/buyerTier';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,18 +31,6 @@ const TIER_STYLES: Record<BuyerTier, { bg: string; icon: string; bar: string }> 
   prata: { bg: 'bg-slate-100 dark:bg-slate-800/60', icon: 'text-slate-500 dark:text-slate-300', bar: 'bg-slate-400' },
   ouro: { bg: 'bg-yellow-100 dark:bg-yellow-950/40', icon: 'text-yellow-600 dark:text-yellow-400', bar: 'bg-yellow-500' },
 };
-
-interface BuyAgainItem {
-  product_id: string;
-  product_title: string;
-  product_image_url: string | null;
-  selected_color: string | null;
-  selected_size: string | null;
-  selected_flavor: string | null;
-  store_owner_id: string;
-  timesOrdered: number;
-  lastOrderedAt: string;
-}
 
 interface BuyerOrderRow {
   id: string;
@@ -108,7 +97,7 @@ export default function BuyerOrdersPage() {
   const [orders, setOrders] = useState<BuyerOrderRow[]>([]);
   const [stores, setStores] = useState<Record<string, StoreInfo>>({});
   const [orderThumbnails, setOrderThumbnails] = useState<Record<string, OrderThumbnail>>({});
-  const [buyAgainItems, setBuyAgainItems] = useState<BuyAgainItem[]>([]);
+  const { items: buyAgainItems } = useBuyAgainItems(customer?.id);
   const [loading, setLoading] = useState(true);
   const [reorderingId, setReorderingId] = useState<string | null>(null);
   const [buyingAgainId, setBuyingAgainId] = useState<string | null>(null);
@@ -138,21 +127,15 @@ export default function BuyerOrdersPage() {
         setStores(map);
       }
 
-      // "Compre de novo": aggregate past order items into distinct products,
-      // ranked by how often each was bought, so the buyer can re-add a
-      // favorite with one click instead of digging through old orders.
+      // One thumbnail per order (its first item's image) so the list reads
+      // like a real order history instead of plain text rows.
       const nonCancelledIds = rows.filter((o) => o.status !== 'cancelled').map((o) => o.id);
       if (nonCancelledIds.length > 0) {
         const { data: itemRows } = await supabaseBuyer
           .from('order_items')
-          .select('order_id, product_id, product_title, product_image_url, selected_color, selected_size, selected_flavor, selected_variant_label')
+          .select('order_id, product_image_url')
           .in('order_id', nonCancelledIds);
 
-        const orderMeta = new Map(rows.map((o) => [o.id, o]));
-        const aggregated = new Map<string, BuyAgainItem>();
-
-        // One thumbnail per order (its first item's image) so the list reads
-        // like a real order history instead of plain text rows.
         const thumbnails: Record<string, OrderThumbnail> = {};
         (itemRows || []).forEach((item) => {
           const thumb = thumbnails[item.order_id];
@@ -163,46 +146,6 @@ export default function BuyerOrdersPage() {
           }
         });
         setOrderThumbnails(thumbnails);
-
-        (itemRows || []).forEach((item) => {
-          // Weight-variant purchases don't record which variant was bought,
-          // so there's no safe price to re-add them at — same rule buyerReorder.ts uses.
-          if (item.selected_variant_label) return;
-          const order = orderMeta.get(item.order_id);
-          if (!order) return;
-
-          const existing = aggregated.get(item.product_id);
-          if (existing) {
-            existing.timesOrdered += 1;
-            if (order.created_at > existing.lastOrderedAt) {
-              existing.lastOrderedAt = order.created_at;
-              existing.product_title = item.product_title;
-              existing.product_image_url = item.product_image_url;
-              existing.selected_color = item.selected_color;
-              existing.selected_size = item.selected_size;
-              existing.selected_flavor = item.selected_flavor;
-              existing.store_owner_id = order.store_owner_id;
-            }
-          } else {
-            aggregated.set(item.product_id, {
-              product_id: item.product_id,
-              product_title: item.product_title,
-              product_image_url: item.product_image_url,
-              selected_color: item.selected_color,
-              selected_size: item.selected_size,
-              selected_flavor: item.selected_flavor,
-              store_owner_id: order.store_owner_id,
-              timesOrdered: 1,
-              lastOrderedAt: order.created_at,
-            });
-          }
-        });
-
-        const sorted = Array.from(aggregated.values())
-          .sort((a, b) => b.timesOrdered - a.timesOrdered || (a.lastOrderedAt < b.lastOrderedAt ? 1 : -1))
-          .slice(0, 6);
-
-        setBuyAgainItems(sorted);
       }
 
       setLoading(false);
