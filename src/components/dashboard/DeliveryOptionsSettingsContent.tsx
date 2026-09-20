@@ -166,14 +166,6 @@ export default function DeliveryOptionsSettingsContent() {
     });
   };
 
-  const toggleFreeShipping = (checked: boolean) => {
-    save({ ...settings, freeShippingThreshold: checked ? (settings.freeShippingThreshold || 100) : 0 });
-  };
-
-  const updateFreeShippingThreshold = (value: number) => {
-    save({ ...settings, freeShippingThreshold: value });
-  };
-
   const addDeliveryOption = () => {
     const name = newDeliveryName.trim();
     if (!name) return;
@@ -397,46 +389,6 @@ export default function DeliveryOptionsSettingsContent() {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Free shipping threshold */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Truck className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Frete Grátis</CardTitle>
-          </div>
-          <CardDescription>Zera a taxa de entrega quando o subtotal do carrinho atinge o valor definido.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="free-shipping-enabled">Oferecer frete grátis acima de um valor</Label>
-            </div>
-            <Switch
-              id="free-shipping-enabled"
-              checked={(settings.freeShippingThreshold ?? 0) > 0}
-              onCheckedChange={toggleFreeShipping}
-              disabled={saving}
-            />
-          </div>
-
-          {(settings.freeShippingThreshold ?? 0) > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="free-shipping-threshold" className="flex items-center gap-1.5">
-                Valor mínimo do pedido
-                <Hint text="Calculado sobre o subtotal do carrinho após o desconto do cupom (sem frete)." />
-              </Label>
-              <CurrencyInput
-                id="free-shipping-threshold"
-                value={settings.freeShippingThreshold ?? 0}
-                onChange={updateFreeShippingThreshold}
-                className="w-40"
-                disabled={saving}
-              />
-            </div>
-          )}
         </CardContent>
       </Card>
 

@@ -7,8 +7,8 @@ export default function BuyerAccountHeader() {
   const firstName = customer?.full_name?.trim().split(' ')[0];
 
   return (
-    <header className="sticky top-0 z-30 glass-header py-3 px-4 lg:px-8 flex items-center justify-between">
-      <p className="text-sm font-medium text-muted-foreground">
+    <header className="sticky top-0 z-30 glass-header py-3 pl-16 pr-4 md:px-4 lg:px-8 flex items-center justify-between">
+      <p className="text-sm font-medium text-muted-foreground truncate">
         {firstName ? `Olá, ${firstName}` : ''}
       </p>
 

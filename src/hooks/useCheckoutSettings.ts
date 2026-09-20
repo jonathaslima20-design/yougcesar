@@ -169,7 +169,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           .maybeSingle(),
         supabase
           .from('users')
-          .select('payments_test_override, insurance_enabled')
+          .select('payments_test_override, insurance_enabled, cashback_enabled')
           .eq('id', storeOwnerId)
           .maybeSingle(),
       ]);
@@ -186,6 +186,7 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
         const storeOnlinePaymentEnabled = deriveOnlinePaymentEnabled(data.settings.checkout);
         const effectiveOnlinePaymentEnabled = paymentsEnabledForStore ? storeOnlinePaymentEnabled : false;
         const rawShippingInsurance = data.settings.checkout.shippingInsurance ?? DEFAULT_SHIPPING_INSURANCE;
+        const rawCashback = data.settings.checkout.cashback ?? { enabled: false, percentageRate: 0 };
         setSettings({
           paymentMethods: data.settings.checkout.paymentMethods ?? DEFAULT_PAYMENT_METHODS,
           deliveryOptions: data.settings.checkout.deliveryOptions ?? [],
@@ -194,9 +195,10 @@ export function useCheckoutSettingsForStore(storeOwnerId: string | undefined) {
           cartEnabled: data.settings.checkout.cartEnabled ?? true,
           minimumPurchase: data.settings.checkout.minimumPurchase ?? DEFAULT_MINIMUM_PURCHASE,
           onlinePaymentEnabled: effectiveOnlinePaymentEnabled,
-          // Admin gate: never leak a stale insurance opt-in to buyers if the
-          // merchant's access was revoked after they configured a rate.
+          // Admin gate: never leak a stale insurance/cashback opt-in to buyers
+          // if the merchant's access was revoked after they configured it.
           shippingInsurance: storeOwner?.insurance_enabled ? rawShippingInsurance : DEFAULT_SHIPPING_INSURANCE,
+          cashback: storeOwner?.cashback_enabled ? rawCashback : { enabled: false, percentageRate: 0 },
           // No admin gate needed here (unlike insurance) — merchant-shipping-quote
           // always re-verifies is_active server-side regardless of this value.
           superFrete: data.settings.checkout.superFrete ?? DEFAULT_SUPER_FRETE,

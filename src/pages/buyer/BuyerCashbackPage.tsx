@@ -92,6 +92,7 @@ export default function BuyerCashbackPage() {
   }
 
   const totalBalance = balances.reduce((sum, b) => sum + b.balance, 0);
+  const topStore = balances[0] ? stores[balances[0].store_owner_id] : null;
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-2xl space-y-6">
@@ -102,14 +103,22 @@ export default function BuyerCashbackPage() {
 
       {!loading && balances.length > 0 && (
         <Card>
-          <CardContent className="pt-4 pb-4 px-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-primary" />
-            </div>
+          <CardContent className="pt-5 pb-5 px-5 flex items-start justify-between">
             <div>
-              <p className="text-2xl font-bold">{formatMoney(totalBalance)}</p>
-              <p className="text-xs text-muted-foreground">Saldo total em todas as lojas</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <Wallet className="h-3.5 w-3.5" />
+                Saldo total
+              </p>
+              <p className="text-3xl font-bold">{formatMoney(totalBalance)}</p>
+              <p className="text-xs text-muted-foreground mt-1">em {balances.length} {balances.length === 1 ? 'loja' : 'lojas'}</p>
             </div>
+            {topStore && (
+              <div className="text-right shrink-0">
+                <p className="text-xs text-muted-foreground mb-1">Maior saldo</p>
+                <p className="text-sm font-medium">{topStore.name}</p>
+                <p className="text-sm text-primary font-semibold mt-0.5">{formatMoney(balances[0].balance)}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -132,13 +141,18 @@ export default function BuyerCashbackPage() {
                 const store = stores[b.store_owner_id];
                 return (
                   <div key={b.store_owner_id} className="flex items-center justify-between border border-border rounded-lg p-4">
-                    <div>
-                      <p className="font-medium">{store?.name || 'Loja'}</p>
-                      {store?.slug && (
-                        <Link to={`/${store.slug}`} className="text-xs text-primary hover:underline">
-                          Visitar loja
-                        </Link>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Wallet className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{store?.name || 'Loja'}</p>
+                        {store?.slug && (
+                          <Link to={`/${store.slug}`} className="text-xs text-primary hover:underline">
+                            Visitar loja
+                          </Link>
+                        )}
+                      </div>
                     </div>
                     <p className="font-semibold text-primary">{formatMoney(b.balance)}</p>
                   </div>

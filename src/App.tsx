@@ -64,6 +64,7 @@ import AffiliateReportsPage from '@/pages/affiliate/AffiliateReportsPage.tsx';
 import AffiliateCatalogPage from '@/pages/affiliate/AffiliateCatalogPage.tsx';
 import AffiliateProfilePage from '@/pages/affiliate/AffiliateProfilePage.tsx';
 import BuyerRegisterPage from '@/pages/buyer/BuyerRegisterPage.tsx';
+import BuyerOverviewPage from '@/pages/buyer/BuyerOverviewPage.tsx';
 import BuyerOrdersPage from '@/pages/buyer/BuyerOrdersPage.tsx';
 import BuyerCashbackPage from '@/pages/buyer/BuyerCashbackPage.tsx';
 import BuyerAuthCallbackPage from '@/pages/buyer/BuyerAuthCallbackPage.tsx';
@@ -301,6 +302,7 @@ function AppContent() {
           <Route path="/conta/cadastro" element={<BuyerRegisterPage />} />
           <Route path="/conta/auth/callback" element={<BuyerAuthCallbackPage />} />
           <Route element={<BuyerAccountLayout />}>
+            <Route path="/conta" element={<BuyerOverviewPage />} />
             <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
             <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
             <Route path="/conta/cashback" element={<BuyerCashbackPage />} />

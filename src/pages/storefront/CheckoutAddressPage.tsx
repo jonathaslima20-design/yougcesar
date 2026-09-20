@@ -261,7 +261,6 @@ export default function CheckoutAddressPage() {
   const deliveryFee = (() => {
     if (!selectedDeliveryConfig) return 0;
     if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscount >= selectedDeliveryConfig.freeAbove) return 0;
-    if (checkoutSettings.freeShippingThreshold && subtotalAfterDiscount >= checkoutSettings.freeShippingThreshold) return 0;
     return selectedDeliveryConfig.fee;
   })();
 
@@ -275,9 +274,6 @@ export default function CheckoutAddressPage() {
   const cashbackUsed = checkoutSettings.cashback?.enabled && useCashback
     ? Math.min(cashbackBalance, subtotalAfterDiscount)
     : 0;
-
-  const freeShippingThreshold = checkoutSettings.freeShippingThreshold ?? 0;
-  const freeShippingRemaining = freeShippingThreshold > 0 ? Math.max(0, freeShippingThreshold - cart.total) : 0;
 
   const finalTotal = Math.max(0, cart.total - discountAmount - cashbackUsed + deliveryFee + insuranceFee);
 
@@ -850,21 +846,6 @@ export default function CheckoutAddressPage() {
             {couponError && !appliedCoupon && <p className="text-xs text-destructive">{couponError}</p>}
 
             <Separator />
-
-            {freeShippingThreshold > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {freeShippingRemaining <= 0 ? (
-                  <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
-                ) : (
-                  <Truck className="h-3.5 w-3.5 shrink-0" />
-                )}
-                <span>
-                  {freeShippingRemaining <= 0
-                    ? 'Você garantiu frete grátis!'
-                    : `Faltam ${formatCurrencyI18n(freeShippingRemaining)} para frete grátis`}
-                </span>
-              </div>
-            )}
 
             {checkoutSettings.cashback?.enabled && cashbackBalance > 0 && (
               <>

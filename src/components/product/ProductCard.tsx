@@ -249,9 +249,7 @@ function ProductCardComponent({
               )}
               {stockStatus === 'low_stock' && (
                 <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-transparent text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1">
-                  {product.stock_quantity != null
-                    ? `Últimas ${product.stock_quantity} unidade${product.stock_quantity === 1 ? '' : 's'}`
-                    : 'Últimas unidades'}
+                  Últimas unidades
                 </Badge>
               )}
             </div>
