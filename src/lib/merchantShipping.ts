@@ -37,6 +37,16 @@ export function saveShippingCredentialsConfig(payload: {
   api_token: string;
   origin_zip_code: string;
   is_active: boolean;
+  label_purchase_enabled: boolean;
+  sender_name: string;
+  sender_document: string;
+  sender_phone: string;
+  sender_street: string;
+  sender_number: string;
+  sender_complement: string;
+  sender_neighborhood: string;
+  sender_city: string;
+  sender_state: string;
 }) {
   return callShippingSettings('saveConfig', payload);
 }

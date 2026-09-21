@@ -95,6 +95,16 @@ Deno.serve(async (req: Request) => {
                   origin_zip_code: config.origin_zip_code,
                   is_active: config.is_active,
                   last_validated_at: config.last_validated_at,
+                  label_purchase_enabled: config.label_purchase_enabled,
+                  sender_name: config.sender_name,
+                  sender_document: config.sender_document,
+                  sender_phone: config.sender_phone,
+                  sender_street: config.sender_street,
+                  sender_number: config.sender_number,
+                  sender_complement: config.sender_complement,
+                  sender_neighborhood: config.sender_neighborhood,
+                  sender_city: config.sender_city,
+                  sender_state: config.sender_state,
                 }
               : null,
           }),
@@ -103,11 +113,36 @@ Deno.serve(async (req: Request) => {
       }
 
       case "saveConfig": {
-        const { environment, api_token, origin_zip_code, is_active } = payload as {
+        const {
+          environment,
+          api_token,
+          origin_zip_code,
+          is_active,
+          label_purchase_enabled,
+          sender_name,
+          sender_document,
+          sender_phone,
+          sender_street,
+          sender_number,
+          sender_complement,
+          sender_neighborhood,
+          sender_city,
+          sender_state,
+        } = payload as {
           environment: string;
           api_token: string;
           origin_zip_code: string;
           is_active: boolean;
+          label_purchase_enabled?: boolean;
+          sender_name?: string;
+          sender_document?: string;
+          sender_phone?: string;
+          sender_street?: string;
+          sender_number?: string;
+          sender_complement?: string;
+          sender_neighborhood?: string;
+          sender_city?: string;
+          sender_state?: string;
         };
 
         const { data: existing, error: existingError } = await admin
@@ -122,6 +157,15 @@ Deno.serve(async (req: Request) => {
         const updateData: Record<string, unknown> = {
           environment: environment === "production" ? "production" : "sandbox",
           origin_zip_code: (origin_zip_code || "").replace(/\D/g, ""),
+          sender_name: (sender_name || "").trim(),
+          sender_document: (sender_document || "").replace(/\D/g, ""),
+          sender_phone: (sender_phone || "").replace(/\D/g, ""),
+          sender_street: (sender_street || "").trim(),
+          sender_number: (sender_number || "").trim(),
+          sender_complement: (sender_complement || "").trim(),
+          sender_neighborhood: (sender_neighborhood || "").trim(),
+          sender_city: (sender_city || "").trim(),
+          sender_state: (sender_state || "").trim().toUpperCase(),
           updated_at: new Date().toISOString(),
         };
 
@@ -155,7 +199,33 @@ Deno.serve(async (req: Request) => {
           }
         }
 
+        // Compra de etiqueta não existe sem cotação automática ativa — se
+        // is_active vier desligado (o lojista pode estar só desligando isso,
+        // sem relação com a etiqueta), desativa junto em vez de rejeitar o
+        // salvamento com um erro sobre dados do remetente que não tem nada a
+        // ver com a ação que ele pediu.
+        const finalLabelPurchaseEnabled = !!is_active && !!label_purchase_enabled;
+
+        if (finalLabelPurchaseEnabled) {
+          const requiredSenderFields = [
+            updateData.sender_name,
+            updateData.sender_document,
+            updateData.sender_phone,
+            updateData.sender_street,
+            updateData.sender_neighborhood,
+            updateData.sender_city,
+            updateData.sender_state,
+          ];
+          if (requiredSenderFields.some((f) => !f)) {
+            return new Response(
+              JSON.stringify({ error: "Preencha todos os dados do remetente antes de ativar a compra de etiqueta." }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+
         updateData.is_active = !!is_active;
+        updateData.label_purchase_enabled = finalLabelPurchaseEnabled;
 
         if (existing) {
           const { error } = await admin
