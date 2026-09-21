@@ -20,8 +20,8 @@ export default function PublicLayout() {
 
   // Only hide Footer on auth pages
   const hideFooter = ['/', '/login', '/register', '/reset-password'].includes(location.pathname);
-  // Buyer account pages don't need the VitrineTurbo branding pushed on the buyer
-  const hideFooterLogo = location.pathname.startsWith('/conta/');
+  // Buyer account pages and the checkout flow (address + payment) don't need the VitrineTurbo branding pushed on the buyer
+  const hideFooterLogo = location.pathname.startsWith('/conta/') || /\/pedido\/(endereco|[^/]+\/pagamento)$/.test(location.pathname);
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
