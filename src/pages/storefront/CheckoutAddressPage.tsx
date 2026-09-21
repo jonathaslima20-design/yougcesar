@@ -692,7 +692,11 @@ export default function CheckoutAddressPage() {
               {isPickupSelected ? 'Retirada' : 'Endereço de entrega'}
             </CardTitle>
             <CardDescription>
-              {isPickupSelected ? 'Você vai retirar seu pedido pessoalmente' : 'Para onde devemos enviar seu pedido?'}
+              {isPickupSelected
+                ? 'Você vai retirar seu pedido pessoalmente'
+                : selectedDeliveryConfig?.quoteOnRequest
+                ? 'Endereço Final de entrega'
+                : 'Para onde devemos enviar seu pedido?'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

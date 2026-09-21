@@ -92,7 +92,12 @@ export function filterEligibleDeliveryOptions<T extends DeliveryOptionLike>(
     // local-only restriction, city/state match).
     if (d.scope === 'pickup') return true;
     if (skipLocationMatch) return true;
+    // A "Frete a Combinar" option has no fixed delivery radius — the merchant
+    // negotiates logistics directly with the buyer afterward, so it stays
+    // eligible regardless of where the buyer is, unlike a priced local option
+    // which only makes sense within the merchant's own city.
     if (d.scope === 'local') {
+      if (d.quoteOnRequest) return true;
       return citiesMatch(merchantCity, buyerCity) && statesMatch(merchantState, buyerState);
     }
     if (restrictToLocal) return false;
