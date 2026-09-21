@@ -52,7 +52,9 @@ import { fetchAddressByCep } from '@/lib/viaCep';
 import { getShippingQuote } from '@/lib/merchantShipping';
 import { fetchProductShippingDims, fetchVariantShippingWeights, buildSuperFreteProducts } from '@/lib/shippingUtils';
 import type { ShippingQuote } from '@/types';
-import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption, buildPickupInstructionsSnapshot } from '@/lib/localDelivery';
+import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption, buildPickupInstructionsSnapshot, isDistanceTierEligible, computeDeliveryFee, isDeliveryCepNeeded } from '@/lib/localDelivery';
+import { geocodeCep } from '@/lib/geocoding';
+import { haversineDistanceKm } from '@/lib/distance';
 
 
 interface CartModalProps {
@@ -111,6 +113,15 @@ export default function CartModal({
   const [shippingQuotes, setShippingQuotes] = useState<ShippingQuote[]>([]);
   const [shippingQuotesLoading, setShippingQuotesLoading] = useState(false);
   const [shippingQuotesError, setShippingQuotesError] = useState(false);
+  // Real straight-line distance (buyer CEP vs. geocoded store CEP), only
+  // computed when a distance_tier local option is enabled and the merchant
+  // has coordinates — null means "unknown/unavailable," which is also the
+  // signal isDistanceTierEligible/computeDeliveryFee use to fall back to
+  // localFallbackFee instead of a distance tier.
+  const [customerDistanceKm, setCustomerDistanceKm] = useState<number | null>(null);
+  // Total cart weight (kg), only computed when a weight_tier national option
+  // is enabled — feeds computeDeliveryFee's weight-tier pricing.
+  const [cartTotalWeightKg, setCartTotalWeightKg] = useState(0);
 
   const navigate = useNavigate();
   const { customer: buyerAccount } = useBuyerAuth();
@@ -123,9 +134,8 @@ export default function CartModal({
   // and region-restricted delivery options can be filtered here too, mirroring
   // CheckoutAddressPage.tsx's filtering (shared via src/lib/localDelivery.ts).
   const buyerCity = customerCity ? normalizeCityName(customerCity) : null;
-  // Merchants who ship nationwide and don't want buyers gated on a CEP lookup
-  // can turn this off — every enabled delivery option is then shown as-is.
-  const skipLocationMatch = checkoutSettings.requireDeliveryCep === false;
+  // Automatically derived, not a merchant setting — see isDeliveryCepNeeded.
+  const skipLocationMatch = !isDeliveryCepNeeded(checkoutSettings.deliveryOptions, checkoutSettings.superFrete?.enabled);
   // WhatsApp checkout never offers national delivery — only the online-payment
   // tab does. This is what keeps flow 3 (WhatsApp) local-only.
   const enabledDeliveryOptions = filterEligibleDeliveryOptions(checkoutSettings.deliveryOptions, {
@@ -138,7 +148,11 @@ export default function CartModal({
     // "A Consultar" has no closed value to charge — only offer it on the
     // WhatsApp tab, never on "Pagar Agora" (which needs a real amount).
     excludeQuoteOnRequest: orderMode !== 'whatsapp',
-  });
+    // A distance-tier option farther than its farthest configured km band is
+    // out of range — same city isn't enough on its own once a real distance
+    // is known. Options without a computed distance yet (or without
+    // distanceTiers at all) are left alone.
+  }).filter((d) => isDistanceTierEligible(d, customerDistanceKm));
 
   const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
     enabledDeliveryOptions.length,
@@ -181,12 +195,11 @@ export default function CartModal({
 
   const subtotalAfterDiscounts = Math.max(0, cart.total - discountAmount - paymentMethodDiscount);
 
-  const deliveryFee = (() => {
-    if (!selectedDeliveryConfig) return 0;
-    if (selectedDeliveryConfig.quoteOnRequest) return 0;
-    if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscounts >= selectedDeliveryConfig.freeAbove) return 0;
-    return selectedDeliveryConfig.fee;
-  })();
+  const deliveryFee = computeDeliveryFee(selectedDeliveryConfig, {
+    subtotalAfterDiscount: subtotalAfterDiscounts,
+    distanceKm: customerDistanceKm,
+    totalWeightKg: cartTotalWeightKg,
+  });
 
   const insuranceRate = checkoutSettings.shippingInsurance?.enabled
     ? checkoutSettings.shippingInsurance.percentageRate || 0
@@ -285,6 +298,22 @@ export default function CartModal({
         if (!cancelled) setCepLoading(false);
       }
 
+      // Distance-tier local delivery matters on both tabs — unlike SuperFrete
+      // quotes below, this isn't skipped for the WhatsApp flow.
+      const hasDistanceTierOption = checkoutSettings.deliveryOptions.some(
+        (d) => d.enabled && d.calculationType === 'distance_tier'
+      );
+      if (hasDistanceTierOption && corretor.store_latitude != null && corretor.store_longitude != null) {
+        const coords = await geocodeCep(customerCep);
+        if (!cancelled) {
+          setCustomerDistanceKm(
+            coords ? haversineDistanceKm(corretor.store_latitude, corretor.store_longitude, coords.latitude, coords.longitude) : null
+          );
+        }
+      } else if (!cancelled) {
+        setCustomerDistanceKm(null);
+      }
+
       // National shipping quotes are irrelevant on the WhatsApp tab (flow 3
       // is local-only) — skip the edge-function call entirely rather than
       // fetch and discard.
@@ -321,6 +350,38 @@ export default function CartModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerCep]);
+
+  // Total cart weight for weight_tier national options — independent of the
+  // buyer's CEP, so it's its own effect keyed on cart contents. Reuses the
+  // same dimension-fetching helpers already used for SuperFrete quoting
+  // above, just summing weight × quantity instead of sending it to an API.
+  useEffect(() => {
+    const hasWeightTierOption = checkoutSettings.deliveryOptions.some(
+      (d) => d.enabled && d.calculationType === 'weight_tier'
+    );
+    if (!hasWeightTierOption || (cart.items.length === 0 && cart.distributions.length === 0)) {
+      setCartTotalWeightKg(0);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const productIds = cart.items.map((item) => item.id);
+      const variantIds = cart.items.map((item) => item.selectedVariantId).filter((id): id is string => !!id);
+      const [dims, variantWeights] = await Promise.all([
+        fetchProductShippingDims(productIds),
+        fetchVariantShippingWeights(variantIds),
+      ]);
+      const products = buildSuperFreteProducts(cart.items, cart.distributions, dims, variantWeights);
+      const totalWeight = products.reduce((sum, p) => sum + p.weight * p.quantity, 0);
+      if (!cancelled) setCartTotalWeightKg(totalWeight);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.items.map((i) => `${i.id}-${i.quantity}`).join(','), cart.distributions.map((d) => `${d.distribution.id}-${d.distribution.total_quantity}`).join(',')]);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -611,6 +672,8 @@ export default function CartModal({
             delivery_option: selectedDeliveryConfig?.name || null,
             delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
             delivery_is_quote: selectedDeliveryConfig?.quoteOnRequest || false,
+            delivery_distance_km: selectedDeliveryConfig?.calculationType === 'distance_tier' ? customerDistanceKm : null,
+            delivery_weight_kg: selectedDeliveryConfig?.calculationType === 'weight_tier' ? cartTotalWeightKg : null,
             pickup_instructions: selectedDeliveryConfig?.scope === 'pickup' ? buildPickupInstructionsSnapshot(selectedDeliveryConfig) : null,
             insurance_fee: insuranceFee,
             cashback_used: cashbackUsed,

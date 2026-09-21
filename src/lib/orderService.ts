@@ -23,6 +23,8 @@ interface CreateOrderData {
   delivery_option?: string | null;
   delivery_scope?: 'local' | 'national' | 'pickup' | null;
   delivery_is_quote?: boolean;
+  delivery_distance_km?: number | null;
+  delivery_weight_kg?: number | null;
   pickup_instructions?: string | null;
   insurance_fee?: number;
   cashback_used?: number;
@@ -97,6 +99,8 @@ export async function createOrder(
     p_delivery_option: orderData.delivery_option || null,
     p_delivery_scope: orderData.delivery_scope || null,
     p_delivery_is_quote: orderData.delivery_is_quote || false,
+    p_delivery_distance_km: orderData.delivery_distance_km ?? null,
+    p_delivery_weight_kg: orderData.delivery_weight_kg ?? null,
     p_pickup_instructions: orderData.pickup_instructions || null,
     p_insurance_fee: orderData.insurance_fee || 0,
     p_cashback_used: orderData.cashback_used || 0,

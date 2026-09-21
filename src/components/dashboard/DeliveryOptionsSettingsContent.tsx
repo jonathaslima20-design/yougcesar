@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader as Loader2, Truck, Plus, Trash2, MapPin, Info, AlertTriangle, Store, Navigation, Globe, ShieldCheck, Percent, Settings, Bike, Handshake, Clock, Link as LinkIcon } from 'lucide-react';
+import { Loader as Loader2, Truck, Plus, Trash2, MapPin, Info, AlertTriangle, Store, Bike, Globe, Package, ShieldCheck, Percent, Settings, Handshake, Clock, Link as LinkIcon, ArrowLeft } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAddressByCep } from '@/lib/viaCep';
-import type { CheckoutSettings, DeliveryOption, DeliveryScope, ShippingCalculationType } from '@/types';
+import { geocodeCep } from '@/lib/geocoding';
+import type { CheckoutSettings, DeliveryOption, DistanceTier, WeightTier } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function formatCurrency(value: number): string {
@@ -26,19 +26,32 @@ const BR_STATES = [
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ];
 
-const NEW_OPTION_TYPES: { value: DeliveryScope; label: string; icon: typeof Globe }[] = [
-  { value: 'national', label: 'Nacional', icon: Globe },
-  { value: 'local', label: 'Local', icon: Navigation },
-  { value: 'pickup', label: 'Retirada', icon: Store },
-];
+// The full list of delivery-option "types" a merchant can create. Each one
+// already carries its own fixed scope/calculationType — there is no more
+// free-standing "Abrangência" dropdown to combine with a name however the
+// merchant likes (that's what let "Moto Entrega" end up scoped to all of
+// Brazil). Once created, an option's type never changes; to switch type the
+// merchant deletes and creates a new one.
+type NewOptionKind = 'pickup' | 'local_distance' | 'national_flat' | 'national_weight' | 'national_region' | 'quote';
 
-type PresetKind = 'moto' | 'pickup' | 'quote';
-
-const PRESETS: { kind: PresetKind; label: string; icon: typeof Bike; description: string }[] = [
-  { kind: 'moto', label: 'Moto Entrega', icon: Bike, description: 'Entrega local, feita por você ou um motoboy' },
+const NEW_OPTION_KINDS: { kind: NewOptionKind; label: string; icon: typeof Store; description: string }[] = [
   { kind: 'pickup', label: 'Retirada no Local', icon: Store, description: 'Cliente busca o pedido na sua loja' },
-  { kind: 'quote', label: 'Frete a Combinar', icon: Handshake, description: 'Valor combinado com o cliente depois do pedido' },
+  { kind: 'local_distance', label: 'Entrega Local por Distância', icon: Bike, description: 'Preço por faixa de km, calculado a partir do CEP da loja e do comprador' },
+  { kind: 'national_flat', label: 'Frete Nacional — Valor Fixo', icon: Globe, description: 'Uma taxa única pra qualquer lugar do Brasil' },
+  { kind: 'national_weight', label: 'Frete Nacional por Peso', icon: Package, description: 'Preço por faixa de peso total do pedido' },
+  { kind: 'national_region', label: 'Frete por Região/UF', icon: MapPin, description: 'Mesmo valor, mas só aparece pros estados escolhidos' },
+  { kind: 'quote', label: 'Frete a Combinar', icon: Handshake, description: 'Valor combinado com o cliente depois — só em pedidos via WhatsApp' },
 ];
+
+function describeOptionKind(option: DeliveryOption): string {
+  if (option.scope === 'pickup') return 'Retirada no Local';
+  if (option.quoteOnRequest) return 'Frete a Combinar';
+  if (option.calculationType === 'distance_tier') return 'Entrega Local por Distância';
+  if (option.calculationType === 'weight_tier') return 'Frete Nacional por Peso';
+  if (option.calculationType === 'region') return 'Frete por Região/UF';
+  if (option.scope === 'local') return 'Entrega Local';
+  return 'Frete Nacional';
+}
 
 function Hint({ text }: { text: string }) {
   return (
@@ -55,15 +68,131 @@ function Hint({ text }: { text: string }) {
   );
 }
 
+function nextTierId() {
+  return uuidv4();
+}
+
+function DistanceTierEditor({
+  tiers,
+  onChange,
+  fallbackFee,
+  onFallbackFeeChange,
+}: {
+  tiers: DistanceTier[];
+  onChange: (tiers: DistanceTier[]) => void;
+  fallbackFee: number;
+  onFallbackFeeChange: (fee: number) => void;
+}) {
+  const addTier = () => {
+    const last = tiers[tiers.length - 1];
+    onChange([...tiers, { id: nextTierId(), maxDistanceKm: (last?.maxDistanceKm ?? 0) + 2, fee: 0 }]);
+  };
+  const removeTier = (id: string) => onChange(tiers.filter((t) => t.id !== id));
+  const updateTier = (id: string, patch: Partial<DistanceTier>) =>
+    onChange(tiers.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+
+  return (
+    <div className="space-y-2">
+      {tiers.map((t) => (
+        <div key={t.id} className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground shrink-0">Até</span>
+          <Input
+            type="number"
+            min={0.1}
+            step={0.5}
+            value={t.maxDistanceKm}
+            onChange={(e) => updateTier(t.id, { maxDistanceKm: Math.max(0.1, Number(e.target.value) || 0) })}
+            className="h-8 w-20 text-xs"
+          />
+          <span className="text-xs text-muted-foreground shrink-0">km:</span>
+          <CurrencyInput value={t.fee} onChange={(fee) => updateTier(t.id, { fee })} className="h-8 w-28 text-xs" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive shrink-0"
+            onClick={() => removeTier(t.id)}
+            disabled={tiers.length <= 1}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addTier}>
+        <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar faixa
+      </Button>
+      <div className="pt-1 space-y-1">
+        <Label className="text-xs flex items-center gap-1.5">
+          Preço padrão (sem distância calculada)
+          <Hint text="Usado quando não conseguimos calcular a distância exata pro CEP da loja ou do comprador — nunca deixa a entrega sem preço definido." />
+        </Label>
+        <CurrencyInput value={fallbackFee} onChange={onFallbackFeeChange} className="h-8 w-32 text-xs" />
+      </div>
+    </div>
+  );
+}
+
+function WeightTierEditor({ tiers, onChange }: { tiers: WeightTier[]; onChange: (tiers: WeightTier[]) => void }) {
+  const addTier = () => {
+    const last = tiers[tiers.length - 1];
+    onChange([...tiers, { id: nextTierId(), maxWeightKg: (last?.maxWeightKg ?? 0) + 1, fee: 0 }]);
+  };
+  const removeTier = (id: string) => onChange(tiers.filter((t) => t.id !== id));
+  const updateTier = (id: string, patch: Partial<WeightTier>) =>
+    onChange(tiers.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+
+  return (
+    <div className="space-y-2">
+      {tiers.map((t) => (
+        <div key={t.id} className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground shrink-0">Até</span>
+          <Input
+            type="number"
+            min={0.1}
+            step={0.5}
+            value={t.maxWeightKg}
+            onChange={(e) => updateTier(t.id, { maxWeightKg: Math.max(0.1, Number(e.target.value) || 0) })}
+            className="h-8 w-20 text-xs"
+          />
+          <span className="text-xs text-muted-foreground shrink-0">kg:</span>
+          <CurrencyInput value={t.fee} onChange={(fee) => updateTier(t.id, { fee })} className="h-8 w-28 text-xs" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive shrink-0"
+            onClick={() => removeTier(t.id)}
+            disabled={tiers.length <= 1}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addTier}>
+        <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar faixa
+      </Button>
+      <p className="text-xs text-muted-foreground pt-1">
+        Pedidos mais pesados que a última faixa pagam o valor dela mesmo assim.
+      </p>
+    </div>
+  );
+}
+
 export default function DeliveryOptionsSettingsContent() {
   const { settings, loading, saving, updateSettings, insuranceGateEnabled } = useCheckoutSettings();
   const { user, updateUser } = useAuth();
-  const [newDeliveryName, setNewDeliveryName] = useState('');
-  const [newDeliveryFee, setNewDeliveryFee] = useState(0);
-  const [newDeliveryType, setNewDeliveryType] = useState<DeliveryScope>('national');
   const [storeZipCode, setStoreZipCode] = useState('');
   const [storeCepLoading, setStoreCepLoading] = useState(false);
   const hasMerchantCity = !!user?.city?.trim();
+  const hasStoreCoordinates = user?.store_latitude != null && user?.store_longitude != null;
+
+  const [newOptionKind, setNewOptionKind] = useState<NewOptionKind | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newFee, setNewFee] = useState(0);
+  const [newRegions, setNewRegions] = useState<string[]>([]);
+  const [newDistanceTiers, setNewDistanceTiers] = useState<DistanceTier[]>([{ id: nextTierId(), maxDistanceKm: 3, fee: 0 }]);
+  const [newLocalFallbackFee, setNewLocalFallbackFee] = useState(0);
+  const [newWeightTiers, setNewWeightTiers] = useState<WeightTier[]>([{ id: nextTierId(), maxWeightKg: 1, fee: 0 }]);
 
   useEffect(() => {
     setStoreZipCode(user?.store_zip_code || '');
@@ -88,7 +217,14 @@ export default function DeliveryOptionsSettingsContent() {
         toast.error('CEP não encontrado');
         return;
       }
-      const { error } = await updateUser({ store_zip_code: digits, city: result.city, state: result.state });
+      const coords = await geocodeCep(storeZipCode);
+      const { error } = await updateUser({
+        store_zip_code: digits,
+        city: result.city,
+        state: result.state,
+        store_latitude: coords?.latitude ?? null,
+        store_longitude: coords?.longitude ?? null,
+      });
       if (error) {
         toast.error('Erro ao salvar CEP da loja');
       } else {
@@ -105,10 +241,6 @@ export default function DeliveryOptionsSettingsContent() {
 
   const updateDeliveryFeeAndFreeAbove = (id: string, fee: number, freeAbove: number | null) => {
     save({ ...settings, deliveryOptions: settings.deliveryOptions.map(d => d.id === id ? { ...d, fee, freeAbove } : d) });
-  };
-
-  const updateDeliveryCalculationType = (id: string, calculationType: ShippingCalculationType) => {
-    save({ ...settings, deliveryOptions: settings.deliveryOptions.map(d => d.id === id ? { ...d, calculationType } : d) });
   };
 
   const updateDeliveryRegions = (id: string, regions: string[]) => {
@@ -131,20 +263,24 @@ export default function DeliveryOptionsSettingsContent() {
     save({ ...settings, deliveryOptions: settings.deliveryOptions.map(d => d.id === id ? { ...d, pickupMapUrl: pickupMapUrl || null } : d) });
   };
 
-  const updateDeliveryScope = (id: string, scope: DeliveryScope) => {
-    if (scope === 'local' && !hasMerchantCity) {
-      toast.error('Defina o CEP da sua loja acima antes de criar uma opção de entrega local');
-      return;
-    }
-    const updated = settings.deliveryOptions.map(d =>
-      // A 'local' option has no notion of UF regions — force flat fee calculation.
-      d.id === id ? { ...d, scope, ...(scope === 'local' ? { calculationType: 'flat' as ShippingCalculationType } : {}) } : d
-    );
-    save({ ...settings, deliveryOptions: updated });
+  const updateDeliveryDistanceTiers = (id: string, distanceTiers: DistanceTier[], localFallbackFee: number) => {
+    save({
+      ...settings,
+      deliveryOptions: settings.deliveryOptions.map(d =>
+        d.id === id ? { ...d, distanceTiers, localFallbackFee, fee: localFallbackFee } : d
+      ),
+    });
+  };
+
+  const updateDeliveryWeightTiers = (id: string, weightTiers: WeightTier[]) => {
+    const lastFee = weightTiers[weightTiers.length - 1]?.fee ?? 0;
+    save({
+      ...settings,
+      deliveryOptions: settings.deliveryOptions.map(d => (d.id === id ? { ...d, weightTiers, fee: lastFee } : d)),
+    });
   };
 
   const toggleRequireDelivery = (checked: boolean) => save({ ...settings, requireDeliveryOption: checked });
-  const toggleRequireDeliveryCep = (checked: boolean) => save({ ...settings, requireDeliveryCep: checked });
 
   const toggleShippingInsurance = (enabled: boolean) => {
     save({
@@ -166,46 +302,79 @@ export default function DeliveryOptionsSettingsContent() {
     });
   };
 
-  const addDeliveryOption = () => {
-    const name = newDeliveryName.trim();
-    if (!name) return;
-    if (newDeliveryType === 'local' && !hasMerchantCity) {
+  const resetDraft = () => {
+    setNewOptionKind(null);
+    setNewName('');
+    setNewFee(0);
+    setNewRegions([]);
+    setNewDistanceTiers([{ id: nextTierId(), maxDistanceKm: 3, fee: 0 }]);
+    setNewLocalFallbackFee(0);
+    setNewWeightTiers([{ id: nextTierId(), maxWeightKg: 1, fee: 0 }]);
+  };
+
+  const handleCreateOption = () => {
+    const name = newName.trim();
+    if (!name) {
+      toast.error('Dê um nome pra essa opção');
+      return;
+    }
+    if (newOptionKind === 'local_distance' && !hasMerchantCity) {
       toast.error('Defina o CEP da sua loja acima antes de criar uma opção de entrega local');
       return;
     }
 
-    const newOption: DeliveryOption = {
-      id: uuidv4(),
-      name,
-      fee: newDeliveryFee,
-      enabled: true,
-      scope: newDeliveryType,
-      ...(newDeliveryType === 'local' ? { calculationType: 'flat' as ShippingCalculationType } : {}),
-    };
-
-    save({ ...settings, deliveryOptions: [...settings.deliveryOptions, newOption] });
-    setNewDeliveryName('');
-    setNewDeliveryFee(0);
-    setNewDeliveryType('national');
-  };
-
-  const addPresetOption = (kind: PresetKind) => {
-    // Only 'pickup' has no notion of a matching city — 'moto' and 'quote'
-    // both default to a local-scope option, same guard as the manual flow.
-    if (kind !== 'pickup' && !hasMerchantCity) {
-      toast.error('Defina o CEP da sua loja acima antes de criar essa opção de entrega');
-      return;
+    let option: DeliveryOption;
+    switch (newOptionKind) {
+      case 'pickup':
+        option = { id: uuidv4(), name, fee: 0, enabled: true, scope: 'pickup' };
+        break;
+      case 'quote':
+        option = { id: uuidv4(), name, fee: 0, enabled: true, scope: 'local', calculationType: 'flat', quoteOnRequest: true };
+        break;
+      case 'national_flat':
+        option = { id: uuidv4(), name, fee: newFee, enabled: true, scope: 'national', calculationType: 'flat' };
+        break;
+      case 'national_region': {
+        if (newRegions.length === 0) {
+          toast.error('Escolha pelo menos um estado atendido');
+          return;
+        }
+        option = { id: uuidv4(), name, fee: newFee, enabled: true, scope: 'national', calculationType: 'region', regions: newRegions };
+        break;
+      }
+      case 'local_distance': {
+        const tiers = [...newDistanceTiers].sort((a, b) => a.maxDistanceKm - b.maxDistanceKm);
+        option = {
+          id: uuidv4(),
+          name,
+          fee: newLocalFallbackFee,
+          enabled: true,
+          scope: 'local',
+          calculationType: 'distance_tier',
+          distanceTiers: tiers,
+          localFallbackFee: newLocalFallbackFee,
+        };
+        break;
+      }
+      case 'national_weight': {
+        const tiers = [...newWeightTiers].sort((a, b) => a.maxWeightKg - b.maxWeightKg);
+        option = {
+          id: uuidv4(),
+          name,
+          fee: tiers[tiers.length - 1]?.fee ?? 0,
+          enabled: true,
+          scope: 'national',
+          calculationType: 'weight_tier',
+          weightTiers: tiers,
+        };
+        break;
+      }
+      default:
+        return;
     }
 
-    const base: Omit<DeliveryOption, 'id'> =
-      kind === 'moto'
-        ? { name: 'Moto Entrega', fee: 0, enabled: true, scope: 'local', calculationType: 'flat' }
-        : kind === 'pickup'
-        ? { name: 'Retirada no Local', fee: 0, enabled: true, scope: 'pickup' }
-        : { name: 'Frete a Combinar', fee: 0, enabled: true, scope: 'local', calculationType: 'flat', quoteOnRequest: true };
-
-    const newOption: DeliveryOption = { id: uuidv4(), ...base };
-    save({ ...settings, deliveryOptions: [...settings.deliveryOptions, newOption] });
+    save({ ...settings, deliveryOptions: [...settings.deliveryOptions, option] });
+    resetDraft();
   };
 
   const removeDeliveryOption = (id: string) => {
@@ -219,12 +388,6 @@ export default function DeliveryOptionsSettingsContent() {
       </div>
     );
   }
-
-  const enabledDeliveryOptionsForHint = settings.deliveryOptions.filter((d) => d.enabled);
-  const suggestSkippingCep =
-    settings.requireDeliveryCep !== false &&
-    enabledDeliveryOptionsForHint.length > 0 &&
-    enabledDeliveryOptionsForHint.every((d) => d.scope === 'local' || d.scope === 'pickup');
 
   return (
     <div className="space-y-6">
@@ -240,7 +403,7 @@ export default function DeliveryOptionsSettingsContent() {
           <div className="space-y-2">
             <Label htmlFor="store-zip-code" className="flex items-center gap-1.5">
               CEP da sua loja
-              <Hint text="Usado para comparar com o CEP do comprador e liberar a entrega local. Diferente do CEP de origem da SuperFrete, configurado abaixo em Transportadoras." />
+              <Hint text="Usado para comparar com o CEP do comprador, liberar a entrega local e calcular a distância real das opções por km. Diferente do CEP de origem da SuperFrete, configurado abaixo em Transportadoras." />
             </Label>
             <div className="flex items-center gap-2 max-w-xs">
               <Input
@@ -258,6 +421,15 @@ export default function DeliveryOptionsSettingsContent() {
                 <MapPin className="h-3 w-3" /> Cidade cadastrada: {user?.city} - {user?.state}
               </p>
             )}
+            {hasMerchantCity && !hasStoreCoordinates && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <p className="text-xs">
+                  Não conseguimos calcular a distância exata pro seu CEP — a Entrega Local por
+                  Distância vai sempre usar o preço padrão em vez das faixas por km.
+                </p>
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -269,27 +441,6 @@ export default function DeliveryOptionsSettingsContent() {
             </div>
             <Switch checked={settings.requireDeliveryOption} onCheckedChange={toggleRequireDelivery} disabled={saving} />
           </div>
-
-          <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5 pr-2">
-              <p className="text-sm font-medium flex items-center gap-1.5">
-                Pedir CEP do comprador
-                <Hint text={settings.requireDeliveryCep === false
-                  ? 'Desativado: o comprador vê todas as opções habilitadas, sem checar a cidade dele. Vale pro pedido via WhatsApp e pro pagamento online.'
-                  : 'O comprador informa o CEP e só vê opções compatíveis com a cidade dele. Opções de retirada aparecem sempre. Vale pro pedido via WhatsApp e pro pagamento online.'} />
-              </p>
-            </div>
-            <Switch checked={settings.requireDeliveryCep !== false} onCheckedChange={toggleRequireDeliveryCep} disabled={saving} />
-          </div>
-
-          {suggestSkippingCep && (
-            <div className="flex items-start gap-2 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-3 text-blue-800 dark:text-blue-300">
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <p className="text-xs">
-                Suas opções ativas já não dependem de CEP (local ou retirada) — pode desativar "Pedir CEP do comprador" acima.
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -299,7 +450,7 @@ export default function DeliveryOptionsSettingsContent() {
             <Truck className="h-5 w-5 text-muted-foreground" />
             <CardTitle>Opções de entrega manual</CardTitle>
           </div>
-          <CardDescription>Local, retirada e taxa fixa nacional — definidas por você, sem depender de uma transportadora.</CardDescription>
+          <CardDescription>Local, retirada e frete nacional definidos por você, sem depender de uma transportadora.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!hasMerchantCity && settings.deliveryOptions.some(d => d.scope === 'local') && (
@@ -323,13 +474,13 @@ export default function DeliveryOptionsSettingsContent() {
                   saving={saving}
                   onToggle={(enabled) => toggleDeliveryOption(option.id, enabled)}
                   onUpdatePrice={(fee, freeAbove) => updateDeliveryFeeAndFreeAbove(option.id, fee, freeAbove)}
-                  onUpdateCalculationType={(type) => updateDeliveryCalculationType(option.id, type)}
                   onUpdateRegions={(regions) => updateDeliveryRegions(option.id, regions)}
-                  onUpdateScope={(scope) => updateDeliveryScope(option.id, scope)}
                   onUpdateQuoteOnRequest={(val) => updateDeliveryQuoteOnRequest(option.id, val)}
                   onUpdatePickupInstructions={(val) => updateDeliveryPickupInstructions(option.id, val)}
                   onUpdatePickupHours={(val) => updateDeliveryPickupHours(option.id, val)}
                   onUpdatePickupMapUrl={(val) => updateDeliveryPickupMapUrl(option.id, val)}
+                  onUpdateDistanceTiers={(tiers, fallbackFee) => updateDeliveryDistanceTiers(option.id, tiers, fallbackFee)}
+                  onUpdateWeightTiers={(tiers) => updateDeliveryWeightTiers(option.id, tiers)}
                   onRemove={() => removeDeliveryOption(option.id)}
                 />
               ))}
@@ -338,57 +489,93 @@ export default function DeliveryOptionsSettingsContent() {
 
           <Separator />
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Modelos prontos</Label>
-            <p className="text-xs text-muted-foreground">Um clique já cria a opção pronta pra usar — depois é só ajustar o valor.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {PRESETS.map(({ kind, label, icon: Icon, description }) => (
-                <button
-                  key={kind}
-                  type="button"
-                  onClick={() => addPresetOption(kind)}
-                  disabled={saving}
-                  className="flex items-start gap-2.5 rounded-lg border p-3 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors disabled:opacity-50"
-                >
-                  <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <span>
-                    <span className="text-sm font-medium block">{label}</span>
-                    <span className="text-xs text-muted-foreground">{description}</span>
-                  </span>
-                </button>
-              ))}
+          {newOptionKind === null ? (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Adicionar opção de entrega</Label>
+              <p className="text-xs text-muted-foreground">Escolha o tipo — cada um já vem com as regras certas, sem chance de combinação sem sentido.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {NEW_OPTION_KINDS.map(({ kind, label, icon: Icon, description }) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => setNewOptionKind(kind)}
+                    disabled={saving}
+                    className="flex items-start gap-2.5 rounded-lg border p-3 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors disabled:opacity-50"
+                  >
+                    <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <span>
+                      <span className="text-sm font-medium block">{label}</span>
+                      <span className="text-xs text-muted-foreground">{description}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3 rounded-lg border p-4">
+              <button
+                type="button"
+                onClick={resetDraft}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Escolher outro tipo
+              </button>
 
-          <Separator />
+              <p className="text-sm font-medium">{NEW_OPTION_KINDS.find((k) => k.kind === newOptionKind)?.label}</p>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Ou crie uma opção personalizada</Label>
-            <div className="flex gap-1 text-xs bg-muted/40 rounded-lg p-1 max-w-sm">
-              {NEW_OPTION_TYPES.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setNewDeliveryType(value)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md font-medium transition-colors ${newDeliveryType === value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
-                >
-                  <Icon className="h-3.5 w-3.5" /> {label}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
               <Input
                 placeholder="Nome (ex: Centro, Zona Norte, Sedex...)"
-                value={newDeliveryName}
-                onChange={(e) => setNewDeliveryName(e.target.value)}
-                className="flex-1"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
               />
-              <CurrencyInput placeholder="Taxa" value={newDeliveryFee} onChange={setNewDeliveryFee} className="w-32" />
-              <Button variant="outline" size="sm" onClick={addDeliveryOption} disabled={!newDeliveryName.trim() || saving}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar
-              </Button>
+
+              {(newOptionKind === 'national_flat' || newOptionKind === 'national_region') && (
+                <div className="space-y-1 max-w-[140px]">
+                  <Label className="text-xs">Taxa de entrega</Label>
+                  <CurrencyInput value={newFee} onChange={setNewFee} />
+                </div>
+              )}
+
+              {newOptionKind === 'national_region' && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Estados atendidos por esta opção</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BR_STATES.map((uf) => (
+                      <button
+                        key={uf}
+                        type="button"
+                        onClick={() => setNewRegions((prev) => (prev.includes(uf) ? prev.filter((r) => r !== uf) : [...prev, uf]))}
+                        className={`text-xs px-2 py-1 rounded-md border transition-colors ${newRegions.includes(uf) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+                      >
+                        {uf}
+                      </button>
+                    ))}
+                  </div>
+                  {newRegions.length === 0 && <p className="text-xs text-muted-foreground">Nenhum estado selecionado ainda</p>}
+                </div>
+              )}
+
+              {newOptionKind === 'local_distance' && (
+                <DistanceTierEditor
+                  tiers={newDistanceTiers}
+                  onChange={setNewDistanceTiers}
+                  fallbackFee={newLocalFallbackFee}
+                  onFallbackFeeChange={setNewLocalFallbackFee}
+                />
+              )}
+
+              {newOptionKind === 'national_weight' && (
+                <WeightTierEditor tiers={newWeightTiers} onChange={setNewWeightTiers} />
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={handleCreateOption} disabled={!newName.trim() || saving}>
+                  <Plus className="h-4 w-4 mr-1" /> Criar opção
+                </Button>
+                <Button size="sm" variant="ghost" onClick={resetDraft}>Cancelar</Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -451,35 +638,62 @@ interface DeliveryOptionRowProps {
   saving: boolean;
   onToggle: (enabled: boolean) => void;
   onUpdatePrice: (fee: number, freeAbove: number | null) => void;
-  onUpdateCalculationType: (type: ShippingCalculationType) => void;
   onUpdateRegions: (regions: string[]) => void;
-  onUpdateScope: (scope: DeliveryScope) => void;
   onUpdateQuoteOnRequest: (quoteOnRequest: boolean) => void;
   onUpdatePickupInstructions: (pickupInstructions: string) => void;
   onUpdatePickupHours: (pickupHours: string) => void;
   onUpdatePickupMapUrl: (pickupMapUrl: string) => void;
+  onUpdateDistanceTiers: (tiers: DistanceTier[], fallbackFee: number) => void;
+  onUpdateWeightTiers: (tiers: WeightTier[]) => void;
   onRemove: () => void;
 }
 
-function DeliveryOptionRow({ option, saving, onToggle, onUpdatePrice, onUpdateCalculationType, onUpdateRegions, onUpdateScope, onUpdateQuoteOnRequest, onUpdatePickupInstructions, onUpdatePickupHours, onUpdatePickupMapUrl, onRemove }: DeliveryOptionRowProps) {
+function DeliveryOptionRow({
+  option,
+  saving,
+  onToggle,
+  onUpdatePrice,
+  onUpdateRegions,
+  onUpdateQuoteOnRequest,
+  onUpdatePickupInstructions,
+  onUpdatePickupHours,
+  onUpdatePickupMapUrl,
+  onUpdateDistanceTiers,
+  onUpdateWeightTiers,
+  onRemove,
+}: DeliveryOptionRowProps) {
   const [editingPrice, setEditingPrice] = useState(false);
   const [feeValue, setFeeValue] = useState(option.fee);
   const [freeAboveValue, setFreeAboveValue] = useState(option.freeAbove || 0);
   const [pickupInstructionsValue, setPickupInstructionsValue] = useState(option.pickupInstructions || '');
   const [pickupHoursValue, setPickupHoursValue] = useState(option.pickupHours || '');
   const [pickupMapUrlValue, setPickupMapUrlValue] = useState(option.pickupMapUrl || '');
+  const [distanceTiersValue, setDistanceTiersValue] = useState<DistanceTier[]>(option.distanceTiers || []);
+  const [localFallbackFeeValue, setLocalFallbackFeeValue] = useState(option.localFallbackFee ?? option.fee ?? 0);
+  const [weightTiersValue, setWeightTiersValue] = useState<WeightTier[]>(option.weightTiers || []);
   const calculationType = option.calculationType || 'flat';
   const selectedRegions = option.regions || [];
-  const scope: DeliveryScope = option.scope === 'local' ? 'local' : option.scope === 'pickup' ? 'pickup' : 'national';
+  const scope = option.scope === 'local' ? 'local' : option.scope === 'pickup' ? 'pickup' : 'national';
+  const isDistanceTier = calculationType === 'distance_tier';
+  const isWeightTier = calculationType === 'weight_tier';
 
   const toggleRegion = (uf: string) => {
     onUpdateRegions(selectedRegions.includes(uf) ? selectedRegions.filter((r) => r !== uf) : [...selectedRegions, uf]);
   };
 
   const handleSavePrice = () => {
-    onUpdatePrice(feeValue, freeAboveValue > 0 ? freeAboveValue : null);
+    if (isDistanceTier) {
+      onUpdateDistanceTiers([...distanceTiersValue].sort((a, b) => a.maxDistanceKm - b.maxDistanceKm), localFallbackFeeValue);
+    } else if (isWeightTier) {
+      onUpdateWeightTiers([...weightTiersValue].sort((a, b) => a.maxWeightKg - b.maxWeightKg));
+    } else {
+      onUpdatePrice(feeValue, freeAboveValue > 0 ? freeAboveValue : null);
+    }
     setEditingPrice(false);
   };
+
+  const sortedDistanceTiers = [...(option.distanceTiers || [])].sort((a, b) => a.maxDistanceKm - b.maxDistanceKm);
+  const sortedWeightTiers = [...(option.weightTiers || [])].sort((a, b) => a.maxWeightKg - b.maxWeightKg);
 
   return (
     <div className="rounded-lg border p-4 space-y-3">
@@ -488,11 +702,29 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdatePrice, onUpdateCa
           <Switch checked={option.enabled} onCheckedChange={onToggle} disabled={saving} />
           <div>
             <span className="text-sm font-medium">{option.name}</span>
+            <span className="text-xs text-muted-foreground ml-2">{describeOptionKind(option)}</span>
+            <br />
             {option.quoteOnRequest ? (
-              <span className="text-xs text-amber-600 dark:text-amber-400 ml-2">A Consultar</span>
+              <span className="text-xs text-amber-600 dark:text-amber-400">A Consultar</span>
+            ) : isDistanceTier ? (
+              sortedDistanceTiers.length > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {formatCurrency(sortedDistanceTiers[0].fee)} até {formatCurrency(sortedDistanceTiers[sortedDistanceTiers.length - 1].fee)} · até {sortedDistanceTiers[sortedDistanceTiers.length - 1].maxDistanceKm}km
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">Sem faixas configuradas</span>
+              )
+            ) : isWeightTier ? (
+              sortedWeightTiers.length > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {formatCurrency(sortedWeightTiers[0].fee)} até {formatCurrency(sortedWeightTiers[sortedWeightTiers.length - 1].fee)} · por peso
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">Sem faixas configuradas</span>
+              )
             ) : (
               <>
-                <span className="text-xs text-muted-foreground ml-2">{option.fee === 0 ? 'Grátis' : formatCurrency(option.fee)}</span>
+                <span className="text-xs text-muted-foreground">{option.fee === 0 ? 'Grátis' : formatCurrency(option.fee)}</span>
                 {option.freeAbove && option.freeAbove > 0 && (
                   <span className="text-xs text-green-600 dark:text-green-400 ml-2">Grátis acima de {formatCurrency(option.freeAbove)}</span>
                 )}
@@ -513,44 +745,63 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdatePrice, onUpdateCa
       </div>
 
       {editingPrice && option.enabled && (
-        <div className="flex items-end gap-2 pt-1 flex-wrap">
-          <div className="space-y-1">
-            <Label className="text-xs">Taxa de entrega</Label>
-            <CurrencyInput value={feeValue} onChange={setFeeValue} className="w-32 h-8 text-xs" />
-          </div>
-          {scope !== 'pickup' && (
-            <div className="space-y-1">
-              <Label className="text-xs">Grátis acima de</Label>
-              <CurrencyInput value={freeAboveValue} onChange={setFreeAboveValue} className="w-32 h-8 text-xs" />
+        <div className="pt-1">
+          {isDistanceTier ? (
+            <div className="space-y-2">
+              <DistanceTierEditor
+                tiers={distanceTiersValue}
+                onChange={setDistanceTiersValue}
+                fallbackFee={localFallbackFeeValue}
+                onFallbackFeeChange={setLocalFallbackFeeValue}
+              />
+              <div className="flex gap-2">
+                <Button size="sm" className="h-8 text-xs" onClick={handleSavePrice}>Salvar</Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingPrice(false)}>Cancelar</Button>
+              </div>
+            </div>
+          ) : isWeightTier ? (
+            <div className="space-y-2">
+              <WeightTierEditor tiers={weightTiersValue} onChange={setWeightTiersValue} />
+              <div className="flex gap-2">
+                <Button size="sm" className="h-8 text-xs" onClick={handleSavePrice}>Salvar</Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingPrice(false)}>Cancelar</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-end gap-2 flex-wrap">
+              <div className="space-y-1">
+                <Label className="text-xs">Taxa de entrega</Label>
+                <CurrencyInput value={feeValue} onChange={setFeeValue} className="w-32 h-8 text-xs" />
+              </div>
+              {scope !== 'pickup' && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Grátis acima de</Label>
+                  <CurrencyInput value={freeAboveValue} onChange={setFreeAboveValue} className="w-32 h-8 text-xs" />
+                </div>
+              )}
+              <Button size="sm" className="h-8 text-xs" onClick={handleSavePrice}>Salvar</Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingPrice(false)}>Cancelar</Button>
             </div>
           )}
-          <Button size="sm" className="h-8 text-xs" onClick={handleSavePrice}>Salvar</Button>
-          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingPrice(false)}>Cancelar</Button>
         </div>
       )}
 
-      {option.enabled && (
-        <div className="space-y-2 pt-1">
-          <Label className="text-xs flex items-center gap-1.5">
-            Abrangência
-            <Hint text={
-              scope === 'local'
-                ? 'Só aparece para compradores cujo CEP resolver para a mesma cidade cadastrada acima.'
-                : scope === 'pickup'
-                  ? 'Sempre aparece pro comprador, não depende do CEP dele nem da cidade da loja.'
-                  : 'Aparece pra qualquer comprador do Brasil.'
-            } />
-          </Label>
-          <Select value={scope} onValueChange={(v) => onUpdateScope(v as DeliveryScope)}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="national">Todo o Brasil</SelectItem>
-              <SelectItem value="local">Só na minha cidade</SelectItem>
-              <SelectItem value="pickup">Retirada no local</SelectItem>
-            </SelectContent>
-          </Select>
+      {option.enabled && calculationType === 'region' && (
+        <div className="space-y-1.5 pt-1">
+          <Label className="text-xs text-muted-foreground">Estados atendidos por esta opção</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {BR_STATES.map((uf) => (
+              <button
+                key={uf}
+                type="button"
+                onClick={() => toggleRegion(uf)}
+                className={`text-xs px-2 py-1 rounded-md border transition-colors ${selectedRegions.includes(uf) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+              >
+                {uf}
+              </button>
+            ))}
+          </div>
+          {selectedRegions.length === 0 && <p className="text-xs text-muted-foreground">Nenhum estado selecionado ainda</p>}
         </div>
       )}
 
@@ -608,52 +859,13 @@ function DeliveryOptionRow({ option, saving, onToggle, onUpdatePrice, onUpdateCa
         </div>
       )}
 
-      {option.enabled && scope !== 'pickup' && (
+      {option.enabled && scope !== 'pickup' && !isDistanceTier && !isWeightTier && (
         <div className="flex flex-row items-center justify-between rounded-lg border p-3 mt-1">
           <Label htmlFor={`quote-${option.id}`} className="text-xs flex items-center gap-1.5">
             Frete a Consultar
-            <Hint text={`Não mostra valor — o cliente combina o frete direto com você. Só aparece em pedidos via WhatsApp${scope === 'national' ? ' (troque a abrangência para "Só na minha cidade" pra ela poder aparecer)' : ''}.`} />
+            <Hint text="Não mostra valor — o cliente combina o frete direto com você. Só aparece em pedidos via WhatsApp." />
           </Label>
           <Switch id={`quote-${option.id}`} checked={option.quoteOnRequest ?? false} onCheckedChange={onUpdateQuoteOnRequest} disabled={saving} />
-        </div>
-      )}
-
-      {option.enabled && !option.quoteOnRequest && scope === 'national' && (
-        <div className="space-y-2 pt-1">
-          <Label className="text-xs flex items-center gap-1.5">
-            Como calcular o frete
-            <Hint text="Taxa fixa/por região definida por você. Se preferir cálculo automático por transportadora, ative a SuperFrete em Transportadoras, mais abaixo — as duas formas podem coexistir." />
-          </Label>
-          <Select value={calculationType} onValueChange={(v) => onUpdateCalculationType(v as ShippingCalculationType)}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="flat">Frete fixo</SelectItem>
-              <SelectItem value="free_above">Grátis acima de valor</SelectItem>
-              <SelectItem value="region">Por região</SelectItem>
-              <SelectItem value="carrier" disabled>Cálculo automático por transportadora (em breve)</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {calculationType === 'region' && (
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Estados atendidos por esta opção</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {BR_STATES.map((uf) => (
-                  <button
-                    key={uf}
-                    type="button"
-                    onClick={() => toggleRegion(uf)}
-                    className={`text-xs px-2 py-1 rounded-md border transition-colors ${selectedRegions.includes(uf) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
-                  >
-                    {uf}
-                  </button>
-                ))}
-              </div>
-              {selectedRegions.length === 0 && <p className="text-xs text-muted-foreground">Nenhum estado selecionado ainda</p>}
-            </div>
-          )}
         </div>
       )}
     </div>
