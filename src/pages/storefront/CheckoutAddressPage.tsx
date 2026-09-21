@@ -311,6 +311,11 @@ export default function CheckoutAddressPage() {
 
   const selectedDeliveryConfig = allDeliveryOptions.find((d) => d.id === selectedDeliveryOption);
   const isPickupSelected = selectedDeliveryConfig?.scope === 'pickup';
+  // Address/contact fields only make sense once the buyer has committed to a
+  // delivery option — showing both at once let buyers skip straight to the
+  // address form and miss the delivery choice entirely. Stores with nothing
+  // to choose (no delivery options configured) skip this gate.
+  const showAddressCard = allDeliveryOptions.length === 0 || !!selectedDeliveryOption;
 
   const discountAmount = appliedCoupon?.calculatedDiscount || 0;
   const subtotalAfterDiscount = Math.max(0, cart.total - discountAmount);
@@ -617,11 +622,14 @@ export default function CheckoutAddressPage() {
             passa para a direita, com o resumo assumindo a esquerda. */}
         <div className="order-1 lg:order-2 space-y-6">
         {(allDeliveryOptions.length > 0 || shippingQuotesLoading || shippingQuotesError) && (
-          <Card>
+          <Card className={cn(allDeliveryOptions.length > 0 && !selectedDeliveryOption && 'border-primary ring-1 ring-primary/30')}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Truck className="h-5 w-5" />
                 Entrega
+                {allDeliveryOptions.length > 0 && !selectedDeliveryOption && (
+                  <span className="text-xs font-normal text-primary">— escolha uma opção pra continuar</span>
+                )}
               </CardTitle>
               <CardDescription>Como você quer receber seu pedido?</CardDescription>
             </CardHeader>
@@ -685,6 +693,16 @@ export default function CheckoutAddressPage() {
           </Card>
         )}
 
+        {!showAddressCard && (
+          <Card className="border-dashed">
+            <CardContent className="pt-6 flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin className="h-4 w-4 shrink-0" />
+              Escolha uma opção de entrega acima pra continuar
+            </CardContent>
+          </Card>
+        )}
+
+        {showAddressCard && (
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -873,6 +891,7 @@ export default function CheckoutAddressPage() {
             )}
           </CardContent>
         </Card>
+        )}
         </div>
 
         {/* Coluna de resumo: no mobile fica embaixo do formulário (ordem 2);
