@@ -25,7 +25,9 @@ import { cn } from '@/lib/utils';
 import { getShippingQuote } from '@/lib/merchantShipping';
 import { fetchProductShippingDims, fetchVariantShippingWeights, buildSuperFreteProducts } from '@/lib/shippingUtils';
 import type { ShippingQuote } from '@/types';
-import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption, buildPickupInstructionsSnapshot } from '@/lib/localDelivery';
+import { normalizeCityName, filterEligibleDeliveryOptions, hasNoMatchingLocalOption as computeHasNoMatchingLocalOption, buildPickupInstructionsSnapshot, isDistanceTierEligible, computeDeliveryFee, isDeliveryCepNeeded } from '@/lib/localDelivery';
+import { geocodeCep } from '@/lib/geocoding';
+import { haversineDistanceKm } from '@/lib/distance';
 import { formatCpfCnpj, isValidCpfCnpj } from '@/lib/document';
 import { OrderItemsSummary } from '@/components/buyer/OrderItemsSummary';
 
@@ -83,6 +85,12 @@ export default function CheckoutAddressPage() {
   const [shippingQuotes, setShippingQuotes] = useState<ShippingQuote[]>([]);
   const [shippingQuotesLoading, setShippingQuotesLoading] = useState(false);
   const [shippingQuotesError, setShippingQuotesError] = useState(false);
+  // Real straight-line distance (buyer CEP vs. geocoded store CEP) — null
+  // means "unknown/unavailable," the same signal isDistanceTierEligible/
+  // computeDeliveryFee use to fall back to localFallbackFee.
+  const [customerDistanceKm, setCustomerDistanceKm] = useState<number | null>(null);
+  // Total cart weight (kg), only computed when a weight_tier option exists.
+  const [cartTotalWeightKg, setCartTotalWeightKg] = useState(0);
 
   const hasItems = cart.items.length > 0 || cart.distributions.length > 0;
 
@@ -158,9 +166,8 @@ export default function CheckoutAddressPage() {
   const currentZip = showManualForm ? manualAddress.zipCode : (selectedSavedAddress?.zip_code || '');
 
   const buyerCity = currentCity ? normalizeCityName(currentCity) : null;
-  // Merchants who ship nationwide and don't want buyers gated on a CEP lookup
-  // can turn this off — every enabled delivery option is then shown as-is.
-  const skipLocationMatch = checkoutSettings.requireDeliveryCep === false;
+  // Automatically derived, not a merchant setting — see isDeliveryCepNeeded.
+  const skipLocationMatch = !isDeliveryCepNeeded(checkoutSettings.deliveryOptions, checkoutSettings.superFrete?.enabled);
 
   const enabledDeliveryOptions = useMemo(
     () =>
@@ -171,8 +178,8 @@ export default function CheckoutAddressPage() {
         buyerState: currentState,
         skipLocationMatch,
         excludeQuoteOnRequest: true,
-      }),
-    [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city, corretor?.state, skipLocationMatch]
+      }).filter((d) => isDistanceTierEligible(d, customerDistanceKm)),
+    [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city, corretor?.state, skipLocationMatch, customerDistanceKm]
   );
 
   const hasNoMatchingLocalOption = computeHasNoMatchingLocalOption(
@@ -183,6 +190,56 @@ export default function CheckoutAddressPage() {
   );
 
   const zipDigits = currentZip.replace(/\D/g, '');
+
+  useEffect(() => {
+    if (zipDigits.length !== 8) {
+      setCustomerDistanceKm(null);
+      return;
+    }
+    const hasDistanceTierOption = checkoutSettings.deliveryOptions.some(
+      (d) => d.enabled && d.calculationType === 'distance_tier'
+    );
+    if (!hasDistanceTierOption || corretor?.store_latitude == null || corretor?.store_longitude == null) {
+      setCustomerDistanceKm(null);
+      return;
+    }
+
+    let cancelled = false;
+    geocodeCep(zipDigits).then((coords) => {
+      if (cancelled) return;
+      setCustomerDistanceKm(
+        coords ? haversineDistanceKm(corretor.store_latitude!, corretor.store_longitude!, coords.latitude, coords.longitude) : null
+      );
+    });
+
+    return () => { cancelled = true; };
+  }, [zipDigits, checkoutSettings.deliveryOptions, corretor?.store_latitude, corretor?.store_longitude]);
+
+  useEffect(() => {
+    const hasWeightTierOption = checkoutSettings.deliveryOptions.some(
+      (d) => d.enabled && d.calculationType === 'weight_tier'
+    );
+    if (!hasWeightTierOption || (cart.items.length === 0 && cart.distributions.length === 0)) {
+      setCartTotalWeightKg(0);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const productIds = cart.items.map((item) => item.id);
+      const variantIds = cart.items.map((item) => item.selectedVariantId).filter((id): id is string => !!id);
+      const [dims, variantWeights] = await Promise.all([
+        fetchProductShippingDims(productIds),
+        fetchVariantShippingWeights(variantIds),
+      ]);
+      const products = buildSuperFreteProducts(cart.items, cart.distributions, dims, variantWeights);
+      const totalWeight = products.reduce((sum, p) => sum + p.weight * p.quantity, 0);
+      if (!cancelled) setCartTotalWeightKg(totalWeight);
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.items.map((i) => `${i.id}-${i.quantity}`).join(','), cart.distributions.map((d) => `${d.distribution.id}-${d.distribution.total_quantity}`).join(',')]);
 
   useEffect(() => {
     if (!corretor?.id || zipDigits.length !== 8) {
@@ -258,11 +315,11 @@ export default function CheckoutAddressPage() {
   const discountAmount = appliedCoupon?.calculatedDiscount || 0;
   const subtotalAfterDiscount = Math.max(0, cart.total - discountAmount);
 
-  const deliveryFee = (() => {
-    if (!selectedDeliveryConfig) return 0;
-    if (selectedDeliveryConfig.freeAbove && subtotalAfterDiscount >= selectedDeliveryConfig.freeAbove) return 0;
-    return selectedDeliveryConfig.fee;
-  })();
+  const deliveryFee = computeDeliveryFee(selectedDeliveryConfig, {
+    subtotalAfterDiscount,
+    distanceKm: customerDistanceKm,
+    totalWeightKg: cartTotalWeightKg,
+  });
 
   const insuranceRate = checkoutSettings.shippingInsurance?.enabled
     ? checkoutSettings.shippingInsurance.percentageRate || 0
@@ -486,6 +543,8 @@ export default function CheckoutAddressPage() {
           delivery_fee: deliveryFee,
           delivery_option: selectedDeliveryConfig?.name || null,
           delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
+          delivery_distance_km: selectedDeliveryConfig?.calculationType === 'distance_tier' ? customerDistanceKm : null,
+          delivery_weight_kg: selectedDeliveryConfig?.calculationType === 'weight_tier' ? cartTotalWeightKg : null,
           pickup_instructions: isPickupSelected ? buildPickupInstructionsSnapshot(selectedDeliveryConfig) : null,
           insurance_fee: insuranceFee,
           cashback_used: cashbackUsed,

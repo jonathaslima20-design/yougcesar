@@ -42,6 +42,24 @@ interface DeliveryOptionLike {
   quoteOnRequest?: boolean;
 }
 
+// Whether the checkout needs to ask the buyer for a CEP at all — purely
+// derived from the current delivery configuration, never a merchant
+// decision (a manual on/off toggle for this used to exist and could be left
+// off by mistake, silently breaking local matching, region filtering, or
+// SuperFrete quoting, all three of which depend on knowing where the buyer
+// is). CEP is needed exactly when at least one enabled option actually
+// reads buyer location: a local-scope option (city match or real distance),
+// a region/UF option, or a live SuperFrete quote. Pickup, flat national fee,
+// and weight-tier national fee never look at buyer location, so a store
+// offering only those doesn't need to ask.
+export function isDeliveryCepNeeded(
+  deliveryOptions: Pick<DeliveryOptionLike, 'enabled' | 'scope' | 'calculationType'>[],
+  superFreteEnabled?: boolean
+): boolean {
+  if (superFreteEnabled) return true;
+  return deliveryOptions.some((d) => d.enabled && (d.scope === 'local' || d.calculationType === 'region'));
+}
+
 interface FilterEligibleDeliveryOptionsParams {
   merchantCity?: string | null;
   merchantState?: string | null;
@@ -50,10 +68,10 @@ interface FilterEligibleDeliveryOptionsParams {
   // WhatsApp checkout must never offer national delivery — only local options
   // are selectable there. Online-payment checkout keeps the full list.
   restrictToLocal?: boolean;
-  // Merchant opted out of CEP/city matching entirely (settings.requireDeliveryCep
-  // === false) — e.g. a store that only ships nationwide and doesn't want buyers
-  // gated on a CEP lookup. Every enabled option is shown, scope and
-  // restrictToLocal are both ignored.
+  // Whether the checkout should skip CEP/city matching entirely — computed
+  // by isDeliveryCepNeeded below, never a merchant-set flag. When true,
+  // every enabled option is shown, scope and restrictToLocal are both
+  // ignored.
   skipLocationMatch?: boolean;
   // "Frete a Consultar" options have no closed value to charge, so every
   // online-payment flow must pass this — only the WhatsApp order flow leaves
@@ -114,4 +132,90 @@ export function hasNoMatchingLocalOption(
 ): boolean {
   if (skipLocationMatch) return false;
   return eligibleCount === 0 && !!buyerCity && allOptions.some((d) => d.enabled && d.scope === 'local');
+}
+
+interface TierLike {
+  id: string;
+  fee: number;
+}
+
+function sortedTiers<T extends TierLike>(tiers: T[] | undefined, boundKey: keyof T): T[] {
+  return [...(tiers || [])].sort((a, b) => (a[boundKey] as number) - (b[boundKey] as number));
+}
+
+interface DistanceTierOptionLike {
+  calculationType?: string;
+  distanceTiers?: { id: string; maxDistanceKm: number; fee: number }[];
+  localFallbackFee?: number | null;
+  fee: number;
+}
+
+// A distance-tier option with a real, geocoded distance available is only
+// eligible up to its farthest configured tier — a motoboy has a real range
+// limit, unlike a weight-tier national option (see resolveWeightTierFee)
+// which can always still ship, just at the top tier's price. When
+// `distanceKm` is null (either side's CEP couldn't be geocoded), the option
+// stays eligible — it falls back to `localFallbackFee`, gated only by the
+// pre-existing same-city match already applied in `filterEligibleDeliveryOptions`.
+export function isDistanceTierEligible(option: DistanceTierOptionLike, distanceKm: number | null): boolean {
+  if (option.calculationType !== 'distance_tier') return true;
+  if (distanceKm == null) return true;
+  const tiers = sortedTiers(option.distanceTiers, 'maxDistanceKm');
+  if (tiers.length === 0) return true;
+  return distanceKm <= tiers[tiers.length - 1].maxDistanceKm;
+}
+
+function resolveDistanceTierFee(option: DistanceTierOptionLike, distanceKm: number | null): number {
+  const fallback = option.localFallbackFee ?? option.fee ?? 0;
+  if (distanceKm == null) return fallback;
+  const tiers = sortedTiers(option.distanceTiers, 'maxDistanceKm');
+  const match = tiers.find((t) => distanceKm <= t.maxDistanceKm);
+  return match ? match.fee : fallback;
+}
+
+interface WeightTierOptionLike {
+  calculationType?: string;
+  weightTiers?: { id: string; maxWeightKg: number; fee: number }[];
+  fee: number;
+}
+
+// Above the heaviest configured tier, the option is NOT hidden — it simply
+// charges that top tier's fee (merchant's own confirmed choice: a big order
+// still ships, just possibly under-priced for the outlier case, rather than
+// leaving the buyer with no manual national option at all).
+function resolveWeightTierFee(option: WeightTierOptionLike, totalWeightKg: number): number {
+  const tiers = sortedTiers(option.weightTiers, 'maxWeightKg');
+  if (tiers.length === 0) return option.fee ?? 0;
+  const match = tiers.find((t) => totalWeightKg <= t.maxWeightKg);
+  return match ? match.fee : tiers[tiers.length - 1].fee;
+}
+
+interface DeliveryFeeOptionLike extends DistanceTierOptionLike, WeightTierOptionLike {
+  freeAbove?: number | null;
+  quoteOnRequest?: boolean;
+}
+
+interface DeliveryFeeContext {
+  subtotalAfterDiscount: number;
+  // Only read for calculationType === 'distance_tier'.
+  distanceKm?: number | null;
+  // Only read for calculationType === 'weight_tier'.
+  totalWeightKg?: number;
+}
+
+// Single shared fee formula for every calculation mode — replaces the
+// flat/freeAbove arithmetic that used to be copy-pasted between
+// CartModal.tsx and CheckoutAddressPage.tsx, now extended with the two new
+// tiered modes so both checkout flows can't drift apart on pricing either.
+export function computeDeliveryFee(option: DeliveryFeeOptionLike | null | undefined, ctx: DeliveryFeeContext): number {
+  if (!option) return 0;
+  if (option.quoteOnRequest) return 0;
+  if (option.calculationType === 'distance_tier') {
+    return resolveDistanceTierFee(option, ctx.distanceKm ?? null);
+  }
+  if (option.calculationType === 'weight_tier') {
+    return resolveWeightTierFee(option, ctx.totalWeightKg ?? 0);
+  }
+  if (option.freeAbove && ctx.subtotalAfterDiscount >= option.freeAbove) return 0;
+  return option.fee;
 }

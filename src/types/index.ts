@@ -48,6 +48,8 @@ export interface User {
   city?: string;
   state?: string;
   store_zip_code?: string;
+  store_latitude?: number | null;
+  store_longitude?: number | null;
   created_by?: string;
   managed_by_partner_id?: string | null;
   theme?: 'light' | 'dark';
@@ -534,6 +536,8 @@ export interface Order {
   delivery_option?: string | null;
   delivery_scope?: DeliveryScope | null;
   delivery_is_quote?: boolean | null;
+  delivery_distance_km?: number | null;
+  delivery_weight_kg?: number | null;
   pickup_instructions?: string | null;
   insurance_fee?: number;
   affiliate_id?: string | null;
@@ -738,9 +742,25 @@ export interface PaymentMethodConfig {
   discountValue?: number;
 }
 
-export type ShippingCalculationType = 'flat' | 'free_above' | 'region' | 'carrier';
+export type ShippingCalculationType = 'flat' | 'free_above' | 'region' | 'carrier' | 'distance_tier' | 'weight_tier';
 
 export type DeliveryScope = 'local' | 'national' | 'pickup';
+
+// A price band: "up to maxDistanceKm/maxWeightKg, charge fee". Tiers are
+// always kept sorted ascending by their max bound. The last tier's bound is
+// the option's ceiling — see DeliveryOption.distanceTiers/weightTiers for
+// what happens above it.
+export interface DistanceTier {
+  id: string;
+  maxDistanceKm: number;
+  fee: number;
+}
+
+export interface WeightTier {
+  id: string;
+  maxWeightKg: number;
+  fee: number;
+}
 
 export interface DeliveryOption {
   id: string;
@@ -766,6 +786,26 @@ export interface DeliveryOption {
   // Google Maps share link, shown to the buyer alongside pickupInstructions.
   pickupHours?: string | null;
   pickupMapUrl?: string | null;
+  // calculationType === 'distance_tier' (scope === 'local' only): priced by
+  // real straight-line distance (geocoded store CEP vs. buyer CEP) instead
+  // of a flat city-wide fee. Sorted ascending by maxDistanceKm; a buyer
+  // farther than the last tier is simply out of range for this option (not
+  // shown) when both sides have coordinates.
+  distanceTiers?: DistanceTier[];
+  // Fallback flat fee used whenever a real distance can't be computed
+  // (either side's CEP has no geocoded coordinate) — the option falls back
+  // to the pre-existing same-city match and charges this instead of a tier.
+  // Required (enforced in the settings UI) whenever distanceTiers is set, so
+  // pricing never has an undefined gap.
+  localFallbackFee?: number | null;
+  // calculationType === 'weight_tier' (scope === 'national' only): priced by
+  // the order's total weight (products.weight_kg × quantity, same 0.3kg
+  // fallback as shippingUtils.ts for unweighed products) instead of one flat
+  // fee regardless of cart size. Sorted ascending by maxWeightKg. Unlike
+  // distanceTiers, a cart heavier than the last tier does NOT become
+  // ineligible — it's simply charged the last tier's fee (merchant's own
+  // choice: simplicity over precision for outlier bulk orders).
+  weightTiers?: WeightTier[];
 }
 
 export interface MinimumPurchaseConfig {
@@ -807,6 +847,8 @@ export interface CheckoutSettings {
   onlinePaymentEnabled?: boolean; // missing = treated as false (back-compat via legacy checkoutMode)
   shippingInsurance?: ShippingInsuranceConfig;
   superFrete?: SuperFreteConfig;
-  requireDeliveryCep?: boolean; // missing = treated as true (back-compat) — false skips CEP/city matching entirely and shows every enabled delivery option, for merchants who ship nationwide and don't need geographic filtering
+  // Whether CEP/city matching is needed is no longer a stored setting — see
+  // isDeliveryCepNeeded in src/lib/localDelivery.ts, computed live from
+  // deliveryOptions/superFrete instead.
   cashback?: CashbackConfig;
 }

@@ -112,6 +112,8 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
             location_url,
             city,
             state,
+            store_latitude,
+            store_longitude,
             theme,
             currency,
             language,
