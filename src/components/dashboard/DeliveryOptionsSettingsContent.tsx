@@ -40,7 +40,7 @@ const NEW_OPTION_KINDS: { kind: NewOptionKind; label: string; icon: typeof Store
   { kind: 'national_flat', label: 'Frete Nacional — Valor Fixo', icon: Globe, description: 'Uma taxa única pra qualquer lugar do Brasil' },
   { kind: 'national_weight', label: 'Frete Nacional por Peso', icon: Package, description: 'Preço por faixa de peso total do pedido' },
   { kind: 'national_region', label: 'Frete por Região/UF', icon: MapPin, description: 'Mesmo valor, mas só aparece pros estados escolhidos' },
-  { kind: 'quote', label: 'Frete a Combinar', icon: Handshake, description: 'Valor combinado com o cliente depois — só em pedidos via WhatsApp' },
+  { kind: 'quote', label: 'Frete a Combinar', icon: Handshake, description: 'Valor combinado com o cliente depois, mesmo em pagamento online — o cliente paga só o produto agora' },
 ];
 
 function describeOptionKind(option: DeliveryOption): string {
@@ -863,7 +863,7 @@ function DeliveryOptionRow({
         <div className="flex flex-row items-center justify-between rounded-lg border p-3 mt-1">
           <Label htmlFor={`quote-${option.id}`} className="text-xs flex items-center gap-1.5">
             Frete a Consultar
-            <Hint text="Não mostra valor — o cliente combina o frete direto com você. Só aparece em pedidos via WhatsApp." />
+            <Hint text="Não mostra valor — o cliente combina o frete direto com você depois. Vale tanto pra pedido via WhatsApp quanto pra pagamento online (nesse caso, o cliente paga só o produto agora)." />
           </Label>
           <Switch id={`quote-${option.id}`} checked={option.quoteOnRequest ?? false} onCheckedChange={onUpdateQuoteOnRequest} disabled={saving} />
         </div>
