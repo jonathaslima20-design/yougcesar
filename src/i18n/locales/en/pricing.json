@@ -42,7 +42,7 @@
     "pixel_integration": "Meta Pixel and Google Tag integration",
     "referral": "Referral program",
     "custom_domain": "Custom domain with SSL",
-    "rest_api": "REST API for external integrations (Bling, Tiny, ERPs)",
+    "rest_api": "REST API for external integrations",
     "no_branding": "Remove VitrineTurbo branding"
   }
 }

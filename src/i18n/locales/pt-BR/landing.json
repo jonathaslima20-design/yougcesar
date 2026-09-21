@@ -10,8 +10,8 @@
   },
   "hero": {
     "badge": "+3.000 lojas criadas no Brasil",
-    "title": "Sua loja online pronta em minutos. Sem taxa sobre vendas.",
-    "subtitle": "Catálogo profissional, estoque, pedidos e domínio próprio. Você fica com 100% de cada venda, nós não cobramos comissão.",
+    "title": "Sua loja online, pronta em minutos.",
+    "subtitle": "Catálogo profissional, estoque, pedidos e domínio próprio. Venda pelo WhatsApp ou receba pagamento online via Pix e cartão, você escolhe.",
     "ctaStart": "Começar Agora",
     "ctaPlans": "Ver Planos",
     "footnote": "Configure sua vitrine em minutos"
@@ -81,11 +81,10 @@
     "items": {
       "1": { "q": "Existe um plano gratuito?", "a": "Sim! O plano Free permite cadastrar até 20 produtos sem nenhum custo, sem precisar inserir cartão de crédito. É a forma mais simples de começar sua vitrine digital. Quando sua loja crescer e você precisar de mais recursos, basta fazer o upgrade para um plano pago com um clique." },
       "2": { "q": "Preciso de cartão de crédito para começar?", "a": "Não. Você pode criar sua vitrine e explorar a plataforma sem nenhum compromisso inicial." },
-      "3": { "q": "Existe taxa sobre as vendas?", "a": "Não cobramos nenhuma comissão sobre suas vendas. Você paga apenas o plano escolhido." },
       "4": { "q": "Funciona para qualquer nicho?", "a": "Sim. Moda, calçados, cosméticos, alimentos, serviços, decoração... A plataforma é flexível e se adapta ao seu negócio." },
       "5": { "q": "Como funciona o controle de estoque?", "a": "O sistema controla a quantidade de cada produto e variação. A cada pedido, o estoque é baixado automaticamente; quando um item chega ao nível baixo você recebe alerta, e quando esgota ele sai da vitrine sozinho — sem venda duplicada e sem planilha." },
       "6": { "q": "Posso usar meu próprio domínio?", "a": "Sim. Em qualquer plano pago, você pode conectar seu domínio personalizado (ex: www.sualoja.com.br) com SSL gratuito. Basta apontar o DNS e o sistema verifica automaticamente." },
-      "7": { "q": "A API funciona com Bling, Tiny e outros ERPs?", "a": "Sim. A API REST permite integração com qualquer sistema que suporte requisições HTTP. Você pode sincronizar produtos, estoque, pedidos e cupons com ERPs como Bling, Tiny e outros." },
+      "7": { "q": "A API funciona com outros sistemas?", "a": "Sim. A API REST permite integração com qualquer sistema que suporte requisições HTTP. Você pode sincronizar produtos, estoque, pedidos e cupons com ERPs e outras ferramentas externas." },
       "8": { "q": "Posso criar cupons de desconto?", "a": "Sim. Você pode criar cupons com desconto percentual ou valor fixo, definir limite de uso, data de expiração e valor mínimo de compra. Ideal para campanhas promocionais e fidelização." },
       "9": { "q": "Como funciona o Indique e Ganhe?", "a": "Cada usuário recebe um link de indicação exclusivo. Quem assinar pelo seu link ganha desconto na primeira assinatura, e você recebe comissões em dinheiro por cada indicação convertida. Os ganhos ficam disponíveis para saque diretamente no painel." },
       "10": { "q": "Posso cancelar a qualquer momento?", "a": "No plano Mensal, sim: não há fidelidade, e você pode cancelar quando quiser, com efeito imediato, direto no painel administrativo. Já nos planos Semestral e Anual o valor é cobrado à vista pelo período contratado; por isso, após a contratação, não há reembolso proporcional em caso de cancelamento antes do fim do ciclo." }
@@ -93,7 +92,7 @@
   },
   "finalCta": {
     "title": "Tudo que você precisa. Em um único lugar.",
-    "subtitle": "Estoque, pedidos, cupons, domínio próprio e API de integração. Sem taxa sobre vendas.",
+    "subtitle": "Estoque, pedidos, cupons, domínio próprio e API de integração — pronto pra vender agora.",
     "cta": "Começar Agora"
   },
   "footer": {

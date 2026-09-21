@@ -2,7 +2,7 @@
   "plansPage": {
     "eyebrow": "/ planos vitrineturbo",
     "title": "Escolha o plano ideal para o seu negócio",
-    "subtitle": "Produtos ilimitados, estoque, pedidos, cupons e domínio próprio. Sem taxa sobre vendas."
+    "subtitle": "Produtos ilimitados, estoque, pedidos, cupons e domínio próprio."
   },
   "card": {
     "ctaLabel": "Começar agora",
@@ -51,7 +51,7 @@
     "pixel_integration": "Integração com Meta Pixel e Google Tag",
     "referral": "Programa de Indicação",
     "custom_domain": "Domínio próprio com SSL",
-    "rest_api": "API REST para integrações externas (Bling, Tiny, ERPs)",
+    "rest_api": "API REST para integrações externas",
     "no_branding": "Remoção da logomarca VitrineTurbo"
   }
 }

@@ -22,12 +22,12 @@ export const PILLAR_PAGES: Record<string, PillarPageData> = {
     slug: 'catalogo-digital-gratis',
     kicker: '/ catálogo digital grátis',
     h1: 'Catálogo Digital Grátis para Vender Online',
-    subhead: 'Crie seu catálogo profissional sem custo inicial, compartilhe pelo WhatsApp e comece a vender hoje — sem cartão de crédito, sem taxa por venda.',
-    metaDescription: 'Crie seu catálogo digital grátis, sem taxa sobre vendas. Produtos, categorias, estoque e cupom no plano gratuito. Comece agora.',
+    subhead: 'Crie seu catálogo profissional sem custo inicial, compartilhe pelo WhatsApp e comece a vender hoje — sem cartão de crédito.',
+    metaDescription: 'Crie seu catálogo digital grátis. Produtos, categorias, estoque e cupom no plano gratuito. Comece agora.',
     ctaLabel: 'Criar Catálogo Grátis',
     features: [
       { icon: Zap, title: 'Plano grátis de verdade', description: 'Sem cartão de crédito, sem período de teste que expira — o plano free é permanente enquanto você usar.' },
-      { icon: Wallet, title: 'Zero taxa sobre vendas', description: 'O que você vende é seu. Nenhuma porcentagem sai do seu pedido, em nenhum plano.' },
+      { icon: MessageCircle, title: 'Pedido direto no WhatsApp', description: 'O cliente monta o pedido no catálogo e fecha a compra falando com você, sem sair da conversa.' },
       { icon: Package, title: 'Estoque, categorias e cupom', description: 'Recursos que catálogo genérico não tem, disponíveis desde o primeiro produto cadastrado.' },
       { icon: Globe, title: 'Domínio próprio quando crescer', description: 'Comece com o link padrão e conecte seu próprio domínio no momento que fizer sentido pro seu negócio.' },
     ],
@@ -64,10 +64,10 @@ export const PILLAR_PAGES: Record<string, PillarPageData> = {
     metaDescription: 'Loja virtual sem taxa sobre vendas: assinatura fixa e previsível, plano grátis pra começar. Veja quanto você deixa de pagar em taxa por venda.',
     ctaLabel: 'Vender sem Taxa',
     features: [
-      { icon: Wallet, title: '0% de taxa, sempre', description: 'Em nenhum plano — free ou pago — uma porcentagem da sua venda vai pra plataforma.' },
+      { icon: Wallet, title: '0% de taxa na assinatura', description: 'Em nenhum plano — free ou pago — uma porcentagem da sua venda vai pra plataforma.' },
       { icon: ShieldCheck, title: 'Mensalidade previsível', description: 'Você sabe exatamente quanto paga todo mês, independente de quanto vender.' },
       { icon: Zap, title: 'Plano grátis pra começar', description: 'Teste sem compromisso antes de decidir se quer um plano com mais recursos.' },
-      { icon: Tag, title: 'Sem letra miúda', description: 'Nenhuma taxa escondida em frete, em processamento de pagamento ou em qualquer outra etapa.' },
+      { icon: Tag, title: 'Sem letra miúda', description: 'Sem taxa escondida em nenhuma etapa da assinatura — o que você vê no plano é o que você paga.' },
     ],
     relatedSlugs: [
       'taxa-por-venda-catalogo-digital-quanto-custa',

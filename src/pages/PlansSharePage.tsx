@@ -21,7 +21,13 @@ export default function PlansSharePage() {
         savingsBadge: plan.savingsBadge
           ? t(`plans.${plan.id}.savingsBadge`, { defaultValue: plan.savingsBadge })
           : plan.savingsBadge,
-        benefits: plan.benefits.map((b) => translateBenefit(t, PAID_BENEFIT_KEYS, b)),
+        // Mercado Pago and SuperFrete are BRL/Brazil-only — appended only on
+        // this branch, never in the international list below.
+        benefits: [
+          ...plan.benefits.map((b) => translateBenefit(t, PAID_BENEFIT_KEYS, b)),
+          'Pagamento online com Mercado Pago',
+          'Frete calculado automaticamente',
+        ],
       }))
     : [
         {

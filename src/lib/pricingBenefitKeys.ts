@@ -15,7 +15,7 @@ export const PAID_BENEFIT_KEYS: Record<string, string> = {
   'Integração com Meta Pixel e Google Tag': 'benefits.pixel_integration',
   'Programa de Indicação': 'benefits.referral',
   'Domínio próprio com SSL': 'benefits.custom_domain',
-  'API REST para integrações externas (Bling, Tiny, ERPs)': 'benefits.rest_api',
+  'API REST para integrações externas': 'benefits.rest_api',
   'Remoção da logomarca VitrineTurbo': 'benefits.no_branding',
 };
 

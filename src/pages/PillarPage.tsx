@@ -123,7 +123,7 @@ export default function PillarPage({ slug }: { slug: string }) {
             Comece agora, de graça.
           </h2>
           <p className="text-ink-300 text-[15px] mt-4">
-            Sem cartão de crédito. Sem taxa sobre vendas. Cancele quando quiser.
+            Sem cartão de crédito. Cancele quando quiser.
           </p>
           <Link
             to="/register"
