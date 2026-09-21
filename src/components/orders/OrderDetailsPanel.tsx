@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ShieldCheck, ExternalLink, ChevronDown, ChevronUp, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ShieldCheck, ExternalLink, ChevronDown, ChevronUp, TriangleAlert as AlertTriangle, FileDown, Tag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,13 @@ import { OrderShippingAddress } from '@/components/buyer/OrderShippingAddress';
 import { OrderPickupInfo } from '@/components/buyer/OrderPickupInfo';
 import { deductStockForOrder, restoreStockForOrder } from '@/lib/stockUtils';
 import { refundOrderPayment } from '@/lib/merchantPayments';
+import { getShippingCredentialsConfig } from '@/lib/merchantShipping';
+import {
+  getOrderShippingLabel,
+  purchaseOrderShippingLabel,
+  cancelOrderShippingLabel,
+  type OrderShippingLabel,
+} from '@/lib/merchantShippingLabel';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
 import { generateWhatsAppUrl } from '@/lib/utils';
 import { formatCpfCnpj } from '@/lib/document';
@@ -83,6 +90,28 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
+// Mirrors SERVICE_CARRIER_NAMES in supabase/functions/merchant-shipping-label
+// — used here only to show a friendly name while a purchase is in flight,
+// before the order's own `carrier` column (written by that edge function)
+// comes back through onTrackingUpdate.
+const SERVICE_CARRIER_NAMES: Record<string, string> = {
+  '1': 'Correios (PAC)',
+  '2': 'Correios (SEDEX)',
+  '17': 'Correios (Mini Envios)',
+  '3': 'Jadlog',
+  '33': 'J&T',
+  '31': 'Loggi',
+};
+
+const LABEL_STATUS_LABELS: Record<OrderShippingLabel['status'], string> = {
+  pending: 'Aguardando pagamento',
+  released: 'Etiqueta comprada',
+  posted: 'Postada',
+  delivered: 'Entregue',
+  cancelled: 'Cancelada',
+  error: 'Falha na compra',
+};
+
 export default function OrderDetailsPanel({
   order,
   open,
@@ -107,6 +136,13 @@ export default function OrderDetailsPanel({
   const [savingTracking, setSavingTracking] = useState(false);
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refunding, setRefunding] = useState(false);
+  const [labelPurchaseEnabled, setLabelPurchaseEnabled] = useState(false);
+  const [shippingLabel, setShippingLabel] = useState<OrderShippingLabel | null>(null);
+  const [labelLoading, setLabelLoading] = useState(false);
+  const [purchasingLabel, setPurchasingLabel] = useState(false);
+  const [cancellingLabel, setCancellingLabel] = useState(false);
+  const [purchaseLabelDialogOpen, setPurchaseLabelDialogOpen] = useState(false);
+  const [cancelLabelDialogOpen, setCancelLabelDialogOpen] = useState(false);
 
   useEffect(() => {
     setPaymentHistoryOpen(false);
@@ -114,7 +150,73 @@ export default function OrderDetailsPanel({
     setCarrier(order?.carrier || '');
     setTrackingCode(order?.tracking_code || '');
     setRefundDialogOpen(false);
+    setPurchaseLabelDialogOpen(false);
+    setCancelLabelDialogOpen(false);
   }, [order?.id]);
+
+  useEffect(() => {
+    getShippingCredentialsConfig()
+      .then(({ config }) => setLabelPurchaseEnabled(!!config?.label_purchase_enabled))
+      .catch(() => setLabelPurchaseEnabled(false));
+  }, []);
+
+  const isSuperFreteOrder = order?.order_type === 'ecommerce' && !!order?.delivery_option?.startsWith('superfrete:');
+
+  useEffect(() => {
+    if (!order || !isSuperFreteOrder || !labelPurchaseEnabled) {
+      setShippingLabel(null);
+      return;
+    }
+    let cancelled = false;
+    setLabelLoading(true);
+    getOrderShippingLabel(order.id)
+      .then((label) => { if (!cancelled) setShippingLabel(label); })
+      .catch(() => { if (!cancelled) setShippingLabel(null); })
+      .finally(() => { if (!cancelled) setLabelLoading(false); });
+    return () => { cancelled = true; };
+  }, [order?.id, isSuperFreteOrder, labelPurchaseEnabled]);
+
+  const handlePurchaseLabel = async () => {
+    if (!order) return;
+    setPurchasingLabel(true);
+    try {
+      const label = await purchaseOrderShippingLabel(order.id);
+      setShippingLabel(label);
+      if (label.status === 'released') {
+        toast.success('Etiqueta comprada com sucesso');
+        const carrierName = label.service_id ? SERVICE_CARRIER_NAMES[label.service_id] || 'SuperFrete' : 'SuperFrete';
+        const tracking = { carrier: carrierName, tracking_code: label.tracking_code };
+        setCarrier(carrierName);
+        setTrackingCode(label.tracking_code || '');
+        onTrackingUpdate?.(order.id, tracking);
+      } else {
+        toast.error(label.error_message || 'Não foi possível comprar a etiqueta');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao comprar etiqueta');
+    } finally {
+      setPurchasingLabel(false);
+      setPurchaseLabelDialogOpen(false);
+    }
+  };
+
+  const handleCancelLabel = async () => {
+    if (!order) return;
+    setCancellingLabel(true);
+    try {
+      await cancelOrderShippingLabel(order.id);
+      setShippingLabel((prev) => (prev ? { ...prev, status: 'cancelled' } : prev));
+      setCarrier('');
+      setTrackingCode('');
+      onTrackingUpdate?.(order.id, { carrier: null, tracking_code: null });
+      toast.success('Etiqueta cancelada');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao cancelar etiqueta');
+    } finally {
+      setCancellingLabel(false);
+      setCancelLabelDialogOpen(false);
+    }
+  };
 
   const handleRefund = async () => {
     if (!order) return;
@@ -646,6 +748,79 @@ export default function OrderDetailsPanel({
               </>
             )}
 
+            {isSuperFreteOrder && labelPurchaseEnabled && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" />
+                    Etiqueta SuperFrete
+                  </h4>
+                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                    {labelLoading ? (
+                      <p className="text-xs text-muted-foreground">Carregando...</p>
+                    ) : !shippingLabel || shippingLabel.status === 'cancelled' || shippingLabel.status === 'error' ? (
+                      <>
+                        {shippingLabel?.status === 'error' && (
+                          <p className="text-xs text-red-600 dark:text-red-400">
+                            {shippingLabel.error_message || 'Falha ao comprar a etiqueta.'}
+                          </p>
+                        )}
+                        {shippingLabel?.status === 'cancelled' && (
+                          <Badge variant="outline" className="text-xs">Etiqueta cancelada</Badge>
+                        )}
+                        <Button
+                          size="sm"
+                          className="w-full gap-1.5"
+                          onClick={() => setPurchaseLabelDialogOpen(true)}
+                          disabled={purchasingLabel}
+                        >
+                          <Tag className="h-3.5 w-3.5" />
+                          {shippingLabel ? 'Tentar novamente' : 'Comprar etiqueta e gerar rastreio'}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className="text-xs">
+                            {LABEL_STATUS_LABELS[shippingLabel.status]}
+                          </Badge>
+                          {shippingLabel.price != null && (
+                            <span className="text-sm font-medium">{formatCurrency(shippingLabel.price)}</span>
+                          )}
+                        </div>
+                        {shippingLabel.tracking_code && (
+                          <p className="text-xs text-muted-foreground">
+                            Rastreio: <span className="font-medium text-foreground">{shippingLabel.tracking_code}</span>
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          {shippingLabel.label_pdf_url && (
+                            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                              <a href={shippingLabel.label_pdf_url} target="_blank" rel="noopener noreferrer">
+                                <FileDown className="h-3.5 w-3.5" />
+                                Baixar etiqueta (PDF)
+                              </a>
+                            </Button>
+                          )}
+                          {shippingLabel.status === 'released' && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setCancelLabelDialogOpen(true)}
+                              disabled={cancellingLabel}
+                            >
+                              Cancelar etiqueta
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
             {(order.status === 'shipped' || order.status === 'delivered') && (
               <>
                 <Separator />
@@ -790,6 +965,54 @@ export default function OrderDetailsPanel({
               disabled={refunding}
             >
               {refunding ? 'Reembolsando...' : 'Reembolsar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={purchaseLabelDialogOpen} onOpenChange={setPurchaseLabelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Comprar etiqueta de envio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai debitar o valor da etiqueta do saldo da sua carteira SuperFrete e gerar o
+              código de rastreio automaticamente para este pedido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={purchasingLabel}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handlePurchaseLabel();
+              }}
+              disabled={purchasingLabel}
+            >
+              {purchasingLabel ? 'Comprando...' : 'Comprar etiqueta'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={cancelLabelDialogOpen} onOpenChange={setCancelLabelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar esta etiqueta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O valor pago volta para o saldo da sua carteira SuperFrete, desde que a etiqueta
+              ainda não tenha sido postada. O rastreio deste pedido será removido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancellingLabel}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleCancelLabel();
+              }}
+              disabled={cancellingLabel}
+            >
+              {cancellingLabel ? 'Cancelando...' : 'Cancelar etiqueta'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
