@@ -1,7 +1,7 @@
 import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Plus, Package, MessageCircle, CreditCard, QrCode, Image as ImageIcon, Link2, Copy, Instagram, Megaphone, Globe as Globe2, ChartBar as BarChart3, LogIn, Radio, Box, ClipboardList, Tag, Palette, Shield, TriangleAlert as AlertTriangle, Percent, RefreshCw } from 'lucide-react';
+import { ArrowRight, Plus, Package, MessageCircle, CreditCard, QrCode, Image as ImageIcon, Link2, Copy, Instagram, Megaphone, Globe as Globe2, ChartBar as BarChart3, LogIn, Radio, Box, ClipboardList, Tag, Palette, Shield, TriangleAlert as AlertTriangle, Percent, RefreshCw, Check } from 'lucide-react';
 import HeroPhoneCarousel from '@/components/landing/HeroPhoneCarousel';
 import PricingCard from '@/components/pricing/PricingCard';
 import { PAID_PLANS, type PricingPlan } from '@/lib/pricingPlans';
@@ -255,6 +255,76 @@ function Hero({ refCode }: { refCode: string | null }) {
         </div>
         <div className="reveal mt-8 lg:mt-10">
           <HeroPhoneCarousel />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Brazil-only: Mercado Pago online payment is a BRL-only feature, so this
+// (like BRLPricingSection) only renders for BRL-detected visitors. Copy is
+// hardcoded pt-BR rather than routed through i18n since it's never shown to
+// any other locale — no point maintaining unused keys in en/es/pt-PT.
+const MP_PAYMENT_BENEFITS = [
+  'Pix com confirmação instantânea',
+  'Cartão de crédito, inclusive parcelado',
+  'Pedido aprovado direto no seu painel',
+];
+
+function MercadoPagoSection() {
+  const { currency } = useDetectedCountry();
+  if (currency !== 'BRL') return null;
+
+  return (
+    <section className="py-24 lg:py-32 bg-surface border-t hairline" style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 600px' }}>
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="reveal">
+          <div className="font-mono-label uppercase text-[11px] text-ink-500">/ pagamento online</div>
+          <h2 className="font-display font-semibold text-[36px] sm:text-[48px] leading-[1.05] tracking-[-0.035em] text-ink-900 mt-4">
+            Venda com Pix e cartão, direto na sua loja
+          </h2>
+          <p className="text-ink-500 text-[16px] lg:text-[18px] mt-6 leading-[1.5] max-w-xl">
+            Conecte sua conta do Mercado Pago e receba pagamentos sem sair da loja.
+          </p>
+          <ul className="mt-8 space-y-3">
+            {MP_PAYMENT_BENEFITS.map((item) => (
+              <li key={item} className="flex items-center gap-3">
+                <span className="w-5 h-5 rounded-full bg-white border hairline flex items-center justify-center flex-shrink-0">
+                  <Check size={12} strokeWidth={3} className="text-ink-900" />
+                </span>
+                <span className="text-[14px] text-ink-700">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="reveal rounded-2xl border hairline bg-white p-6 lg:p-8">
+          <img src="/logos/mercado-pago.png" alt="Mercado Pago" className="h-7 w-auto mb-6" />
+          <div className="space-y-2">
+            {[
+              { Icon: QrCode, label: 'Pix', selected: true },
+              { Icon: CreditCard, label: 'Cartão de crédito', selected: false },
+            ].map(({ Icon, label, selected }) => (
+              <div
+                key={label}
+                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-3 ${
+                  selected ? 'border-ink-900 bg-white' : 'hairline bg-white'
+                }`}
+              >
+                <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                  selected ? 'border-ink-900' : 'border-ink-300'
+                }`}>
+                  {selected && <div className="w-1.5 h-1.5 rounded-full bg-ink-900" />}
+                </div>
+                <Icon size={15} className="text-ink-500 flex-shrink-0" />
+                <span className="text-[13px] font-medium text-ink-900">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl bg-emerald-600 text-white px-3.5 py-3 text-center text-[13px] font-semibold mt-3 flex items-center justify-center gap-2">
+            <Check size={14} strokeWidth={3} />
+            Pagamento aprovado
+          </div>
         </div>
       </div>
     </section>
@@ -729,7 +799,15 @@ function BRLPricingSection({ refCode }: { refCode: string | null }) {
     savingsBadge: plan.savingsBadge
       ? tp(`plans.${plan.id}.savingsBadge`, { defaultValue: plan.savingsBadge })
       : plan.savingsBadge,
-    benefits: plan.benefits.map((b) => translateBenefit(tp, PAID_BENEFIT_KEYS, b)),
+    // Appended here (not in PAID_PLANS.benefits) because Mercado Pago and
+    // SuperFrete are BRL/Brazil-only — the same array also feeds
+    // InternationalPricingSection, which must not advertise features those
+    // visitors can't use.
+    benefits: [
+      ...plan.benefits.map((b) => translateBenefit(tp, PAID_BENEFIT_KEYS, b)),
+      'Pagamento online com Mercado Pago',
+      'Frete calculado automaticamente',
+    ],
   }));
 
   return (
@@ -749,7 +827,7 @@ function BRLPricingSection({ refCode }: { refCode: string | null }) {
 
 function FaqSection() {
   const { t } = useTranslation('landing');
-  const items = [2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
+  const items = [2, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
     q: t(`faq.items.${n}.q`),
     a: t(`faq.items.${n}.a`),
   }));
@@ -801,6 +879,8 @@ function FinalCTA({ refCode }: { refCode: string | null }) {
 
 function FooterLanding() {
   const { t, i18n } = useTranslation('landing');
+  const { currency } = useDetectedCountry();
+
   // pb-28 no mobile reserva espaço para o MobileStickyCTA (fixed, md:hidden) não cobrir a última linha do rodapé
   return (
     <footer className="border-t hairline bg-white pt-14 pb-28 md:pb-8">
@@ -860,6 +940,17 @@ function FooterLanding() {
             <Link to="/excluir-minha-conta" className="text-[13px] text-ink-600 hover:text-ink-900 transition-colors">{t('footer.myData')}</Link>
           </div>
         </div>
+
+        {/* Selos de pagamento — Mercado Pago, Pix, bandeiras e segurança são
+            recursos BRL-only, então só aparecem pra visitantes detectados no Brasil. */}
+        {currency === 'BRL' && (
+          <div className="border-t hairline pt-8 pb-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+            <img src="/logos/mercado-pago.png" alt="Mercado Pago" className="h-7 w-auto" loading="lazy" />
+            <img src="https://auth.vitrineturbo.com/storage/v1/object/public/landing/logopix.png" alt="Pix" className="h-7 w-auto" loading="lazy" />
+            <img src="https://auth.vitrineturbo.com/storage/v1/object/public/landing/logossl.webp" alt="Pagamento seguro" className="h-14 w-auto" loading="lazy" />
+            <img src="https://auth.vitrineturbo.com/storage/v1/object/public/landing/logobandeiras.png" alt="Bandeiras aceitas" className="h-7 w-auto" loading="lazy" />
+          </div>
+        )}
 
         {/* Bottom bar */}
         <div className="border-t hairline pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -945,6 +1036,7 @@ export default function LandingPage() {
       <Hero refCode={refCode} />
       <HowItWorksSection />
       <MemoizedBentoGrid />
+      <MercadoPagoSection />
       <MemoizedSocialProofSection />
       <Suspense fallback={null}>
         <LandingTestimonials />

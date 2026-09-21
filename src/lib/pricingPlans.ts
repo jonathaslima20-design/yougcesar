@@ -27,7 +27,7 @@ const allPaidBenefits = [
 
 const anualBenefits = [
   ...allPaidBenefits,
-  'API REST para integrações externas (Bling, Tiny, ERPs)',
+  'API REST para integrações externas',
   'Remoção da logomarca VitrineTurbo',
 ];
 
