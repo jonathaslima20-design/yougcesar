@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck, Clock, ExternalLink, UserRound, Wallet } from 'lucide-react';
+import { Loader as Loader2, ArrowLeft, MapPin, Ticket, Truck, Check, ShieldCheck, Clock, ExternalLink, UserRound, Wallet, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -177,7 +177,6 @@ export default function CheckoutAddressPage() {
         buyerCity: currentCity,
         buyerState: currentState,
         skipLocationMatch,
-        excludeQuoteOnRequest: true,
       }).filter((d) => isDistanceTierEligible(d, customerDistanceKm)),
     [checkoutSettings.deliveryOptions, currentState, currentCity, corretor?.city, corretor?.state, skipLocationMatch, customerDistanceKm]
   );
@@ -289,6 +288,7 @@ export default function CheckoutAddressPage() {
     fee: q.price,
     enabled: true,
     freeAbove: null,
+    quoteOnRequest: false,
     calculationType: 'carrier' as const,
     carrierProvider: 'superfrete' as const,
     scope: 'national' as const,
@@ -543,6 +543,7 @@ export default function CheckoutAddressPage() {
           delivery_fee: deliveryFee,
           delivery_option: selectedDeliveryConfig?.name || null,
           delivery_scope: selectedDeliveryConfig ? (selectedDeliveryConfig.scope || 'national') : null,
+          delivery_is_quote: selectedDeliveryConfig?.quoteOnRequest || false,
           delivery_distance_km: selectedDeliveryConfig?.calculationType === 'distance_tier' ? customerDistanceKm : null,
           delivery_weight_kg: selectedDeliveryConfig?.calculationType === 'weight_tier' ? cartTotalWeightKg : null,
           pickup_instructions: isPickupSelected ? buildPickupInstructionsSnapshot(selectedDeliveryConfig) : null,
@@ -645,8 +646,8 @@ export default function CheckoutAddressPage() {
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium">{option.name}</p>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={cn('text-sm', displayFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground')}>
-                              {displayFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(displayFee)}`}
+                            <span className={cn('text-sm', option.quoteOnRequest ? 'text-amber-600 dark:text-amber-400' : displayFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground')}>
+                              {option.quoteOnRequest ? 'A combinar' : displayFee === 0 ? 'Grátis' : `+${formatCurrencyI18n(displayFee)}`}
                             </span>
                             {isSelected && <Check className="h-4 w-4 text-primary" />}
                           </div>
@@ -654,6 +655,14 @@ export default function CheckoutAddressPage() {
                       </button>
                     );
                   })}
+                </div>
+              )}
+              {selectedDeliveryConfig?.quoteOnRequest && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <p className="text-xs">
+                    O valor do frete desta opção não entra no pagamento agora — a loja vai combinar com você o valor e a forma de pagamento do frete depois da compra.
+                  </p>
                 </div>
               )}
               {shippingQuotesLoading && (
@@ -955,12 +964,22 @@ export default function CheckoutAddressPage() {
               totals={{
                 subtotal: cart.total,
                 delivery_fee: deliveryFee,
+                delivery_is_quote: selectedDeliveryConfig?.quoteOnRequest || false,
                 insurance_fee: insuranceFee,
                 discount_amount: discountAmount,
                 cashback_used: cashbackUsed,
                 total: finalTotal,
               }}
             />
+
+            {selectedDeliveryConfig?.quoteOnRequest && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <p className="text-xs">
+                  Você está pagando apenas o produto. O frete será combinado diretamente com a loja depois da compra.
+                </p>
+              </div>
+            )}
 
             <Button onClick={handleContinue} disabled={submitting} className="w-full" size="lg">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
