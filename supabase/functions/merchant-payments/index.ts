@@ -27,6 +27,7 @@ interface CardPaymentPayload {
   payment_method_id: string;
   issuer_id: string;
   payer: { email: string; first_name: string; last_name: string; doc: string };
+  device_id?: string;
 }
 
 async function getBuyerId(
@@ -235,6 +236,39 @@ Deno.serve(async (req: Request) => {
         if (action === "createPixPayment") {
           const { payer } = payload as PixPaymentPayload;
 
+          // Reuse an already-pending, still-valid Pix for this order instead
+          // of minting a second one on every retry/page reload — otherwise
+          // two separate QR codes stay simultaneously payable for the same
+          // order, and both could get paid.
+          const { data: existingPending } = await admin
+            .from("order_payments")
+            .select("id, mp_payment_id, status, pix_qr_code, pix_qr_code_base64, pix_ticket_url, pix_expires_at")
+            .eq("order_id", order.id)
+            .eq("payment_method", "pix")
+            .eq("status", "pending")
+            .not("mp_payment_id", "is", null)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (
+            existingPending &&
+            (!existingPending.pix_expires_at || new Date(existingPending.pix_expires_at) > new Date())
+          ) {
+            return new Response(
+              JSON.stringify({
+                order_payment_id: existingPending.id,
+                mp_payment_id: existingPending.mp_payment_id,
+                status: existingPending.status,
+                pix_qr_code: existingPending.pix_qr_code || "",
+                pix_qr_code_base64: existingPending.pix_qr_code_base64 || "",
+                pix_ticket_url: existingPending.pix_ticket_url || "",
+                expires_at: existingPending.pix_expires_at,
+              }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
           const { data: paymentRow, error: insertErr } = await admin
             .from("order_payments")
             .insert({
@@ -282,10 +316,12 @@ Deno.serve(async (req: Request) => {
           const mpData = await mpResponse.json();
 
           if (!mpResponse.ok) {
-            await admin
-              .from("order_payments")
-              .update({ status: "rejected", status_detail: mpData.message || "API error", raw_response: mpData, updated_at: new Date().toISOString() })
-              .eq("id", paymentRow.id);
+            await admin.rpc("process_order_payment_result", {
+              p_order_payment_id: paymentRow.id,
+              p_mp_status: "rejected",
+              p_status_detail: mpData.message || "API error",
+              p_raw_response: mpData,
+            });
 
             return new Response(
               JSON.stringify({ error: mpData.message || "Erro ao criar pagamento PIX" }),
@@ -300,20 +336,25 @@ Deno.serve(async (req: Request) => {
             .from("order_payments")
             .update({
               mp_payment_id: String(mpData.id),
-              status: mpData.status || "pending",
-              status_detail: mpData.status_detail || "",
               pix_qr_code: pixData?.qr_code || "",
               pix_qr_code_base64: pixData?.qr_code_base64 || "",
               pix_ticket_url: pixData?.ticket_url || "",
               pix_expires_at: expiresAt,
-              raw_response: mpData,
               updated_at: new Date().toISOString(),
             })
             .eq("id", paymentRow.id);
 
-          if (mpData.status === "approved") {
-            await admin.from("orders").update({ payment_status: "approved" }).eq("id", order.id);
-          }
+          // Funnels through the same locked, idempotent RPC that the
+          // webhook and the buyer's status polling also call — whichever
+          // of the three reaches "approved" first is the one that actually
+          // deducts stock and credits cashback; the others become no-ops
+          // instead of silently skipping those side effects.
+          await admin.rpc("process_order_payment_result", {
+            p_order_payment_id: paymentRow.id,
+            p_mp_status: mpData.status || "pending",
+            p_status_detail: mpData.status_detail || "",
+            p_raw_response: mpData,
+          });
 
           return new Response(
             JSON.stringify({
@@ -330,7 +371,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // createCardPayment
-        const { token, installments, payment_method_id, issuer_id, payer: cardPayer } =
+        const { token, installments, payment_method_id, issuer_id, payer: cardPayer, device_id } =
           payload as CardPaymentPayload;
 
         const { data: paymentRow, error: insertErr } = await admin
@@ -391,6 +432,15 @@ Deno.serve(async (req: Request) => {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             "X-Idempotency-Key": paymentRow.id,
+            // Device fingerprint (window.MP_DEVICE_SESSION_ID on the client,
+            // set by the security.js script OrderPaymentPage now loads via
+            // loadMpDeviceFingerprintScript()). This storefront checkout
+            // never sent this before — same header the platform-subscription
+            // checkout already sends in mercadopago/index.ts. Without it MP's
+            // fraud engine has much less signal about the buyer's device and
+            // defaults to rejecting more card charges (cc_rejected_high_risk
+            // / cc_rejected_other_reason).
+            ...(device_id ? { "X-meli-session-id": device_id } : {}),
           },
           body: JSON.stringify(mpBody),
         });
@@ -398,14 +448,16 @@ Deno.serve(async (req: Request) => {
         const mpData = await mpResponse.json();
 
         if (!mpResponse.ok) {
-          await admin
-            .from("order_payments")
-            .update({ status: "rejected", status_detail: mpData.message || "API error", raw_response: mpData, updated_at: new Date().toISOString() })
-            .eq("id", paymentRow.id);
-
           // Card declines resolve synchronously, unlike Pix — no need to wait
           // for the webhook to free the stock back up for another buyer.
-          await admin.rpc("release_order_stock_reservation", { p_order_id: order.id });
+          // The RPC releases the reservation itself as part of the
+          // pending->rejected transition.
+          await admin.rpc("process_order_payment_result", {
+            p_order_payment_id: paymentRow.id,
+            p_mp_status: "rejected",
+            p_status_detail: mpData.message || "API error",
+            p_raw_response: mpData,
+          });
 
           return new Response(
             JSON.stringify({ error: mpData.message || "Erro ao processar pagamento com cartão" }),
@@ -421,24 +473,24 @@ Deno.serve(async (req: Request) => {
           .from("order_payments")
           .update({
             mp_payment_id: String(mpData.id),
-            status: mpData.status || "rejected",
-            status_detail: mpData.status_detail || "",
             card_last4: last4,
             card_brand: brand,
-            raw_response: mpData,
             updated_at: new Date().toISOString(),
           })
           .eq("id", paymentRow.id);
 
-        if (mpData.status === "approved") {
-          await admin.from("orders").update({ payment_status: "approved" }).eq("id", order.id);
-        } else if (mpData.status === "rejected") {
-          // binary_mode makes this the common outcome for a declined card —
-          // MP still answers 200 here, so this is separate from the
-          // !mpResponse.ok branch above. Free the stock for another buyer
-          // right away instead of waiting on the webhook.
-          await admin.rpc("release_order_stock_reservation", { p_order_id: order.id });
-        }
+        // Same shared RPC as Pix — binary_mode means a declined card
+        // resolves here synchronously (separate from the !mpResponse.ok
+        // branch above), and this is also what makes an approved card
+        // actually deduct stock/credit cashback now, which it never did
+        // before (the webhook's own guard used to skip it because this
+        // code path had already written status="approved" first).
+        await admin.rpc("process_order_payment_result", {
+          p_order_payment_id: paymentRow.id,
+          p_mp_status: mpData.status || "rejected",
+          p_status_detail: mpData.status_detail || "",
+          p_raw_response: mpData,
+        });
 
         return new Response(
           JSON.stringify({
@@ -507,19 +559,20 @@ Deno.serve(async (req: Request) => {
                 const mpStatus = mpData.status || "";
 
                 if (mpStatus !== payment.status) {
-                  await admin
-                    .from("order_payments")
-                    .update({ status: mpStatus, status_detail: mpData.status_detail || "", raw_response: mpData, updated_at: new Date().toISOString() })
-                    .eq("id", payment.id);
-
-                  if (mpStatus === "approved") {
-                    await admin.from("orders").update({ payment_status: "approved" }).eq("id", payment.order_id);
-                  } else if (mpStatus === "rejected" || mpStatus === "cancelled") {
-                    // Learned about a terminal negative status while the
-                    // buyer's own browser is polling — free the stock now
-                    // rather than waiting on the webhook or the cron sweep.
-                    await admin.rpc("release_order_stock_reservation", { p_order_id: payment.order_id });
-                  }
+                  // Same locked, idempotent RPC the webhook and the
+                  // synchronous payment-creation paths call — this used to
+                  // write "approved" here directly with none of the stock
+                  // deduction/cashback side effects, which then made the
+                  // webhook's own guard skip processing entirely once it
+                  // arrived and saw the status already "approved". Now
+                  // whichever of the two actually gets here first is the
+                  // one that runs those side effects, exactly once.
+                  await admin.rpc("process_order_payment_result", {
+                    p_order_payment_id: payment.id,
+                    p_mp_status: mpStatus,
+                    p_status_detail: mpData.status_detail || "",
+                    p_raw_response: mpData,
+                  });
 
                   return new Response(
                     JSON.stringify({ ...payment, status: mpStatus, status_detail: mpData.status_detail || payment.status_detail }),

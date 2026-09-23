@@ -63,73 +63,6 @@ async function verifySignature(
   return timingSafeEqual(hexHash, v1);
 }
 
-/**
- * Baixa o estoque de um pedido ecommerce recem-aprovado.
- *
- * Respeita as mesmas duas chaves do checkout por WhatsApp: a loja precisa ter
- * o controle de estoque ligado (`enableInventory`) e a baixa automatica
- * (`autoDeductStock`). Quem faz o trabalho e a RPC `deduct_stock_for_order`,
- * que ja e idempotente o suficiente para o retry do Mercado Pago: a chave de
- * idempotencia em order_payment_webhook_events barra o evento repetido antes
- * de chegar aqui.
- */
-async function deductStockForApprovedOrder(
-  admin: ReturnType<typeof createClient>,
-  orderId: string
-): Promise<void> {
-  const { data: order, error: orderError } = await admin
-    .from("orders")
-    .select("id, store_owner_id, inventory_deducted")
-    .eq("id", orderId)
-    .maybeSingle();
-
-  if (orderError || !order) {
-    console.error("Stock deduction skipped, order not found:", orderId, orderError);
-    return;
-  }
-
-  if (order.inventory_deducted) return;
-
-  const { data: settings } = await admin
-    .from("user_storefront_settings")
-    .select("settings")
-    .eq("user_id", order.store_owner_id)
-    .maybeSingle();
-
-  const inventoryEnabled = settings?.settings?.enableInventory ?? false;
-  const autoDeduct = settings?.settings?.autoDeductStock ?? true;
-  if (!inventoryEnabled || !autoDeduct) return;
-
-  const { data: items, error: itemsError } = await admin
-    .from("order_items")
-    .select("product_id, quantity, selected_color, selected_size, selected_flavor, selected_variant_label")
-    .eq("order_id", orderId);
-
-  if (itemsError || !items?.length) {
-    console.error("Stock deduction skipped, no items:", orderId, itemsError);
-    return;
-  }
-
-  const { data: result, error: deductError } = await admin.rpc("deduct_stock_for_order", {
-    p_order_id: orderId,
-    p_store_owner_id: order.store_owner_id,
-    p_items: items,
-  });
-
-  if (deductError) {
-    console.error("Stock deduction failed for approved order:", orderId, deductError);
-    return;
-  }
-
-  const insufficient = result?.insufficient_items?.length ?? 0;
-  const unmatched = result?.unmatched_items?.length ?? 0;
-  if (insufficient > 0 || unmatched > 0) {
-    // Pagamento ja aprovado mas sem estoque para atender: a RPC gravou o
-    // detalhe em orders.stock_shortfall e o painel sinaliza o pedido.
-    console.warn("Approved order with stock shortfall:", orderId, { insufficient, unmatched });
-  }
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -212,22 +145,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { error: idempotencyError } = await admin
-      .from("order_payment_webhook_events")
-      .insert({
-        mp_event_id: `${dataId}_${action}`,
-        event_type: action,
-        mp_payment_id: dataId,
-        payload: body,
-      });
-
-    if (idempotencyError?.code === "23505") {
-      return new Response(JSON.stringify({ received: true, duplicate: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Re-fetch the payment from MP's authenticated API using the merchant's
     // own token before writing any state — never trust the webhook payload's
     // own status field.
@@ -246,40 +163,45 @@ Deno.serve(async (req: Request) => {
     const mpPayment = await mpResponse.json();
     const mpStatus = mpPayment.status || "";
 
-    await admin
-      .from("order_payments")
-      .update({
-        status: mpStatus,
-        status_detail: mpPayment.status_detail || "",
-        raw_response: mpPayment,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", paymentRow.id);
+    // Approved/rejected/cancelled all funnel through the same locked,
+    // idempotent RPC that the buyer's own status polling and the
+    // synchronous payment-creation paths call — whichever of them reaches
+    // a given transition first is the one that actually runs the stock/
+    // cashback side effects, and the others become safe no-ops instead of
+    // silently skipping those side effects (the original bug this fixes).
+    //
+    // Refund/chargeback reversal is intentionally NOT routed through that
+    // RPC yet (out of scope for this change) and keeps its own handling
+    // below, unchanged from before.
+    let processingError: string | null = null;
 
-    // O estoque so sai quando o dinheiro entra. Antes a baixa acontecia na
-    // CRIACAO do pedido ecommerce (payment_status ainda 'pending'), entao um
-    // PIX abandonado ou um cartao recusado sumiam com o estoque para sempre —
-    // nada devolvia. Agora a baixa acontece aqui, na aprovacao, e os demais
-    // status finais sao gravados no pedido em vez de ficarem presos em
-    // 'pending'.
-    if (mpStatus === "approved" && paymentRow.status !== "approved") {
-      await admin.from("orders").update({ payment_status: "approved" }).eq("id", paymentRow.order_id);
-      await deductStockForApprovedOrder(admin, paymentRow.order_id);
-
-      // Cashback e um beneficio best-effort: uma falha aqui nunca pode
-      // derrubar a resposta do webhook nem a aprovacao do pagamento em si.
-      const { error: cashbackError } = await admin.rpc("credit_cashback_for_order", {
-        p_order_id: paymentRow.order_id,
-        p_payment_id: paymentRow.id,
+    if (["approved", "rejected", "cancelled"].includes(mpStatus)) {
+      const { error } = await admin.rpc("process_order_payment_result", {
+        p_order_payment_id: paymentRow.id,
+        p_mp_status: mpStatus,
+        p_status_detail: mpPayment.status_detail || "",
+        p_raw_response: mpPayment,
       });
-      if (cashbackError) {
-        console.error("Failed to credit cashback for order:", paymentRow.order_id, cashbackError);
+      if (error) {
+        console.error("process_order_payment_result failed:", paymentRow.id, error);
+        processingError = error.message;
       }
     } else if (
-      ["rejected", "cancelled", "refunded", "charged_back"].includes(mpStatus) &&
+      ["refunded", "charged_back"].includes(mpStatus) &&
       paymentRow.status !== mpStatus
     ) {
       const orderPaymentStatus = mpStatus === "charged_back" ? "refunded" : mpStatus;
+
+      await admin
+        .from("order_payments")
+        .update({
+          status: mpStatus,
+          status_detail: mpPayment.status_detail || "",
+          raw_response: mpPayment,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", paymentRow.id);
+
       await admin
         .from("orders")
         .update({ payment_status: orderPaymentStatus })
@@ -295,8 +217,6 @@ Deno.serve(async (req: Request) => {
           console.error("Failed to restore stock after reversal:", paymentRow.order_id, restoreError);
         }
       } else {
-        // Primeira vez recusado/cancelado (nunca foi aprovado) — nada saiu
-        // do estoque real ainda, so a reserva precisa ser liberada.
         const { error: releaseError } = await admin.rpc("release_order_stock_reservation", {
           p_order_id: paymentRow.order_id,
         });
@@ -306,10 +226,33 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Audit log only from here on — inserted AFTER processing, never used
+    // to gate whether processing happens. A duplicate MP retry hitting the
+    // unique constraint is expected and harmless (the RPC above is already
+    // idempotent on its own), so it's swallowed rather than surfaced.
     await admin
       .from("order_payment_webhook_events")
-      .update({ processed: true })
-      .eq("mp_event_id", `${dataId}_${action}`);
+      .insert({
+        mp_event_id: `${dataId}_${action}`,
+        event_type: action,
+        mp_payment_id: dataId,
+        payload: body,
+        processed: !processingError,
+      })
+      .then(
+        () => {},
+        () => {}
+      );
+
+    if (processingError) {
+      // Unlike before, a real processing failure is NOT acked as 200 — MP
+      // needs to retry this notification instead of the payment getting
+      // stuck approved-at-MP/pending-in-our-database forever.
+      return new Response(JSON.stringify({ received: true, error: processingError }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ received: true, status: mpStatus }), {
       status: 200,
@@ -317,8 +260,13 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     console.error("Webhook error:", error);
-    return new Response(JSON.stringify({ received: true }), {
-      status: 200,
+    // A genuine unexpected failure (not one of the intentional early acks
+    // above) must not be swallowed as 200 — that used to permanently strand
+    // an already-approved MP payment as "pending" on our side whenever
+    // something here threw (e.g. missing merchant credentials), because MP
+    // stops retrying once it gets a 200.
+    return new Response(JSON.stringify({ received: true, error: String(error) }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

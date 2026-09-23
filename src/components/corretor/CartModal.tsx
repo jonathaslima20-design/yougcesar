@@ -26,7 +26,7 @@ import { formatCurrencyI18n, generateWhatsAppMessage, useTranslation, type Suppo
 import { getWhatsAppContactUrl } from '@/lib/utils';
 import { trackWhatsAppClick } from '@/lib/tracking';
 import type { User as UserType, PriceTier } from '@/types';
-import { generateCartOrderMessage } from '@/lib/cartUtils';
+import { generateCartOrderMessage, cleanWhatsappDigits } from '@/lib/cartUtils';
 import { createOrder } from '@/lib/orderService';
 import { findCartStockShortfalls, formatShortfallMessage, formatShortfallLines } from '@/lib/stockAvailabilityService';
 import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
@@ -385,18 +385,27 @@ export default function CartModal({
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    const fullPhone = customerCountryCode.replace('+', '') + cleanPhone;
-    const cartItemsForCoupon = cart.items.map((item) => {
-      const tierInfo = productTiers.get(item.id);
-      const hasTieredPricing = item.has_tiered_pricing || tierInfo?.hasTieredPricing || false;
-      const tiers = tierInfo?.tiers || [];
-      const subtotal = hasTieredPricing && tiers.length > 0
-        ? calculateApplicablePrice(item.quantity, tiers, item.price, item.discounted_price).totalPrice
-        : (item.applied_tier_price || item.discounted_price || item.price) * item.quantity;
-      return { product_id: item.id, subtotal };
-    });
-    const result = await validateCoupon(corretor.id, couponCode, fullPhone, cart.total, cartItemsForCoupon);
+    const cleanPhone = cleanWhatsappDigits(customerPhone);
+    const cartItemsForCoupon = [
+      ...cart.items.map((item) => {
+        const tierInfo = productTiers.get(item.id);
+        const hasTieredPricing = item.has_tiered_pricing || tierInfo?.hasTieredPricing || false;
+        const tiers = tierInfo?.tiers || [];
+        const subtotal = hasTieredPricing && tiers.length > 0
+          ? calculateApplicablePrice(item.quantity, tiers, item.price, item.discounted_price).totalPrice
+          : (item.applied_tier_price || item.discounted_price || item.price) * item.quantity;
+        return { product_id: item.id, subtotal };
+      }),
+      // Distribution-only carts (products sold pre-split across
+      // color/size combinations) were missing here entirely, so a coupon
+      // scoped to a distributed product always came back "no eligible
+      // product in cart" — CheckoutAddressPage already includes these.
+      ...cart.distributions.map((dist) => ({
+        product_id: dist.product.id,
+        subtotal: dist.distribution.applied_tier_price * dist.distribution.total_quantity,
+      })),
+    ];
+    const result = await validateCoupon(corretor.id, couponCode, cleanPhone, cart.total, cartItemsForCoupon);
     if (result) {
       setAppliedCoupon(result);
     }
