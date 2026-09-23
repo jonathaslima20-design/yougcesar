@@ -297,11 +297,6 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
                 <AlertDescription className="text-amber-800">
                   Seu plano venceu por falta de pagamento. Sua vitrine está inativa. Renove abaixo para reativar imediatamente.
                 </AlertDescription>
-                {user?.billing_cycle === 'monthly' && (
-                  <AlertDescription className="text-amber-700 text-xs mt-2">
-                    O plano mensal não está mais disponível. Escolha uma das opções abaixo para renovar.
-                  </AlertDescription>
-                )}
               </div>
             </div>
           </Alert>
