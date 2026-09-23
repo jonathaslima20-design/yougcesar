@@ -18,6 +18,7 @@ import { useCashbackBalance } from '@/hooks/useCashbackBalance';
 import { fetchCustomerAddresses, createCustomerAddress, type CustomerAddress } from '@/lib/customerAddressService';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { createOrder } from '@/lib/orderService';
+import { cleanWhatsappDigits } from '@/lib/cartUtils';
 import { findCartStockShortfalls, formatShortfallMessage, formatShortfallLines } from '@/lib/stockAvailabilityService';
 import { resolveAttributedAffiliateId } from '@/lib/affiliateUtils';
 import { formatCurrencyI18n } from '@/lib/i18n';
@@ -56,7 +57,7 @@ export default function CheckoutAddressPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { corretor, loading: corretorLoading } = useCorretorData({ slug });
-  const { cart, clearCart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon, updateVariantQuantity, removeCartVariant } = useCart();
+  const { cart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon, updateVariantQuantity, removeCartVariant } = useCart();
   const { customer: buyerAccount, loading: authLoading, saveCpf } = useBuyerAuth();
   const accountLink = buyerAccount
     ? '/conta/pedidos'
@@ -351,7 +352,12 @@ export default function CheckoutAddressPage() {
         subtotal: dist.distribution.applied_tier_price * dist.distribution.total_quantity,
       })),
     ];
-    const whatsapp = buyerAccount?.whatsapp || whatsappFallback;
+    // Must match exactly what order creation sends as customer_whatsapp
+    // (line ~539 below) — compute_coupon_discount's max_uses_per_customer
+    // check compares this literally, so any format mismatch between the
+    // preview and the real creation call made the preview blind to a
+    // customer's prior usage.
+    const whatsapp = cleanWhatsappDigits(buyerAccount?.whatsapp || whatsappFallback);
     const result = await validateCoupon(corretor.id, couponCode, whatsapp, cart.total, cartItemsForCoupon);
     if (result) setAppliedCoupon(result);
   };
@@ -536,7 +542,7 @@ export default function CheckoutAddressPage() {
         {
           store_owner_id: corretor.id,
           customer_name: buyerAccount.full_name,
-          customer_whatsapp: (buyerAccount.whatsapp || whatsappFallback).replace(/\D/g, ''),
+          customer_whatsapp: cleanWhatsappDigits(buyerAccount.whatsapp || whatsappFallback),
           customer_country_code: buyerAccount.country_code || '55',
           order_type: 'ecommerce',
           subtotal: cart.total,
@@ -580,7 +586,11 @@ export default function CheckoutAddressPage() {
         return;
       }
 
-      clearCart();
+      // Cart is intentionally NOT cleared here anymore — this order still
+      // needs online payment, and clearing it before that's confirmed left
+      // a buyer who abandons the Pix or has a card declined with an empty
+      // cart and no way to resume. It's cleared once OrderPaymentPage
+      // actually confirms the payment (handleSuccess there).
       clearAppliedCoupon();
       setUseCashback(false);
       navigate(`/${corretor.slug}/pedido/${order.id}/pagamento`);

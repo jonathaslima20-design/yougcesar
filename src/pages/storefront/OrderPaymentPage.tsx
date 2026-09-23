@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import {
   getSellerPublicKey,
@@ -33,6 +34,7 @@ import {
   type OrderPixPaymentResult,
   type OrderCardPaymentResult,
 } from '@/lib/merchantPayments';
+import { loadMpDeviceFingerprintScript } from '@/lib/mpPayments';
 import { OrderStatusTimeline } from '@/components/buyer/OrderStatusTimeline';
 import { OrderItemsSummary, type OrderItemRow } from '@/components/buyer/OrderItemsSummary';
 import { OrderShippingAddress, hasShippingAddress } from '@/components/buyer/OrderShippingAddress';
@@ -41,6 +43,32 @@ import { formatCpfCnpj } from '@/lib/document';
 import type { OrderStatus } from '@/types';
 
 type PaymentTab = 'pix' | 'card';
+
+// Mercado Pago's status_detail for a declined card, mapped to a message
+// that actually tells the buyer what to do — before this, every decline
+// showed the same generic "verifique os dados do cartão" regardless of
+// the real reason, which just made buyers retry the same doomed card.
+const CARD_DECLINE_MESSAGES: Record<string, string> = {
+  cc_rejected_insufficient_amount: 'Saldo insuficiente no cartão. Tente outro cartão ou meio de pagamento.',
+  cc_rejected_bad_filled_security_code: 'Código de segurança (CVV) incorreto. Confira o número e tente novamente.',
+  cc_rejected_bad_filled_date: 'Data de validade do cartão incorreta. Confira e tente novamente.',
+  cc_rejected_bad_filled_other: 'Dados do cartão incorretos. Confira o número, validade e CVV.',
+  cc_rejected_bad_filled_card_number: 'Número do cartão incorreto. Confira e tente novamente.',
+  cc_rejected_call_for_authorize: 'Seu banco pediu autorização para essa compra. Entre em contato com o banco ou tente outro cartão.',
+  cc_rejected_card_disabled: 'Cartão desabilitado. Entre em contato com o banco para ativá-lo ou tente outro cartão.',
+  cc_rejected_duplicated_payment: 'Já existe um pagamento igual em processamento. Aguarde ou tente outro meio de pagamento.',
+  cc_rejected_high_risk: 'Pagamento recusado por segurança. Tente outro cartão ou meio de pagamento.',
+  cc_rejected_max_attempts: 'Número máximo de tentativas atingido. Tente outro cartão ou meio de pagamento.',
+  cc_rejected_invalid_installments: 'Número de parcelas inválido para este cartão. Tente com menos parcelas.',
+  cc_rejected_other_reason: 'Cartão recusado pelo banco. Tente outro cartão ou meio de pagamento.',
+};
+
+function getCardDeclineMessage(statusDetail?: string | null): string {
+  if (statusDetail && CARD_DECLINE_MESSAGES[statusDetail]) {
+    return CARD_DECLINE_MESSAGES[statusDetail];
+  }
+  return 'Verifique os dados do cartão ou tente outro meio de pagamento.';
+}
 
 interface OrderInfo {
   id: string;
@@ -392,6 +420,7 @@ function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => 
             last_name: lastNameRef.current,
             doc: formData.payer?.identification?.number || '',
           },
+          device_id: (window as any).MP_DEVICE_SESSION_ID || undefined,
         });
         setResult(cardResult);
         if (cardResult.status === 'approved') {
@@ -444,7 +473,7 @@ function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => 
           </div>
         </div>
         <h3 className="text-lg font-semibold">Pagamento recusado</h3>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto">Verifique os dados do cartão ou tente outro meio de pagamento.</p>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto">{getCardDeclineMessage(result.status_detail)}</p>
         <Button variant="outline" onClick={() => setResult(null)}>
           Tentar novamente
         </Button>
@@ -494,6 +523,7 @@ export default function OrderPaymentPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { customer, loading: authLoading } = useBuyerAuth();
+  const { clearCart } = useCart();
   const accountLink = customer
     ? '/conta/pedidos'
     : `/conta/entrar?loja=${slug}&from=${encodeURIComponent(location.pathname)}`;
@@ -564,6 +594,11 @@ export default function OrderPaymentPage() {
           return;
         }
         initMercadoPago(info.public_key, { locale: 'pt-BR' });
+        // Without this, card charges carry no device signal at all — MP's
+        // fraud engine tends to reject those as cc_rejected_high_risk (or
+        // the vaguer cc_rejected_other_reason). @mercadopago/sdk-react's
+        // own initMercadoPago() does not load this script.
+        loadMpDeviceFingerprintScript();
         setSdkReady(true);
       } catch (error) {
         if (!cancelled) {
@@ -581,7 +616,12 @@ export default function OrderPaymentPage() {
 
   const handleSuccess = useCallback(() => {
     setPaymentComplete(true);
-  }, []);
+    // Cart is only cleared once payment is actually confirmed, not at order
+    // creation — a buyer who abandons a Pix or has a card declined used to
+    // come back to an empty cart with no way to resume, and had to rebuild
+    // it from scratch.
+    clearCart();
+  }, [clearCart]);
 
   if (authLoading || orderLoading || !order) {
     return (

@@ -1,6 +1,18 @@
 import type { CartItem, CartDistribution, AppliedCoupon } from '@/types';
 import { formatCurrencyI18n, generateWhatsAppMessage, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
 
+// Coupon usage tracking (coupon_usages.customer_whatsapp / the
+// max_uses_per_customer check in compute_coupon_discount) compares this
+// value literally, so every caller — the coupon-preview validation call
+// AND the order-creation call — must strip it to digits-only the exact
+// same way. It intentionally excludes the country code: that's what
+// order creation has always sent as customer_whatsapp (customer_country_code
+// is stored separately on the order), so this keeps that format instead of
+// introducing a second, incompatible "canonical" shape.
+export function cleanWhatsappDigits(raw: string | null | undefined): string {
+  return (raw || '').replace(/\D/g, '');
+}
+
 function getProductUrl(productId: string, corretorSlug: string, color?: string): string {
   const colorParam = color ? `?cor=${encodeURIComponent(color)}` : '';
 
