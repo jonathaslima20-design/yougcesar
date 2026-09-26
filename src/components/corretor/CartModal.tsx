@@ -550,7 +550,7 @@ export default function CartModal({
   const goToOnlineCheckout = () => {
     onOpenChange(false);
     if (!buyerAccount) {
-      navigate('/conta/entrar', { state: { from: `/${corretor.slug}/pedido/endereco` } });
+      navigate(`/conta/entrar?loja=${corretor.slug}`, { state: { from: `/${corretor.slug}/pedido/endereco` } });
     } else {
       navigate(`/${corretor.slug}/pedido/endereco`);
     }

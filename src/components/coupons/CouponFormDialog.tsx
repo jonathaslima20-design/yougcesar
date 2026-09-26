@@ -58,6 +58,7 @@ export default function CouponFormDialog({
   const [validUntil, setValidUntil] = useState('');
   const [hasExpiration, setHasExpiration] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [showToCustomers, setShowToCustomers] = useState(false);
   const [appliesTo, setAppliesTo] = useState<CouponAppliesTo>('all_products');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [selectedCategoryNames, setSelectedCategoryNames] = useState<string[]>([]);
@@ -82,6 +83,7 @@ export default function CouponFormDialog({
       setHasExpiration(!!coupon.valid_until);
       setValidUntil(coupon.valid_until ? coupon.valid_until.slice(0, 16) : '');
       setIsActive(coupon.is_active);
+      setShowToCustomers(!!coupon.show_to_customers);
       setAppliesTo(coupon.applies_to);
       setSelectedProductIds(couponProductIds);
       setSelectedCategoryNames(couponCategoryIds);
@@ -98,6 +100,7 @@ export default function CouponFormDialog({
       setHasExpiration(false);
       setValidUntil('');
       setIsActive(true);
+      setShowToCustomers(false);
       setAppliesTo('all_products');
       setSelectedProductIds([]);
       setSelectedCategoryNames([]);
@@ -184,6 +187,8 @@ export default function CouponFormDialog({
       valid_until: hasExpiration && validUntil ? new Date(validUntil).toISOString() : null,
       is_active: isActive,
       applies_to: appliesTo,
+      // Only when changed (see useCoupons): avoids touching the column otherwise.
+      show_to_customers: showToCustomers !== !!coupon?.show_to_customers ? showToCustomers : undefined,
       product_ids: appliesTo === 'specific_products' ? selectedProductIds : [],
       category_ids: appliesTo === 'specific_categories' ? selectedCategoryNames : [],
     };
@@ -465,6 +470,16 @@ export default function CouponFormDialog({
               <p className="text-xs text-muted-foreground">O cupom pode ser usado imediatamente</p>
             </div>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="pr-4">
+              <Label>Exibir na conta do cliente</Label>
+              <p className="text-xs text-muted-foreground">
+                Mostra o código em "Ofertas para você" na área logada do cliente. Deixe desligado para cupons privados (influenciadores, recuperação de venda).
+              </p>
+            </div>
+            <Switch checked={showToCustomers} onCheckedChange={setShowToCustomers} />
           </div>
 
           {/* Preview */}

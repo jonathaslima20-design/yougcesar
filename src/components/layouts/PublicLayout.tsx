@@ -7,6 +7,22 @@ import { Loader } from 'lucide-react';
 import { scrollCoordinator } from '@/lib/scrollCoordinator';
 import { stripLocalePrefix } from '@/i18n/stripLocalePrefix';
 
+const MARKETING_PATH_PREFIXES = [
+  '/planos',
+  '/blog',
+  '/help',
+  '/catalogo-digital-gratis',
+  '/catalogo-para-whatsapp',
+  '/loja-virtual-sem-taxa',
+  '/dominio-proprio',
+  '/politica-de-privacidade',
+  '/politica-de-cookies',
+  '/termos-de-uso',
+  '/termos-indicacoes',
+  '/excluir-minha-conta',
+  '/completar-cadastro',
+];
+
 export default function PublicLayout() {
   const location = useLocation();
   const { rest: pathnameWithoutLocale } = stripLocalePrefix(location.pathname);
@@ -23,7 +39,15 @@ export default function PublicLayout() {
   // Only hide Footer on auth pages
   const hideFooter = ['/', '/login', '/register', '/reset-password'].includes(pathnameWithoutLocale);
   // Buyer account pages and the checkout flow (address + payment) don't need the VitrineTurbo branding pushed on the buyer
-  const hideFooterLogo = location.pathname.startsWith('/conta/') || /\/pedido\/(endereco|[^/]+\/pagamento)$/.test(location.pathname);
+  const hideFooterLogo = location.pathname.startsWith('/conta/') || /^\/[^/]+\/conta(\/|$)/.test(location.pathname) || /\/pedido\/(endereco|[^/]+\/pagamento)$/.test(location.pathname);
+
+  // Blog is VitrineTurbo marketing content: only surface it in the footer on the
+  // platform's own pages. Everything else this layout wraps (storefronts, custom
+  // domains, buyer account, checkout) is the buyer's environment and must not send
+  // them off to the platform's blog.
+  const showBlogLink = MARKETING_PATH_PREFIXES.some(
+    (prefix) => pathnameWithoutLocale === prefix || pathnameWithoutLocale.startsWith(`${prefix}/`)
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
@@ -37,7 +61,7 @@ export default function PublicLayout() {
       >
         <Outlet />
       </motion.main>
-      {!hideFooter && <Footer hideLogo={hideFooterLogo} />}
+      {!hideFooter && <Footer hideLogo={hideFooterLogo} hideBlogLink={!showBlogLink} />}
     </div>
   );
 }

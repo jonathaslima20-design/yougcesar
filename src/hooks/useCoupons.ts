@@ -17,6 +17,7 @@ export interface CouponFormData {
   valid_until?: string | null;
   is_active: boolean;
   applies_to: CouponAppliesTo;
+  show_to_customers?: boolean;
   product_ids?: string[];
   category_ids?: string[];
 }
@@ -162,6 +163,9 @@ export function useCoupons() {
           valid_until: formData.valid_until || null,
           is_active: formData.is_active,
           applies_to: formData.applies_to,
+          // Only sent when set, so saving coupons keeps working on databases where
+          // the show_to_customers column hasn't been migrated yet.
+          ...(formData.show_to_customers !== undefined ? { show_to_customers: formData.show_to_customers } : {}),
         })
         .select()
         .single();
@@ -204,6 +208,9 @@ export function useCoupons() {
           valid_until: formData.valid_until || null,
           is_active: formData.is_active,
           applies_to: formData.applies_to,
+          // Only sent when set, so saving coupons keeps working on databases where
+          // the show_to_customers column hasn't been migrated yet.
+          ...(formData.show_to_customers !== undefined ? { show_to_customers: formData.show_to_customers } : {}),
           updated_at: new Date().toISOString(),
         })
         .eq('id', couponId)

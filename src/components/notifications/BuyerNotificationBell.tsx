@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Loader as Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useBuyerNotifications } from '@/contexts/BuyerNotificationContext';
+import { useBuyerStore } from '@/contexts/BuyerStoreContext';
+import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import NotificationItem from './NotificationItem';
 import { cn } from '@/lib/utils';
 import type { AppNotification } from '@/types';
@@ -11,13 +13,44 @@ import type { AppNotification } from '@/types';
 export default function BuyerNotificationBell() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead, deleteNotification } =
-    useBuyerNotifications();
+  const { store, path } = useBuyerStore();
+  const { notifications: allNotifications, loading, markAsRead, deleteNotification } = useBuyerNotifications();
+  const [storeOrderIds, setStoreOrderIds] = useState<Set<string> | null>(null);
+
+  // Notifications are stored per buyer identity (not per store), so keep only
+  // the ones about orders placed in THIS store — the bell must never surface
+  // activity from another store the buyer also shops at.
+  useEffect(() => {
+    if (!store) return;
+    let cancelled = false;
+    supabaseBuyer
+      .from('orders')
+      .select('id')
+      .eq('store_owner_id', store.id)
+      .then(({ data }) => {
+        if (!cancelled) setStoreOrderIds(new Set((data || []).map((o: { id: string }) => o.id)));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [store, allNotifications.length]);
+
+  const notifications = useMemo(
+    () =>
+      storeOrderIds
+        ? allNotifications.filter(
+            (n) => n.related_entity_type !== 'order' || (n.related_entity_id && storeOrderIds.has(n.related_entity_id))
+          )
+        : [],
+    [allNotifications, storeOrderIds]
+  );
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const markAllAsRead = () => notifications.filter((n) => !n.is_read).forEach((n) => markAsRead(n.id));
 
   const handleNotificationClick = (notification: AppNotification) => {
     setOpen(false);
     if (notification.related_entity_type === 'order' && notification.related_entity_id) {
-      navigate(`/conta/pedidos/${notification.related_entity_id}`);
+      navigate(path(`/pedidos/${notification.related_entity_id}`));
     }
   };
 

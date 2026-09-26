@@ -3,12 +3,15 @@ import { Navigate, useParams, useNavigate, Link } from 'react-router-dom';
 import { Loader, ArrowLeft, RotateCcw, MessageCircle, Truck, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useBuyerStore } from '@/contexts/BuyerStoreContext';
+import PaymentStatusBadge from '@/components/buyer/BuyerPaymentStatusBadge';
+import { SectionTitle } from '@/components/buyer/overview/BuyerOverviewCards';
+import { useReorderDestination } from '@/hooks/useReorderDestination';
 import { useCart } from '@/contexts/CartContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { reorderItems } from '@/lib/buyerReorder';
 import { getWhatsAppContactUrl } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { OrderStatusTimeline } from '@/components/buyer/OrderStatusTimeline';
 import { OrderItemsSummary, type OrderItemRow } from '@/components/buyer/OrderItemsSummary';
@@ -55,19 +58,12 @@ interface StoreInfo {
   state?: string | null;
 }
 
-const PAYMENT_STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  not_applicable: { label: 'Sem pagamento online', variant: 'outline' },
-  pending: { label: 'Pagamento pendente', variant: 'secondary' },
-  approved: { label: 'Pagamento aprovado', variant: 'default' },
-  rejected: { label: 'Pagamento recusado', variant: 'destructive' },
-  refunded: { label: 'Reembolsado', variant: 'outline' },
-  cancelled: { label: 'Cancelado', variant: 'destructive' },
-};
-
 export default function BuyerOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { customer, loading: authLoading } = useBuyerAuth();
+  const { store: buyerStore, path, loginPath } = useBuyerStore();
+  const { destination, isCheckout } = useReorderDestination(buyerStore);
   const { addToCart, clearCart } = useCart();
   const [order, setOrder] = useState<OrderDetailRow | null>(null);
   const [items, setItems] = useState<OrderItemRow[]>([]);
@@ -78,7 +74,7 @@ export default function BuyerOrderDetailPage() {
   const [trackingCopied, setTrackingCopied] = useState(false);
 
   useEffect(() => {
-    if (!customer || !orderId) return;
+    if (!customer || !orderId || !buyerStore) return;
 
     (async () => {
       setLoading(true);
@@ -89,6 +85,7 @@ export default function BuyerOrderDetailPage() {
         )
         .eq('id', orderId)
         .eq('buyer_id', customer.id)
+        .eq('store_owner_id', buyerStore.id)
         .maybeSingle();
 
       if (!orderRow) {
@@ -116,25 +113,25 @@ export default function BuyerOrderDetailPage() {
       setStore(storeRow);
       setLoading(false);
     })();
-  }, [customer, orderId]);
+  }, [customer, orderId, buyerStore]);
 
   if (!authLoading && !customer) {
-    return <Navigate to="/conta/entrar" state={{ from: `/conta/pedidos/${orderId}` }} replace />;
+    return <Navigate to={loginPath} state={{ from: path(`/pedidos/${orderId}`) }} replace />;
   }
 
   const handleReorder = async () => {
-    if (!store?.slug || items.length === 0) return;
+    if (!destination || items.length === 0) return;
     setReordering(true);
     try {
       clearCart();
       const result = await reorderItems(items, addToCart);
       if (result.addedCount > 0) {
-        toast.success(
+        if (!isCheckout || result.skipped.length > 0) toast.success(
           result.skipped.length > 0
             ? `${result.addedCount} ${result.addedCount === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho. ${result.skipped.length} não ${result.skipped.length === 1 ? 'está' : 'estão'} mais disponível.`
             : 'Itens adicionados ao carrinho!'
         );
-        navigate(`/${store.slug}`);
+        navigate(destination);
       } else {
         toast.error('Nenhum item deste pedido está disponível no momento.');
       }
@@ -164,7 +161,7 @@ export default function BuyerOrderDetailPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-2xl">
       <Button variant="ghost" size="sm" asChild className="mb-4">
-        <Link to="/conta/pedidos">
+        <Link to={path('/pedidos')}>
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Meus Pedidos
         </Link>
@@ -181,73 +178,73 @@ export default function BuyerOrderDetailPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{store?.name || 'Pedido'}</span>
-                  <Badge variant={(PAYMENT_STATUS_LABELS[order.payment_status] || PAYMENT_STATUS_LABELS.not_applicable).variant}>
-                    {(PAYMENT_STATUS_LABELS[order.payment_status] || PAYMENT_STATUS_LABELS.not_applicable).label}
-                  </Badge>
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Pedido feito em {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                </p>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-5 pb-5 px-5 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h1 className="text-lg font-semibold">Pedido #{order.id.slice(0, 8)}</h1>
+                    <p className="text-xs text-muted-foreground">
+                      Feito em {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                  <PaymentStatusBadge status={order.payment_status} className="shrink-0" />
+                </div>
                 <OrderStatusTimeline status={order.status} />
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Itens</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <OrderItemsSummary items={items} totals={order} />
-              </CardContent>
-            </Card>
-
-            {order.tracking_code && (
+            <div>
+              <SectionTitle>Itens</SectionTitle>
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Truck className="h-4 w-4" />
-                    Rastreio
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    {order.carrier && <p className="text-sm text-muted-foreground">{order.carrier}</p>}
-                    <p className="font-mono font-medium truncate">{order.tracking_code}</p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={handleCopyTracking} className="shrink-0">
-                    {trackingCopied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-                  </Button>
+                <CardContent className="pt-5">
+                  <OrderItemsSummary items={items} totals={order} />
                 </CardContent>
               </Card>
+            </div>
+
+            {order.tracking_code && (
+              <div>
+                <SectionTitle>Rastreio</SectionTitle>
+                <Card>
+                  <CardContent className="pt-5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Truck className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        {order.carrier && <p className="text-xs text-muted-foreground">{order.carrier}</p>}
+                        <p className="font-mono font-medium truncate">{order.tracking_code}</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleCopyTracking} className="shrink-0" aria-label="Copiar código de rastreio">
+                      {trackingCopied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {isPickup && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Retirada na loja</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <OrderPickupInfo order={order} store={store || undefined} />
-                </CardContent>
-              </Card>
+              <div>
+                <SectionTitle>Retirada na loja</SectionTitle>
+                <Card>
+                  <CardContent className="pt-5">
+                    <OrderPickupInfo order={order} store={store || undefined} />
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {hasAddress && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Endereço de entrega</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <OrderShippingAddress address={order} />
-                </CardContent>
-              </Card>
+              <div>
+                <SectionTitle>Endereço de entrega</SectionTitle>
+                <Card>
+                  <CardContent className="pt-5">
+                    <OrderShippingAddress address={order} />
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {order.payment_status === 'pending' && store?.slug && (

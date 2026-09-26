@@ -8,6 +8,7 @@ export interface BuyAgainItem {
   selected_color: string | null;
   selected_size: string | null;
   selected_flavor: string | null;
+  unit_price: number | null;
   store_owner_id: string;
   timesOrdered: number;
   lastOrderedAt: string;
@@ -22,13 +23,14 @@ export interface BuyAgainStoreInfo {
 // each was bought, so the buyer can re-add a favorite with one click
 // instead of digging through old orders. Shared by BuyerOrdersPage and
 // BuyerOverviewPage so the ranking logic only lives in one place.
-export function useBuyAgainItems(customerId: string | undefined, limit = 6) {
+export function useBuyAgainItems(customerId: string | undefined, limit = 6, storeOwnerId?: string) {
   const [items, setItems] = useState<BuyAgainItem[]>([]);
   const [stores, setStores] = useState<Record<string, BuyAgainStoreInfo>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!customerId) {
+    // Waits for the store: the list is scoped to it, never all-stores.
+    if (!customerId || !storeOwnerId) {
       setItems([]);
       setLoading(false);
       return;
@@ -40,6 +42,7 @@ export function useBuyAgainItems(customerId: string | undefined, limit = 6) {
       const { data: orderRows } = await supabaseBuyer
         .from('orders')
         .select('id, store_owner_id, created_at')
+        .eq('store_owner_id', storeOwnerId)
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
 
@@ -54,7 +57,7 @@ export function useBuyAgainItems(customerId: string | undefined, limit = 6) {
 
       const { data: itemRows } = await supabaseBuyer
         .from('order_items')
-        .select('order_id, product_id, product_title, product_image_url, selected_color, selected_size, selected_flavor, selected_variant_label')
+        .select('order_id, product_id, product_title, product_image_url, unit_price, selected_color, selected_size, selected_flavor, selected_variant_label')
         .in('order_id', rows.map((o) => o.id));
 
       if (cancelled) return;
@@ -79,6 +82,7 @@ export function useBuyAgainItems(customerId: string | undefined, limit = 6) {
             existing.selected_color = item.selected_color;
             existing.selected_size = item.selected_size;
             existing.selected_flavor = item.selected_flavor;
+            existing.unit_price = item.unit_price;
             existing.store_owner_id = order.store_owner_id;
           }
         } else {
@@ -89,6 +93,7 @@ export function useBuyAgainItems(customerId: string | undefined, limit = 6) {
             selected_color: item.selected_color,
             selected_size: item.selected_size,
             selected_flavor: item.selected_flavor,
+            unit_price: item.unit_price,
             store_owner_id: order.store_owner_id,
             timesOrdered: 1,
             lastOrderedAt: order.created_at,
@@ -120,7 +125,7 @@ export function useBuyAgainItems(customerId: string | undefined, limit = 6) {
     return () => {
       cancelled = true;
     };
-  }, [customerId, limit]);
+  }, [customerId, limit, storeOwnerId]);
 
   return { items, stores, loading };
 }

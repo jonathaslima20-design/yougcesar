@@ -40,6 +40,7 @@ import { OrderItemsSummary, type OrderItemRow } from '@/components/buyer/OrderIt
 import { OrderShippingAddress, hasShippingAddress } from '@/components/buyer/OrderShippingAddress';
 import { OrderPickupInfo } from '@/components/buyer/OrderPickupInfo';
 import { formatCpfCnpj } from '@/lib/document';
+import type { Customer } from '@/lib/auth/buyerAuth';
 import type { OrderStatus } from '@/types';
 
 type PaymentTab = 'pix' | 'card';
@@ -153,23 +154,39 @@ function PaymentSuccess({ storeSlug, order, store }: { storeSlug: string; order:
           <Link to={`/${storeSlug}`}>Voltar à loja</Link>
         </Button>
         <Button asChild>
-          <Link to={`/conta/pedidos/${order.id}`}>Ver pedido</Link>
+          <Link to={`/${storeSlug}/conta/pedidos/${order.id}`}>Ver pedido</Link>
         </Button>
       </div>
     </div>
   );
 }
 
-function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => void }) {
-  // Every field here is typed fresh by the buyer at payment time — none of
-  // it is prefilled from the account or from the checkout step. Mixing an
-  // account-derived value into what's sent for this specific charge caused
-  // silent mismatches (e.g. a real CPF from checkout landing in a field the
-  // buyer had visibly retyped) that were hard to diagnose from the outside.
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [doc, setDoc] = useState('');
+// Dados do pagador herdados da conta e do checkout (nome, e-mail, CPF). São só
+// o valor inicial dos campos: o comprador pode editar tudo nesta tela, e o que
+// vai para o Mercado Pago é sempre o que está visível nos campos.
+interface PayerDefaults {
+  firstName: string;
+  lastName: string;
+  email: string;
+  doc: string; // já formatado (CPF/CNPJ)
+}
+
+function buildPayerDefaults(customer: Customer | null, order: OrderInfo): PayerDefaults {
+  const [firstName = '', ...rest] = (customer?.full_name || '').trim().split(/\s+/);
+  const rawDoc = order.customer_cpf || customer?.cpf || '';
+  return {
+    firstName,
+    lastName: rest.join(' '),
+    email: customer?.email || '',
+    doc: rawDoc ? formatCpfCnpj(rawDoc) : '',
+  };
+}
+
+function PixSection({ defaults, order, onSuccess }: { defaults: PayerDefaults; order: OrderInfo; onSuccess: () => void }) {
+  const [firstName, setFirstName] = useState(defaults.firstName);
+  const [lastName, setLastName] = useState(defaults.lastName);
+  const [email, setEmail] = useState(defaults.email);
+  const [doc, setDoc] = useState(defaults.doc);
   const [loading, setLoading] = useState(false);
   const [pixResult, setPixResult] = useState<OrderPixPaymentResult | null>(null);
   const [copied, setCopied] = useState(false);
@@ -378,15 +395,12 @@ function PixSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => v
   );
 }
 
-function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => void }) {
-  // Nome/Sobrenome and the card's own document field are typed fresh here —
-  // never inherited from the account or the checkout step. Mercado Pago's
-  // own charge decision (including its test-card simulation) is keyed off
-  // exactly what's submitted with the card, so silently substituting an
-  // account-derived value in for it produces mismatches that are invisible
-  // in the UI and hard to diagnose.
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+function CardSection({ defaults, order, onSuccess }: { defaults: PayerDefaults; order: OrderInfo; onSuccess: () => void }) {
+  // Nome/Sobrenome são nossos campos; e-mail e CPF/CNPJ vivem dentro do Brick
+  // do Mercado Pago e entram pré-preenchidos via initialization.payer. O que
+  // é enviado na cobrança continua sendo o que está visível nos campos.
+  const [firstName, setFirstName] = useState(defaults.firstName);
+  const [lastName, setLastName] = useState(defaults.lastName);
   const [result, setResult] = useState<OrderCardPaymentResult | null>(null);
   const [brickReady, setBrickReady] = useState(false);
   const orderIdRef = useRef(order.id);
@@ -437,7 +451,22 @@ function CardSection({ order, onSuccess }: { order: OrderInfo; onSuccess: () => 
   const handleReady = useCallback(() => setBrickReady(true), []);
   const handleError = useCallback((error: any) => console.error('CardPayment Brick error:', error), []);
 
-  const initialization = useMemo(() => ({ amount: order.total }), [order.total]);
+  // defaults só vale como valor inicial: fica de fora das deps para que
+  // editar um campo não remonte o Brick.
+  const defaultsRef = useRef(defaults);
+  const initialization = useMemo(() => {
+    const { email, doc } = defaultsRef.current;
+    const digits = doc.replace(/\D/g, '');
+    return {
+      amount: order.total,
+      payer: {
+        ...(email ? { email } : {}),
+        ...(digits.length === 11 || digits.length === 14
+          ? { identification: { type: digits.length === 11 ? 'CPF' : 'CNPJ', number: digits } }
+          : {}),
+      },
+    };
+  }, [order.total]);
   const customization = useMemo(
     () => ({ visual: { hideFormTitle: true }, paymentMethods: { maxInstallments: 12 } }),
     []
@@ -525,7 +554,7 @@ export default function OrderPaymentPage() {
   const { customer, loading: authLoading } = useBuyerAuth();
   const { clearCart } = useCart();
   const accountLink = customer
-    ? '/conta/pedidos'
+    ? `/${slug}/conta`
     : `/conta/entrar?loja=${slug}&from=${encodeURIComponent(location.pathname)}`;
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [items, setItems] = useState<OrderItemRow[]>([]);
@@ -539,7 +568,7 @@ export default function OrderPaymentPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!customer) {
-      navigate('/conta/entrar', { state: { from: `/${slug}/pedido/${orderId}/pagamento` } });
+      navigate(`/conta/entrar?loja=${slug}`, { state: { from: `/${slug}/pedido/${orderId}/pagamento` } });
       return;
     }
     if (!orderId) return;
@@ -614,6 +643,14 @@ export default function OrderPaymentPage() {
     };
   }, [order]);
 
+  // Calculado uma vez por pedido: PixSection/CardSection só usam como estado
+  // inicial, então mudanças posteriores na conta não sobrescrevem a edição.
+  const payerDefaults = useMemo(
+    () => (order ? buildPayerDefaults(customer, order) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [order?.id, customer?.id]
+  );
+
   const handleSuccess = useCallback(() => {
     setPaymentComplete(true);
     // Cart is only cleared once payment is actually confirmed, not at order
@@ -623,7 +660,7 @@ export default function OrderPaymentPage() {
     clearCart();
   }, [clearCart]);
 
-  if (authLoading || orderLoading || !order) {
+  if (authLoading || orderLoading || !order || !payerDefaults) {
     return (
       <div className="flex items-center justify-center py-16">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -649,9 +686,9 @@ export default function OrderPaymentPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
-        {/* Coluna de pagamento: no mobile fica em cima (ordem 1); no desktop
-            passa para a direita, com o resumo assumindo a esquerda. */}
-        <div className="order-1 lg:order-2 space-y-6">
+        {/* Coluna de pagamento: vem depois do resumo tanto no mobile (embaixo)
+            quanto no desktop (à direita). */}
+        <div className="order-2 space-y-6">
           {paymentComplete ? (
             <Card>
               <CardContent className="p-6">
@@ -707,13 +744,13 @@ export default function OrderPaymentPage() {
                     </p>
                   </div>
                 ) : activeTab === 'pix' ? (
-                  <PixSection order={order} onSuccess={handleSuccess} />
+                  <PixSection defaults={payerDefaults} order={order} onSuccess={handleSuccess} />
                 ) : !sdkReady ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <CardSection order={order} onSuccess={handleSuccess} />
+                  <CardSection defaults={payerDefaults} order={order} onSuccess={handleSuccess} />
                 )}
               </CardContent>
             </Card>
@@ -725,9 +762,9 @@ export default function OrderPaymentPage() {
           </div>
         </div>
 
-        {/* Coluna de resumo: no mobile fica embaixo (ordem 2); no desktop
-            vira a esquerda e acompanha a rolagem (sticky). */}
-        <div className="order-2 lg:order-1 lg:sticky lg:top-6">
+        {/* Coluna de resumo: primeiro no mobile (em cima) e à esquerda no
+            desktop, onde acompanha a rolagem (sticky). */}
+        <div className="order-1 lg:sticky lg:top-6">
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Resumo do pedido</CardTitle>
@@ -738,6 +775,15 @@ export default function OrderPaymentPage() {
             </CardContent>
           </Card>
         </div>
+        </div>
+
+        <div className="flex justify-center">
+          <img
+            src="https://auth.vitrineturbo.com/storage/v1/object/public/landing/MERCADOPAGOSELODEQUALIDADEONG.webp"
+            alt="Mercado Pago - selo de qualidade"
+            loading="lazy"
+            className="w-full max-w-[200px] h-auto"
+          />
         </div>
       </div>
     </div>
