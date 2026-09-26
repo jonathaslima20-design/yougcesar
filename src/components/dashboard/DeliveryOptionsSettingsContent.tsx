@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAddressByCep } from '@/lib/viaCep';
+import { findDeliveryConflicts, getClaimedRegionUFs, isNationalPricingOption } from '@/lib/localDelivery';
 import { geocodeCep } from '@/lib/geocoding';
 import type { CheckoutSettings, DeliveryOption, DistanceTier, WeightTier } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -194,6 +195,14 @@ export default function DeliveryOptionsSettingsContent() {
   const [newLocalFallbackFee, setNewLocalFallbackFee] = useState(0);
   const [newWeightTiers, setNewWeightTiers] = useState<WeightTier[]>([{ id: nextTierId(), maxWeightKg: 1, fee: 0 }]);
 
+  // A store gets ONE national price (flat or by weight) and each UF can belong
+  // to only one region option — otherwise the buyer would be choosing between
+  // two ways of pricing the same shipment.
+  const hasNationalPricing = settings.deliveryOptions.some(isNationalPricingOption);
+  const claimedRegionUFs = getClaimedRegionUFs(settings.deliveryOptions);
+  const conflicts = findDeliveryConflicts(settings.deliveryOptions);
+  const isKindBlocked = (kind: NewOptionKind) => hasNationalPricing && (kind === 'national_flat' || kind === 'national_weight');
+
   useEffect(() => {
     setStoreZipCode(user?.store_zip_code || '');
   }, [user?.id, user?.store_zip_code]);
@@ -318,6 +327,10 @@ export default function DeliveryOptionsSettingsContent() {
       toast.error('Dê um nome pra essa opção');
       return;
     }
+    if ((newOptionKind === 'national_flat' || newOptionKind === 'national_weight') && hasNationalPricing) {
+      toast.error('Você já tem um frete nacional. Remova ele para criar outro.');
+      return;
+    }
     if (newOptionKind === 'local_distance' && !hasMerchantCity) {
       toast.error('Defina o CEP da sua loja acima antes de criar uma opção de entrega local');
       return;
@@ -337,6 +350,10 @@ export default function DeliveryOptionsSettingsContent() {
       case 'national_region': {
         if (newRegions.length === 0) {
           toast.error('Escolha pelo menos um estado atendido');
+          return;
+        }
+        if (newRegions.some((uf) => claimedRegionUFs.has(uf))) {
+          toast.error('Algum estado escolhido já pertence a outra opção por região');
           return;
         }
         option = { id: uuidv4(), name, fee: newFee, enabled: true, scope: 'national', calculationType: 'region', regions: newRegions };
@@ -460,6 +477,20 @@ export default function DeliveryOptionsSettingsContent() {
             </div>
           )}
 
+          {(conflicts.multipleNational || conflicts.overlappingUFs.length > 0) && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div className="text-xs space-y-1">
+                {conflicts.multipleNational && (
+                  <p>Você tem mais de um frete nacional ativo (valor fixo e/ou por peso). O comprador vê todos e precisa escolher entre eles — deixe só um ativo.</p>
+                )}
+                {conflicts.overlappingUFs.length > 0 && (
+                  <p>Estas UFs estão em mais de uma opção por região: {conflicts.overlappingUFs.join(', ')}. Deixe cada estado em uma opção só.</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {settings.deliveryOptions.length === 0 ? (
             <div className="text-center py-6 text-muted-foreground">
               <Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -482,6 +513,7 @@ export default function DeliveryOptionsSettingsContent() {
                   onUpdateDistanceTiers={(tiers, fallbackFee) => updateDeliveryDistanceTiers(option.id, tiers, fallbackFee)}
                   onUpdateWeightTiers={(tiers) => updateDeliveryWeightTiers(option.id, tiers)}
                   onRemove={() => removeDeliveryOption(option.id)}
+                  blockedRegions={getClaimedRegionUFs(settings.deliveryOptions, option.id)}
                 />
               ))}
             </div>
@@ -493,14 +525,19 @@ export default function DeliveryOptionsSettingsContent() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Adicionar opção de entrega</Label>
               <p className="text-xs text-muted-foreground">Escolha o tipo — cada um já vem com as regras certas, sem chance de combinação sem sentido.</p>
+              {hasNationalPricing && (
+                <p className="text-xs text-muted-foreground">
+                  Sua loja já tem um frete nacional. Para usar outro (valor fixo ou por peso), remova o atual — ou use Frete por Região/UF, que tem prioridade nos estados escolhidos.
+                </p>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {NEW_OPTION_KINDS.map(({ kind, label, icon: Icon, description }) => (
                   <button
                     key={kind}
                     type="button"
                     onClick={() => setNewOptionKind(kind)}
-                    disabled={saving}
-                    className="flex items-start gap-2.5 rounded-lg border p-3 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors disabled:opacity-50"
+                    disabled={saving || isKindBlocked(kind)}
+                    className="flex items-start gap-2.5 rounded-lg border p-3 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-transparent"
                   >
                     <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                     <span>
@@ -544,8 +581,10 @@ export default function DeliveryOptionsSettingsContent() {
                       <button
                         key={uf}
                         type="button"
+                        disabled={claimedRegionUFs.has(uf)}
+                        title={claimedRegionUFs.has(uf) ? 'Já atendido por outra opção por região' : undefined}
                         onClick={() => setNewRegions((prev) => (prev.includes(uf) ? prev.filter((r) => r !== uf) : [...prev, uf]))}
-                        className={`text-xs px-2 py-1 rounded-md border transition-colors ${newRegions.includes(uf) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+                        className={`text-xs px-2 py-1 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${newRegions.includes(uf) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
                       >
                         {uf}
                       </button>
@@ -646,6 +685,8 @@ interface DeliveryOptionRowProps {
   onUpdateDistanceTiers: (tiers: DistanceTier[], fallbackFee: number) => void;
   onUpdateWeightTiers: (tiers: WeightTier[]) => void;
   onRemove: () => void;
+  // UFs already used by OTHER region options — can't be toggled on here.
+  blockedRegions: Set<string>;
 }
 
 function DeliveryOptionRow({
@@ -661,6 +702,7 @@ function DeliveryOptionRow({
   onUpdateDistanceTiers,
   onUpdateWeightTiers,
   onRemove,
+  blockedRegions,
 }: DeliveryOptionRowProps) {
   const [editingPrice, setEditingPrice] = useState(false);
   const [feeValue, setFeeValue] = useState(option.fee);
@@ -794,8 +836,10 @@ function DeliveryOptionRow({
               <button
                 key={uf}
                 type="button"
+                disabled={blockedRegions.has(uf) && !selectedRegions.includes(uf)}
+                title={blockedRegions.has(uf) ? 'Já atendido por outra opção por região' : undefined}
                 onClick={() => toggleRegion(uf)}
-                className={`text-xs px-2 py-1 rounded-md border transition-colors ${selectedRegions.includes(uf) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+                className={`text-xs px-2 py-1 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${selectedRegions.includes(uf) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
               >
                 {uf}
               </button>

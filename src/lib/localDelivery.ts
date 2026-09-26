@@ -79,7 +79,65 @@ interface FilterEligibleDeliveryOptionsParams {
   excludeQuoteOnRequest?: boolean;
 }
 
+// A "national pricing" option is the store-wide, whole-country shipping price:
+// flat fee or weight tiers (legacy options with no calculationType are flat).
+// A store may only have ONE of these — offering both would make the buyer pick
+// between two ways of pricing the same shipment. Region/UF options are the
+// exception: they're allowed alongside it and win for the states they cover
+// (see filterEligibleDeliveryOptions).
+export function isNationalPricingOption(d: Pick<DeliveryOptionLike, 'scope' | 'calculationType'>): boolean {
+  return d.scope !== 'local' && d.scope !== 'pickup' && d.calculationType !== 'region';
+}
+
+interface DeliveryOptionWithId extends DeliveryOptionLike {
+  id: string;
+}
+
+// UFs already claimed by a region option — two region options covering the
+// same state would show the buyer two prices for the same destination.
+// `excludeId` lets an existing option's own editor ignore its own states.
+export function getClaimedRegionUFs(options: DeliveryOptionWithId[], excludeId?: string): Set<string> {
+  const claimed = new Set<string>();
+  for (const d of options) {
+    if (d.id === excludeId || d.calculationType !== 'region') continue;
+    (d.regions || []).forEach((uf) => claimed.add(uf));
+  }
+  return claimed;
+}
+
+// Detects conflicts already present in saved data (created before the
+// creation-time guards existed) among ENABLED options, so the dashboard can
+// warn the merchant instead of silently changing what buyers see.
+export function findDeliveryConflicts(options: DeliveryOptionWithId[]): { multipleNational: boolean; overlappingUFs: string[] } {
+  const enabled = options.filter((d) => d.enabled);
+  const multipleNational = enabled.filter(isNationalPricingOption).length > 1;
+  const seen = new Set<string>();
+  const overlapping = new Set<string>();
+  for (const d of enabled) {
+    if (d.calculationType !== 'region') continue;
+    for (const uf of d.regions || []) {
+      if (seen.has(uf)) overlapping.add(uf);
+      seen.add(uf);
+    }
+  }
+  return { multipleNational, overlappingUFs: [...overlapping] };
+}
+
 export function filterEligibleDeliveryOptions<T extends DeliveryOptionLike>(
+  options: T[],
+  params: FilterEligibleDeliveryOptionsParams
+): T[] {
+  const eligible = filterByLocation(options, params);
+  // A region option that covers the buyer's state takes precedence over the
+  // store-wide national price ("SP por R$ 10, resto do Brasil por R$ 30") —
+  // the buyer sees one shipping price, not both.
+  if (!params.skipLocationMatch && params.buyerState && eligible.some((d) => d.calculationType === 'region')) {
+    return eligible.filter((d) => !isNationalPricingOption(d));
+  }
+  return eligible;
+}
+
+function filterByLocation<T extends DeliveryOptionLike>(
   options: T[],
   { merchantCity, merchantState, buyerCity, buyerState, restrictToLocal = false, skipLocationMatch = false, excludeQuoteOnRequest = false }: FilterEligibleDeliveryOptionsParams
 ): T[] {
