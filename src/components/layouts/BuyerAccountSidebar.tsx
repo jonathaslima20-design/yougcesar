@@ -6,18 +6,9 @@ import { Button } from '@/components/ui/button';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useBuyerAccountSummary } from '@/hooks/useBuyerAccountSummary';
-import { useLastStoreCashbackEnabled } from '@/hooks/useLastStoreCashbackEnabled';
-import { getLastVisitedStore } from '@/lib/lastVisitedStore';
-import { supabaseBuyer } from '@/lib/supabaseBuyer';
+import { useBuyerStore } from '@/contexts/BuyerStoreContext';
 import { cn, getInitials } from '@/lib/utils';
-import Logo from '@/components/Logo';
-import { useEffect, useState } from 'react';
-
-interface LastStoreInfo {
-  slug: string;
-  name: string;
-  avatar_url: string | null;
-}
+import { useState } from 'react';
 
 // Mirrors DashboardSidebar.tsx's "Ink Mono" visual language for the buyer
 // account area (Pedidos/Endereços/Perfil), so the buyer environment reads as
@@ -30,15 +21,16 @@ interface NavItemDef {
   exact?: boolean;
 }
 
+// Sub-paths relative to the store's buyer area (/:slug/conta).
 const BASE_NAV_ITEMS: NavItemDef[] = [
-  { name: 'Visão Geral', href: '/conta', icon: LayoutDashboard, exact: true },
-  { name: 'Pedidos', href: '/conta/pedidos', icon: Package },
-  { name: 'Carrinho', href: '/conta/carrinho', icon: ShoppingCart },
-  { name: 'Endereços', href: '/conta/enderecos', icon: MapPin },
-  { name: 'Perfil', href: '/conta/perfil', icon: User },
+  { name: 'Visão Geral', href: '', icon: LayoutDashboard, exact: true },
+  { name: 'Pedidos', href: '/pedidos', icon: Package },
+  { name: 'Carrinho', href: '/carrinho', icon: ShoppingCart },
+  { name: 'Endereços', href: '/enderecos', icon: MapPin },
+  { name: 'Perfil', href: '/perfil', icon: User },
 ];
 
-const CASHBACK_NAV_ITEM: NavItemDef = { name: 'Cashback', href: '/conta/cashback', icon: Wallet };
+const CASHBACK_NAV_ITEM: NavItemDef = { name: 'Cashback', href: '/cashback', icon: Wallet };
 
 function formatCashbackBadge(value: number): string | undefined {
   if (value <= 0) return undefined;
@@ -47,38 +39,15 @@ function formatCashbackBadge(value: number): string | undefined {
 
 export default function BuyerAccountSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [lastStore, setLastStore] = useState<LastStoreInfo | null>(null);
   const { customer, signOut } = useBuyerAuth();
   const { cart } = useCart();
-  const { cashbackTotal } = useBuyerAccountSummary(customer?.id);
-  const cashbackAvailable = useLastStoreCashbackEnabled();
+  const { store, path, cashbackEnabled: cashbackAvailable } = useBuyerStore();
+  const { cashbackTotal } = useBuyerAccountSummary(customer?.id, store?.id);
   const navigate = useNavigate();
 
   const navItems = cashbackAvailable
     ? [...BASE_NAV_ITEMS.slice(0, 3), CASHBACK_NAV_ITEM, ...BASE_NAV_ITEMS.slice(3)]
     : BASE_NAV_ITEMS;
-
-  // A conta do comprador não pertence a uma loja só (ele pode ter pedidos em
-  // várias) — não existe "a" logo do lojista para fixar aqui. Em vez disso,
-  // mostra a loja que o levou até esta área: a última visitada, atualizada a
-  // cada acesso a uma vitrine (inclusive a que originou o login), com queda
-  // para a marca do VitrineTurbo quando não houver nenhuma.
-  useEffect(() => {
-    const slug = getLastVisitedStore();
-    if (!slug) return;
-    let cancelled = false;
-    supabaseBuyer
-      .from('users')
-      .select('slug, name, avatar_url')
-      .eq('slug', slug)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled && data) setLastStore(data);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const toggleMobileSidebar = () => setMobileOpen((prev) => !prev);
 
@@ -86,31 +55,29 @@ export default function BuyerAccountSidebar() {
     // Navigate first, then sign out — both land in the same React 18 batch,
     // so the route has already changed away from /conta/* by the time
     // customer becomes null (avoids racing each page's own signed-out guard).
-    const lastStore = getLastVisitedStore();
-    navigate(lastStore ? `/${lastStore}` : '/');
+    navigate(store ? `/${store.slug}` : '/');
     signOut();
   };
 
   const sidebarContent = (isMobile: boolean) => (
     <>
       <div className="flex items-center justify-between px-5 py-5">
-        {lastStore ? (
-          <Link to={`/${lastStore.slug}`} className="flex items-center gap-2.5 min-w-0">
+        {store && (
+          <Link to={`/${store.slug}`} className="flex items-center gap-2.5 min-w-0">
             <Avatar className="h-9 w-9 shrink-0 ring-1 ring-foreground/10">
-              <AvatarImage src={lastStore.avatar_url || undefined} alt={lastStore.name} />
+              <AvatarImage src={store.avatar_url || undefined} alt={store.name} />
               <AvatarFallback className="text-xs font-bold bg-foreground text-background tracking-tight">
-                {getInitials(lastStore.name)}
+                {getInitials(store.name)}
               </AvatarFallback>
             </Avatar>
-            <span className="font-semibold text-[15px] tracking-tight truncate">{lastStore.name}</span>
+            <span className="font-semibold text-[15px] tracking-tight truncate">{store.name}</span>
           </Link>
-        ) : (
-          <Logo showText size="md" />
         )}
         {isMobile && (
           <button
             onClick={toggleMobileSidebar}
-            className="h-8 w-8 flex items-center justify-center hover:bg-foreground/5 transition-colors"
+            aria-label="Fechar menu"
+            className="h-9 w-9 flex items-center justify-center hover:bg-foreground/5 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -123,13 +90,13 @@ export default function BuyerAccountSidebar() {
             <InkNavItem
               key={item.href}
               name={item.name}
-              href={item.href}
+              href={path(item.href)}
               icon={item.icon}
               exact={item.exact}
               badge={
-                item.href === '/conta/carrinho' && cart.itemCount > 0
+                item.href === '/carrinho' && cart.itemCount > 0
                   ? cart.itemCount
-                  : item.href === '/conta/cashback'
+                  : item.href === '/cashback'
                     ? formatCashbackBadge(cashbackTotal)
                     : undefined
               }
@@ -144,7 +111,7 @@ export default function BuyerAccountSidebar() {
           <button
             className="flex items-center gap-3 w-full p-2.5 hover:bg-foreground/[0.03] transition-colors duration-150 text-left"
             onClick={() => {
-              navigate('/conta/perfil');
+              navigate(path('/perfil'));
               if (isMobile) toggleMobileSidebar();
             }}
           >
@@ -179,6 +146,8 @@ export default function BuyerAccountSidebar() {
         size="icon"
         className="fixed top-3 left-4 z-50 md:hidden rounded-none border-foreground/20"
         onClick={toggleMobileSidebar}
+        aria-label="Abrir menu"
+        aria-expanded={mobileOpen}
       >
         <Menu className="h-5 w-5" />
       </Button>
@@ -200,7 +169,7 @@ export default function BuyerAccountSidebar() {
         {sidebarContent(true)}
       </div>
 
-      <div className="hidden md:flex flex-col h-screen w-[256px] bg-background border-r border-foreground/[0.08]">
+      <div className="hidden md:flex flex-col h-screen sticky top-0 shrink-0 w-[256px] bg-background border-r border-foreground/[0.08]">
         {sidebarContent(false)}
       </div>
     </>

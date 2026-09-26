@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { Loader, Package, RotateCcw, Search, ShoppingBag, ShoppingCart, Award, Store } from 'lucide-react';
+import { Loader, Package, RotateCcw, Search, ShoppingBag, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useBuyerStore } from '@/contexts/BuyerStoreContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { reorderItems, type ReorderItemInput } from '@/lib/buyerReorder';
 import { useBuyAgainItems, type BuyAgainItem } from '@/hooks/useBuyAgainItems';
-import { getBuyerTier, type BuyerTier } from '@/lib/buyerTier';
-import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useReorderDestination } from '@/hooks/useReorderDestination';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -22,15 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
+import PaymentStatusBadge from '@/components/buyer/BuyerPaymentStatusBadge';
+import { BuyAgainCard, SectionTitle } from '@/components/buyer/overview/BuyerOverviewCards';
 import type { OrderStatus } from '@/types';
-
-const FALLBACK_IMAGE = 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg';
-
-const TIER_STYLES: Record<BuyerTier, { bg: string; icon: string; bar: string }> = {
-  bronze: { bg: 'bg-amber-100 dark:bg-amber-950/40', icon: 'text-amber-700 dark:text-amber-500', bar: 'bg-amber-600' },
-  prata: { bg: 'bg-slate-100 dark:bg-slate-800/60', icon: 'text-slate-500 dark:text-slate-300', bar: 'bg-slate-400' },
-  ouro: { bg: 'bg-yellow-100 dark:bg-yellow-950/40', icon: 'text-yellow-600 dark:text-yellow-400', bar: 'bg-yellow-500' },
-};
 
 interface BuyerOrderRow {
   id: string;
@@ -41,24 +33,10 @@ interface BuyerOrderRow {
   created_at: string;
 }
 
-interface StoreInfo {
-  name: string;
-  slug: string;
-}
-
 interface OrderThumbnail {
   image: string | null;
   itemCount: number;
 }
-
-const PAYMENT_STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  not_applicable: { label: 'Sem pagamento online', variant: 'outline' },
-  pending: { label: 'Pagamento pendente', variant: 'secondary' },
-  approved: { label: 'Pagamento aprovado', variant: 'default' },
-  rejected: { label: 'Pagamento recusado', variant: 'destructive' },
-  refunded: { label: 'Reembolsado', variant: 'outline' },
-  cancelled: { label: 'Cancelado', variant: 'destructive' },
-};
 
 const STATUS_OPTIONS: { value: OrderStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Todos os status' },
@@ -74,7 +52,7 @@ function OrdersSkeleton() {
   return (
     <div className="space-y-3">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="flex items-center justify-between border border-border rounded-lg p-4">
+        <div key={i} className="flex items-center justify-between border border-border rounded-xl p-3">
           <div className="flex items-center gap-3">
             <Skeleton className="h-14 w-14 rounded-md shrink-0" />
             <div className="space-y-2">
@@ -95,37 +73,28 @@ export default function BuyerOrdersPage() {
   const { addToCart, clearCart } = useCart();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<BuyerOrderRow[]>([]);
-  const [stores, setStores] = useState<Record<string, StoreInfo>>({});
   const [orderThumbnails, setOrderThumbnails] = useState<Record<string, OrderThumbnail>>({});
-  const { items: buyAgainItems } = useBuyAgainItems(customer?.id);
+  const { store, path, loginPath } = useBuyerStore();
+  const { items: buyAgainItems } = useBuyAgainItems(customer?.id, 6, store?.id);
+  const { destination, isCheckout } = useReorderDestination(store);
   const [loading, setLoading] = useState(true);
   const [reorderingId, setReorderingId] = useState<string | null>(null);
   const [buyingAgainId, setBuyingAgainId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
 
   useEffect(() => {
-    if (!customer) return;
+    if (!customer || !store) return;
 
     (async () => {
       setLoading(true);
       const { data: orderRows } = await supabaseBuyer
         .from('orders')
         .select('id, store_owner_id, status, payment_status, total, created_at')
+        .eq('store_owner_id', store.id)
         .order('created_at', { ascending: false });
 
       const rows = orderRows || [];
       setOrders(rows);
-
-      const storeIds = [...new Set(rows.map((o) => o.store_owner_id))];
-      if (storeIds.length > 0) {
-        const { data: storeRows } = await supabaseBuyer.from('users').select('id, name, slug').in('id', storeIds);
-        const map: Record<string, StoreInfo> = {};
-        (storeRows || []).forEach((s: { id: string; name: string; slug: string }) => {
-          map[s.id] = { name: s.name, slug: s.slug };
-        });
-        setStores(map);
-      }
 
       // One thumbnail per order (its first item's image) so the list reads
       // like a real order history instead of plain text rows.
@@ -150,11 +119,10 @@ export default function BuyerOrdersPage() {
 
       setLoading(false);
     })();
-  }, [customer]);
+  }, [customer, store]);
 
   const handleBuyAgain = async (item: BuyAgainItem) => {
-    const store = stores[item.store_owner_id];
-    if (!store?.slug) return;
+    if (!store || !destination) return;
 
     setBuyingAgainId(item.product_id);
     try {
@@ -167,10 +135,11 @@ export default function BuyerOrdersPage() {
         selected_flavor: item.selected_flavor,
         selected_variant_label: null,
       };
+      if (isCheckout) clearCart();
       const result = await reorderItems([input], addToCart);
       if (result.addedCount > 0) {
-        toast.success('Adicionado ao carrinho!');
-        navigate(`/${store.slug}`);
+        if (!isCheckout) toast.success('Adicionado ao carrinho!');
+        navigate(destination);
       } else {
         toast.error('Este produto não está mais disponível.');
       }
@@ -180,22 +149,16 @@ export default function BuyerOrdersPage() {
   };
 
   if (!authLoading && !customer) {
-    return <Navigate to="/conta/entrar" state={{ from: '/conta/pedidos' }} replace />;
+    return <Navigate to={loginPath} state={{ from: path('/pedidos') }} replace />;
   }
 
   const filteredOrders = orders.filter((order) => {
-    if (statusFilter !== 'all' && order.status !== statusFilter) return false;
-    if (searchQuery.trim()) {
-      const storeName = stores[order.store_owner_id]?.name || '';
-      if (!storeName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
-    }
-    return true;
+    return statusFilter === 'all' || order.status === statusFilter;
   });
 
   const handleReorder = async (order: BuyerOrderRow, e: React.MouseEvent) => {
     e.stopPropagation();
-    const store = stores[order.store_owner_id];
-    if (!store?.slug) return;
+    if (!store || !destination) return;
 
     setReorderingId(order.id);
     try {
@@ -212,12 +175,12 @@ export default function BuyerOrdersPage() {
       clearCart();
       const result = await reorderItems(itemRows, addToCart);
       if (result.addedCount > 0) {
-        toast.success(
+        if (!isCheckout || result.skipped.length > 0) toast.success(
           result.skipped.length > 0
             ? `${result.addedCount} ${result.addedCount === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho. ${result.skipped.length} não ${result.skipped.length === 1 ? 'está' : 'estão'} mais disponível.`
             : 'Itens adicionados ao carrinho!'
         );
-        navigate(`/${store.slug}`);
+        navigate(destination);
       } else {
         toast.error('Nenhum item deste pedido está disponível no momento.');
       }
@@ -230,18 +193,6 @@ export default function BuyerOrdersPage() {
     .filter((o) => o.status !== 'cancelled')
     .reduce((sum, o) => sum + o.total, 0);
 
-  const tierInfo = getBuyerTier(totalSpent);
-  const tierStyle = TIER_STYLES[tierInfo.tier];
-
-  const favoriteStoreName = (() => {
-    const counts: Record<string, number> = {};
-    orders.forEach((o) => {
-      counts[o.store_owner_id] = (counts[o.store_owner_id] || 0) + 1;
-    });
-    const topId = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
-    return topId ? stores[topId]?.name || null : null;
-  })();
-
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-2xl space-y-6">
       <div>
@@ -250,7 +201,7 @@ export default function BuyerOrdersPage() {
       </div>
 
       {!loading && orders.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="pt-4 pb-3 px-3 md:px-4">
               <div className="flex items-center gap-2 md:gap-3">
@@ -268,36 +219,14 @@ export default function BuyerOrdersPage() {
           <Card>
             <CardContent className="pt-4 pb-3 px-3 md:px-4">
               <div className="flex items-center gap-2 md:gap-3">
-                <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', tierStyle.bg)}>
-                  <Award className={cn('h-4 w-4', tierStyle.icon)} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-lg md:text-2xl font-bold truncate">{tierInfo.label}</p>
-                  <p className="text-[11px] md:text-xs text-muted-foreground truncate">
-                    {tierInfo.amountToNext != null
-                      ? `Faltam ${tierInfo.amountToNext.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })} p/ ${tierInfo.nextLabel}`
-                      : 'Nível máximo'}
-                  </p>
-                </div>
-              </div>
-              <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
-                <div
-                  className={cn('h-full rounded-full transition-all', tierStyle.bar)}
-                  style={{ width: `${tierInfo.progressPercent}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4 pb-3 px-3 md:px-4">
-              <div className="flex items-center gap-2 md:gap-3">
                 <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Store className="h-4 w-4 text-primary" />
+                  <Wallet className="h-4 w-4 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm md:text-base font-bold truncate">{favoriteStoreName || '—'}</p>
-                  <p className="text-[11px] md:text-xs text-muted-foreground truncate">Loja favorita</p>
+                  <p className="text-sm md:text-base font-bold truncate">
+                    {totalSpent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] md:text-xs text-muted-foreground truncate">Total gasto</p>
                 </div>
               </div>
             </CardContent>
@@ -306,85 +235,39 @@ export default function BuyerOrdersPage() {
       )}
 
       {!loading && buyAgainItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShoppingCart className="h-4 w-4" />
-              Compre de novo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
-              {buyAgainItems.map((item) => (
-                <div
-                  key={item.product_id}
-                  className="flex flex-col gap-2 border border-border rounded-lg p-3 w-36 shrink-0"
-                >
-                  <div className="w-full aspect-square bg-white rounded-md overflow-hidden border border-border/60">
-                    <img
-                      src={item.product_image_url || FALLBACK_IMAGE}
-                      alt={item.product_title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium truncate" title={item.product_title}>
-                      {item.product_title}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {stores[item.store_owner_id]?.name || 'Loja'}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs"
-                    disabled={buyingAgainId === item.product_id}
-                    onClick={() => handleBuyAgain(item)}
-                  >
-                    {buyingAgainId === item.product_id ? (
-                      <Loader className="h-3 w-3 animate-spin" />
-                    ) : (
-                      'Comprar de novo'
-                    )}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div>
+          <SectionTitle>Compre de novo</SectionTitle>
+          <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scroll-px-4 md:mx-0 md:px-0 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {buyAgainItems.map((item) => (
+              <BuyAgainCard
+                key={item.product_id}
+                item={item}
+                busy={buyingAgainId === item.product_id}
+                onBuy={() => handleBuyAgain(item)}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
-      <Card>
-          <CardHeader>
-            <CardTitle>Meus Pedidos</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <div>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Todos os pedidos</h2>
             {!loading && orders.length > 0 && (
-              <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por loja..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all')}>
-                  <SelectTrigger className="sm:w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all')}>
+                <SelectTrigger className="w-44 h-9 text-xs" aria-label="Filtrar por status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
+          </div>
 
             {authLoading || loading ? (
               <OrdersSkeleton />
@@ -401,20 +284,20 @@ export default function BuyerOrdersPage() {
             ) : (
               <div className="space-y-3">
                 {filteredOrders.map((order) => {
-                  const paymentInfo = PAYMENT_STATUS_LABELS[order.payment_status] || PAYMENT_STATUS_LABELS.not_applicable;
-                  const store = stores[order.store_owner_id];
                   const thumb = orderThumbnails[order.id];
                   return (
+                    // Whole card is clickable through a stretched link (the ::after overlay),
+                    // so the action buttons on the right are real siblings instead of
+                    // interactive elements nested inside a role="button".
                     <div
                       key={order.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigate(`/conta/pedidos/${order.id}`)}
-                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/conta/pedidos/${order.id}`)}
-                      className="flex items-center justify-between border border-border rounded-lg p-4 hover:bg-muted/40 transition-colors cursor-pointer"
+                      className="relative flex items-center justify-between border border-border bg-card rounded-xl p-3 shadow-sm hover:bg-muted/40 transition-colors"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-14 w-14 rounded-md border border-border/60 bg-white overflow-hidden shrink-0 relative">
+                      <Link
+                        to={path(`/pedidos/${order.id}`)}
+                        className="flex items-center gap-3 min-w-0 after:absolute after:inset-0 after:content-['']"
+                      >
+                        <div className="h-14 w-14 rounded-lg border border-border/60 bg-white overflow-hidden shrink-0 relative">
                           {thumb?.image ? (
                             <img src={thumb.image} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -429,18 +312,21 @@ export default function BuyerOrdersPage() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{store?.name || 'Loja'}</p>
+                          <p className="font-medium truncate">Pedido #{order.id.slice(0, 8)}</p>
                           <p className="text-sm text-muted-foreground">
                             {new Date(order.created_at).toLocaleDateString('pt-BR')}
                           </p>
                           <div className="flex flex-wrap gap-1.5 mt-1">
-                            <OrderStatusBadge status={order.status} />
-                            <Badge variant={paymentInfo.variant}>{paymentInfo.label}</Badge>
+                            <OrderStatusBadge status={order.status} colorful />
+                            {/* Pending payment already reads as pending status + the "Continuar pagamento" link. */}
+                            {!['not_applicable', 'pending'].includes(order.payment_status) && (
+                              <PaymentStatusBadge status={order.payment_status} />
+                            )}
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right flex flex-col items-end gap-1">
-                        <p className="font-semibold">
+                      </Link>
+                      <div className="text-right flex flex-col items-end gap-1 pointer-events-none">
+                        <p className="text-base font-bold">
                           {order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </p>
                         {order.payment_status === 'pending' && store?.slug && (
@@ -448,8 +334,7 @@ export default function BuyerOrdersPage() {
                             variant="link"
                             size="sm"
                             asChild
-                            className="p-0 h-auto"
-                            onClick={(e) => e.stopPropagation()}
+                            className="p-0 h-auto py-2 -my-1 relative z-10 pointer-events-auto"
                           >
                             <Link to={`/${store.slug}/pedido/${order.id}/pagamento`}>Continuar pagamento</Link>
                           </Button>
@@ -458,7 +343,7 @@ export default function BuyerOrdersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+                            className="p-0 h-auto py-2 -my-1 text-xs text-muted-foreground hover:text-foreground relative z-10 pointer-events-auto"
                             onClick={(e) => handleReorder(order, e)}
                             disabled={reorderingId === order.id}
                           >
@@ -476,8 +361,7 @@ export default function BuyerOrdersPage() {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
+      </div>
     </div>
   );
 }

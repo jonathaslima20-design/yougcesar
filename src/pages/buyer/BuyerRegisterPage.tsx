@@ -34,6 +34,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { cleanWhatsAppNumber } from '@/lib/utils';
 import GoogleIcon from '@/components/icons/GoogleIcon';
 import { StoreBrand } from '@/components/corretor/StoreBrand';
+import { joinStore } from '@/lib/buyerStore';
 
 const formSchema = z
   .object({
@@ -62,7 +63,9 @@ export default function BuyerRegisterPage() {
 
   const storeSlug = searchParams.get('loja') || undefined;
   const redirectTo =
-    (location.state as { from?: string } | null)?.from || searchParams.get('from') || '/conta/pedidos';
+    (location.state as { from?: string } | null)?.from ||
+    searchParams.get('from') ||
+    (storeSlug ? `/${storeSlug}/conta/pedidos` : '/conta/pedidos');
   const loginLink = storeSlug ? `/conta/entrar?loja=${storeSlug}` : '/conta/entrar';
 
   const handleGoogleSignIn = async () => {
@@ -109,6 +112,7 @@ export default function BuyerRegisterPage() {
         return;
       }
 
+      if (storeSlug) await joinStore(storeSlug);
       toast.success('Conta criada com sucesso!');
       navigate(redirectTo, { replace: true });
     } finally {

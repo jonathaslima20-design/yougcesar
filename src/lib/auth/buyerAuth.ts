@@ -47,7 +47,7 @@ export async function registerBuyer(
 
   if (authError) {
     if (authError.message?.includes('already registered') || authError.message?.includes('already in use')) {
-      return { customer: null, error: 'Este e-mail já está cadastrado. Faça login.' };
+      return { customer: null, error: 'Já existe uma conta com este e-mail. Entre para continuar.' };
     }
     return { customer: null, error: authError.message || 'Erro ao criar conta' };
   }

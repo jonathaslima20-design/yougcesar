@@ -32,6 +32,7 @@ import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import GoogleIcon from '@/components/icons/GoogleIcon';
 import { StoreBrand } from '@/components/corretor/StoreBrand';
+import { joinStore } from '@/lib/buyerStore';
 
 const formSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -51,7 +52,9 @@ export default function BuyerLoginPage() {
 
   const storeSlug = searchParams.get('loja') || undefined;
   const redirectTo =
-    (location.state as { from?: string } | null)?.from || searchParams.get('from') || '/conta/pedidos';
+    (location.state as { from?: string } | null)?.from ||
+    searchParams.get('from') ||
+    (storeSlug ? `/${storeSlug}/conta/pedidos` : '/conta/pedidos');
   const registerLink = storeSlug ? `/conta/cadastro?loja=${storeSlug}` : '/conta/cadastro';
 
   const handleGoogleSignIn = async () => {
@@ -83,6 +86,7 @@ export default function BuyerLoginPage() {
         toast.error(error);
         return;
       }
+      if (storeSlug) await joinStore(storeSlug);
       toast.success('Login realizado com sucesso!');
       navigate(redirectTo, { replace: true });
     } finally {

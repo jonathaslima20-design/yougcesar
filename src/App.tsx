@@ -64,6 +64,7 @@ import AffiliateReportsPage from '@/pages/affiliate/AffiliateReportsPage.tsx';
 import AffiliateCatalogPage from '@/pages/affiliate/AffiliateCatalogPage.tsx';
 import AffiliateProfilePage from '@/pages/affiliate/AffiliateProfilePage.tsx';
 import BuyerRegisterPage from '@/pages/buyer/BuyerRegisterPage.tsx';
+import LegacyContaRedirect from '@/pages/buyer/LegacyContaRedirect';
 import BuyerOverviewPage from '@/pages/buyer/BuyerOverviewPage.tsx';
 import BuyerOrdersPage from '@/pages/buyer/BuyerOrdersPage.tsx';
 import BuyerCashbackPage from '@/pages/buyer/BuyerCashbackPage.tsx';
@@ -301,15 +302,18 @@ function AppContent() {
           <Route path="/conta/entrar" element={<BuyerLoginPage />} />
           <Route path="/conta/cadastro" element={<BuyerRegisterPage />} />
           <Route path="/conta/auth/callback" element={<BuyerAuthCallbackPage />} />
-          <Route element={<BuyerAccountLayout />}>
-            <Route path="/conta" element={<BuyerOverviewPage />} />
-            <Route path="/conta/pedidos" element={<BuyerOrdersPage />} />
-            <Route path="/conta/pedidos/:orderId" element={<BuyerOrderDetailPage />} />
-            <Route path="/conta/cashback" element={<BuyerCashbackPage />} />
-            <Route path="/conta/carrinho" element={<BuyerCartPage />} />
-            <Route path="/conta/enderecos" element={<BuyerAddressesPage />} />
-            <Route path="/conta/perfil" element={<BuyerProfilePage />} />
+          {/* Buyer area lives inside each store (/:slug/conta/*) and only ever shows that
+              store's data. Old platform-wide /conta/* links are forwarded to the right store. */}
+          <Route path="/:slug/conta" element={<BuyerAccountLayout />}>
+            <Route index element={<BuyerOverviewPage />} />
+            <Route path="pedidos" element={<BuyerOrdersPage />} />
+            <Route path="pedidos/:orderId" element={<BuyerOrderDetailPage />} />
+            <Route path="cashback" element={<BuyerCashbackPage />} />
+            <Route path="carrinho" element={<BuyerCartPage />} />
+            <Route path="enderecos" element={<BuyerAddressesPage />} />
+            <Route path="perfil" element={<BuyerProfilePage />} />
           </Route>
+          <Route path="/conta/*" element={<LegacyContaRedirect />} />
 
           {/* Affiliate login (separate from merchant and buyer auth) */}
           <Route path="/afiliado/entrar" element={<AffiliateLoginPage />} />

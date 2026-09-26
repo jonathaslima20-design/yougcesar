@@ -4,9 +4,10 @@ import Logo from '@/components/Logo';
 
 interface FooterProps {
   hideLogo?: boolean;
+  hideBlogLink?: boolean;
 }
 
-export default function Footer({ hideLogo = false }: FooterProps) {
+export default function Footer({ hideLogo = false, hideBlogLink = false }: FooterProps) {
   const [bgColor, setBgColor] = useState<string | undefined>(undefined);
   const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
   const [footerLogoMode, setFooterLogoMode] = useState<string>('default');
@@ -89,16 +90,18 @@ export default function Footer({ hideLogo = false }: FooterProps) {
       <div className="container mx-auto px-4 flex flex-col items-center">
         {renderLogo()}
         <div className={`flex items-center gap-4 text-xs text-muted-foreground/70 ${hideLogo || footerLogoMode === 'hidden' ? '' : 'mt-2'}`}>
-          <Link to="/blog" className="hover:text-muted-foreground transition-colors">
-            Blog
-          </Link>
-          <Link to="/politica-de-privacidade" className="hover:text-muted-foreground transition-colors">
+          {!hideBlogLink && (
+            <Link to="/blog" className="hover:text-muted-foreground transition-colors py-2">
+              Blog
+            </Link>
+          )}
+          <Link to="/politica-de-privacidade" className="hover:text-muted-foreground transition-colors py-2">
             Privacidade
           </Link>
-          <Link to="/politica-de-cookies" className="hover:text-muted-foreground transition-colors">
+          <Link to="/politica-de-cookies" className="hover:text-muted-foreground transition-colors py-2">
             Cookies
           </Link>
-          <Link to="/termos-de-uso" className="hover:text-muted-foreground transition-colors">
+          <Link to="/termos-de-uso" className="hover:text-muted-foreground transition-colors py-2">
             Termos de Uso
           </Link>
         </div>

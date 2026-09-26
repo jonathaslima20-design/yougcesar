@@ -4,6 +4,7 @@ import { Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { resolveBuyerOAuthCallback } from '@/lib/auth/buyerAuth';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { joinStore } from '@/lib/buyerStore';
 
 export default function BuyerAuthCallbackPage() {
   const navigate = useNavigate();
@@ -31,8 +32,12 @@ export default function BuyerAuthCallbackPage() {
       await refreshCustomer();
       if (cancelled) return;
 
+      const storeSlug = searchParams.get('loja');
+      if (storeSlug) await joinStore(storeSlug);
+      if (cancelled) return;
+
       toast.success('Login realizado com sucesso!');
-      const redirectTo = searchParams.get('from') || '/conta/pedidos';
+      const redirectTo = searchParams.get('from') || (storeSlug ? `/${storeSlug}/conta/pedidos` : '/conta/pedidos');
       navigate(redirectTo, { replace: true });
     };
 

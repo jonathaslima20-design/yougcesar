@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { Loader, MapPin, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useBuyerStore } from '@/contexts/BuyerStoreContext';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import {
   fetchCustomerAddresses,
@@ -14,7 +15,6 @@ import {
   deleteCustomerAddress,
   type CustomerAddress,
 } from '@/lib/customerAddressService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -75,6 +75,7 @@ const emptyAddress: AddressFormValues = {
 
 export default function BuyerAddressesPage() {
   const { customer, loading: authLoading } = useBuyerAuth();
+  const { store, path, loginPath } = useBuyerStore();
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [orderCountsByZip, setOrderCountsByZip] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -88,12 +89,16 @@ export default function BuyerAddressesPage() {
   });
 
   const loadAddresses = async () => {
-    if (!customer) return;
+    if (!customer || !store) return;
     setLoading(true);
     try {
       const [data, { data: orderRows }] = await Promise.all([
         fetchCustomerAddresses(customer.id),
-        supabaseBuyer.from('orders').select('shipping_zip_code').not('shipping_zip_code', 'is', null),
+        supabaseBuyer
+          .from('orders')
+          .select('shipping_zip_code')
+          .eq('store_owner_id', store.id)
+          .not('shipping_zip_code', 'is', null),
       ]);
       setAddresses(data);
       const counts: Record<string, number> = {};
@@ -112,10 +117,10 @@ export default function BuyerAddressesPage() {
   useEffect(() => {
     loadAddresses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer]);
+  }, [customer, store]);
 
   if (!authLoading && !customer) {
-    return <Navigate to="/conta/entrar" state={{ from: '/conta/enderecos' }} replace />;
+    return <Navigate to={loginPath} state={{ from: path('/enderecos') }} replace />;
   }
 
   const openAddDialog = () => {
@@ -179,9 +184,9 @@ export default function BuyerAddressesPage() {
         <p className="text-sm text-muted-foreground mt-1">Gerencie os endereços usados nas suas entregas</p>
       </div>
 
-      <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Meus Endereços</CardTitle>
+      <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Endereços salvos</h2>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" onClick={openAddDialog}>
@@ -343,12 +348,12 @@ export default function BuyerAddressesPage() {
                 </Form>
               </DialogContent>
             </Dialog>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div>
             {authLoading || loading ? (
               <div className="space-y-3">
                 {[0, 1].map((i) => (
-                  <div key={i} className="border border-border rounded-lg p-4 space-y-2">
+                  <div key={i} className="border border-border rounded-xl p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <Skeleton className="h-4 w-16" />
                       <Skeleton className="h-4 w-14 rounded-full" />
@@ -359,7 +364,7 @@ export default function BuyerAddressesPage() {
                 ))}
               </div>
             ) : addresses.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-10 text-muted-foreground border border-dashed border-border rounded-xl">
                 <MapPin className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>Você ainda não salvou nenhum endereço.</p>
               </div>
@@ -370,10 +375,13 @@ export default function BuyerAddressesPage() {
                   return (
                   <div
                     key={address.id}
-                    className={`border rounded-lg p-4 ${address.is_default ? 'border-l-4 border-l-primary border-border' : 'border-border'}`}
+                    className={`border bg-card rounded-xl p-4 shadow-sm ${address.is_default ? 'border-primary/40' : 'border-border'}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <MapPin className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium">{address.label}</p>
                           {address.is_default && <Badge variant="secondary">Padrão</Badge>}
@@ -424,8 +432,8 @@ export default function BuyerAddressesPage() {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+      </div>
     </div>
   );
 }

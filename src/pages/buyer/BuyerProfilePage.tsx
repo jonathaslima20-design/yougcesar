@@ -4,13 +4,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Loader, Upload, ShieldCheck, KeyRound } from 'lucide-react';
+import { Loader, Upload, KeyRound } from 'lucide-react';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
+import { useBuyerStore } from '@/contexts/BuyerStoreContext';
+import { SectionTitle } from '@/components/buyer/overview/BuyerOverviewCards';
 import { useBuyerAccountSummary } from '@/hooks/useBuyerAccountSummary';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { uploadBuyerAvatar } from '@/lib/buyerAvatar';
 import { cleanWhatsAppNumber } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -38,7 +40,8 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function BuyerProfilePage() {
   const { customer, loading: authLoading, updateProfile, refreshCustomer } = useBuyerAuth();
-  const summary = useBuyerAccountSummary(customer?.id);
+  const { store, path, loginPath, customerSince } = useBuyerStore();
+  const summary = useBuyerAccountSummary(customer?.id, store?.id);
   const [isSaving, setIsSaving] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -62,7 +65,7 @@ export default function BuyerProfilePage() {
   }, [customer]);
 
   if (!authLoading && !customer) {
-    return <Navigate to="/conta/entrar" state={{ from: '/conta/perfil' }} replace />;
+    return <Navigate to={loginPath} state={{ from: path('/perfil') }} replace />;
   }
 
   const onSubmit = async (data: FormValues) => {
@@ -116,7 +119,7 @@ export default function BuyerProfilePage() {
     }
   };
 
-  const memberSince = formatMemberSince(customer?.created_at);
+  const memberSince = formatMemberSince(customerSince ?? undefined);
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-2xl space-y-6">
@@ -153,7 +156,7 @@ export default function BuyerProfilePage() {
                       type="button"
                       disabled={uploadingAvatar}
                       onClick={() => document.getElementById('buyer-avatar')?.click()}
-                      className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity"
+                      className="absolute -bottom-1.5 -right-1.5 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity"
                       aria-label="Alterar foto de perfil"
                     >
                       {uploadingAvatar ? <Loader className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
@@ -174,20 +177,19 @@ export default function BuyerProfilePage() {
                   <p className="text-base font-semibold">{formatMoney(summary.totalSpent)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Nível</p>
-                  <p className="text-base font-semibold">{summary.tier.label}</p>
+                  <p className="text-xs text-muted-foreground">Pedidos</p>
+                  <p className="text-base font-semibold">{summary.ordersCount}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Dados pessoais */}
+          <div>
+          <SectionTitle>Dados pessoais</SectionTitle>
           <Card>
-            <CardHeader>
-              <CardTitle>Dados pessoais</CardTitle>
-              <CardDescription>Nome e WhatsApp usados nos seus pedidos.</CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-5">
+              <p className="text-xs text-muted-foreground mb-4">Nome e WhatsApp usados nos seus pedidos.</p>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormItem>
@@ -240,17 +242,13 @@ export default function BuyerProfilePage() {
               </Form>
             </CardContent>
           </Card>
+          </div>
 
           {/* Segurança */}
+          <div>
+          <SectionTitle>Segurança</SectionTitle>
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                Segurança
-              </CardTitle>
-              <CardDescription>Gerencie a senha da sua conta.</CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-5">
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -270,6 +268,7 @@ export default function BuyerProfilePage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
 

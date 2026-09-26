@@ -60,7 +60,7 @@ export default function CheckoutAddressPage() {
   const { cart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon, updateVariantQuantity, removeCartVariant } = useCart();
   const { customer: buyerAccount, loading: authLoading, saveCpf } = useBuyerAuth();
   const accountLink = buyerAccount
-    ? '/conta/pedidos'
+    ? `/${slug}/conta`
     : `/conta/entrar?loja=${slug}&from=${encodeURIComponent(location.pathname)}`;
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
   // autoDeductStock nao e lido aqui: a baixa deste fluxo acontece no webhook
@@ -98,7 +98,7 @@ export default function CheckoutAddressPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!buyerAccount) {
-      navigate('/conta/entrar', { state: { from: `/${slug}/pedido/endereco` } });
+      navigate(`/conta/entrar?loja=${slug}`, { state: { from: `/${slug}/pedido/endereco` } });
     }
   }, [authLoading, buyerAccount, navigate, slug]);
 

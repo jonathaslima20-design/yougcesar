@@ -691,6 +691,8 @@ export interface Coupon {
   valid_until?: string | null;
   is_active: boolean;
   applies_to: CouponAppliesTo;
+  // Opt-in: shown in the buyer's account area ("Ofertas para você"). Default false.
+  show_to_customers?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -29,7 +29,6 @@ import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { generateReferralLink } from '@/lib/referralUtils';
 import { captureAffiliateClick, captureAffiliateClickBySlug } from '@/lib/affiliateUtils';
-import { saveLastVisitedStore } from '@/lib/lastVisitedStore';
 
 const PromotionalBanner = lazy(() => import('@/components/corretor/PromotionalBanner'));
 
@@ -81,12 +80,6 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   const language: SupportedLanguage = corretor?.language || 'pt-BR';
   const currency: SupportedCurrency = corretor?.currency || 'BRL';
   const { t } = useTranslation(language);
-
-  // Remember which storefront the buyer was browsing, so signing out of the
-  // buyer account (/conta/*) can send them back to this catalog.
-  useEffect(() => {
-    if (corretor?.slug) saveLastVisitedStore(corretor.slug);
-  }, [corretor?.slug]);
 
   // Resolve affiliate attribution: the /:slug/:affiliateSlug path segment takes
   // priority over the legacy ?aff=CODE query param (both can't attribute at once).

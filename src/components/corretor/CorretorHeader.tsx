@@ -52,7 +52,7 @@ export default function CorretorHeader({
   // Ao contrário do checkout (que precisa devolver o comprador pra onde
   // estava pra concluir a compra), login pelo menu da vitrine leva direto
   // pro ambiente de comprador — não de volta pra loja.
-  const loginLink = `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent('/conta')}`;
+  const loginLink = `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent(`/${corretor.slug}/conta`)}`;
 
   const aspectRatio = useResponsiveAspectRatio({
     mobile: 960 / 860,
@@ -97,27 +97,27 @@ export default function CorretorHeader({
               {customer ? (
                 <>
                   <DropdownMenuItem asChild>
-                    <Link to="/conta/pedidos" className="flex items-center gap-2 cursor-pointer">
+                    <Link to={`/${corretor.slug}/conta/pedidos`} className="flex items-center gap-2 cursor-pointer">
                       <Package className="h-4 w-4" />
                       Meus pedidos
                     </Link>
                   </DropdownMenuItem>
                   {cashbackEnabled && (
                     <DropdownMenuItem asChild>
-                      <Link to="/conta/cashback" className="flex items-center gap-2 cursor-pointer">
+                      <Link to={`/${corretor.slug}/conta/cashback`} className="flex items-center gap-2 cursor-pointer">
                         <Wallet className="h-4 w-4" />
                         Meu cashback
                       </Link>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem asChild>
-                    <Link to="/conta/enderecos" className="flex items-center gap-2 cursor-pointer">
+                    <Link to={`/${corretor.slug}/conta/enderecos`} className="flex items-center gap-2 cursor-pointer">
                       <MapPin className="h-4 w-4" />
                       Endereços
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/conta/perfil" className="flex items-center gap-2 cursor-pointer">
+                    <Link to={`/${corretor.slug}/conta/perfil`} className="flex items-center gap-2 cursor-pointer">
                       <UserIcon className="h-4 w-4" />
                       Perfil
                     </Link>
