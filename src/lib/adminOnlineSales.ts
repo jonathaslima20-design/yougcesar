@@ -98,6 +98,21 @@ export interface FailedPaymentsPage {
   rows: FailedPaymentRow[];
 }
 
+// Always carries both origins so the ranking's origin filter is a pure
+// client-side switch.
+export interface OrderRankingRow {
+  user_id: string;
+  name: string | null;
+  email: string | null;
+  slug: string | null;
+  whatsapp_orders: number;
+  whatsapp_cents: number;
+  online_orders: number;
+  online_cents: number;
+  total_orders: number;
+  last_order_at: string | null;
+}
+
 export interface SalesWindow {
   from: Date;
   to: Date;
@@ -118,6 +133,12 @@ export async function fetchOnlineSalesByMerchant(w: SalesWindow): Promise<Mercha
   const { data, error } = await supabase.rpc('admin_online_sales_by_merchant', windowArgs(w));
   if (error) throw new Error(error.message);
   return (data ?? []) as MerchantSalesRow[];
+}
+
+export async function fetchOrdersRanking(w: SalesWindow): Promise<OrderRankingRow[]> {
+  const { data, error } = await supabase.rpc('admin_orders_ranking', windowArgs(w));
+  if (error) throw new Error(error.message);
+  return (data ?? []) as OrderRankingRow[];
 }
 
 export async function fetchFailedPayments(w: SalesWindow, limit: number, offset: number): Promise<FailedPaymentsPage> {
