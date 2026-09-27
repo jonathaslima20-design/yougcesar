@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConnectionsTab, type ConnectionFilter } from '@/components/admin/onlineSales/ConnectionsTab';
 import { FailedPaymentsTab } from '@/components/admin/onlineSales/FailedPaymentsTab';
 import { MerchantsTab } from '@/components/admin/onlineSales/MerchantsTab';
+import { RankingTab } from '@/components/admin/onlineSales/RankingTab';
 import { SalesChart } from '@/components/admin/onlineSales/SalesChart';
 import {
   PAYMENT_METHOD_LABELS,
@@ -83,7 +84,7 @@ export default function OnlineSalesPage() {
   const [preset, setPreset] = useState<Preset>('30d');
   const [environment, setEnvironment] = useState<SalesEnvironment>('production');
   const [reloadKey, setReloadKey] = useState(0);
-  const [tab, setTab] = useState('merchants');
+  const [tab, setTab] = useState('ranking');
   const [connectionFilter, setConnectionFilter] = useState<ConnectionFilter>('all');
 
   const [loading, setLoading] = useState(true);
@@ -279,10 +280,14 @@ export default function OnlineSalesPage() {
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
+              <TabsTrigger value="ranking">Ranking</TabsTrigger>
               <TabsTrigger value="merchants">Por lojista</TabsTrigger>
               <TabsTrigger value="connections">Conexões Mercado Pago</TabsTrigger>
               <TabsTrigger value="failed">Vendas que falharam</TabsTrigger>
             </TabsList>
+            <TabsContent value="ranking" className="mt-4">
+              <RankingTab salesWindow={salesWindow} />
+            </TabsContent>
             <TabsContent value="merchants" className="mt-4">
               <MerchantsTab rows={merchants} />
             </TabsContent>
