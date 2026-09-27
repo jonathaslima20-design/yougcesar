@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { useCart } from '@/contexts/CartContext';
 import { formatCurrencyI18n, generateWhatsAppMessage, useTranslation, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
-import { getWhatsAppContactUrl } from '@/lib/utils';
+import { getWhatsAppContactUrl, hasWhatsAppContact } from '@/lib/utils';
 import { trackWhatsAppClick } from '@/lib/tracking';
 import type { User as UserType, PriceTier } from '@/types';
 import { generateCartOrderMessage, cleanWhatsappDigits } from '@/lib/cartUtils';
@@ -1302,7 +1302,7 @@ export default function CartModal({
                     Limpar Carrinho
                   </Button>
 
-                  {(corretor.whatsapp || orderMode !== 'whatsapp') && (
+                  {(hasWhatsAppContact(affiliateWhatsAppOverride || corretor) || orderMode !== 'whatsapp') && (
                     <Button
                       onClick={handleGoToCheckout}
                       disabled={minPurchaseActive && !minPurchaseMet}
@@ -1318,7 +1318,7 @@ export default function CartModal({
                   )}
                 </div>
 
-                {!corretor.whatsapp && orderMode === 'whatsapp' && (
+                {!hasWhatsAppContact(affiliateWhatsAppOverride || corretor) && orderMode === 'whatsapp' && (
                   <p className="text-xs text-muted-foreground text-center">
                     WhatsApp nao configurado para este vendedor
                   </p>

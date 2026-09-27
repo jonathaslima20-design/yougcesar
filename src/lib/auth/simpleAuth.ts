@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import type { User } from '@/types';
 import type { AttributionData } from '@/lib/attribution';
+import { hasWhatsAppContact } from '@/lib/utils';
 
 // Logs informativos apenas em desenvolvimento; erros continuam sempre visíveis via console.error
 const devLog = (...args: unknown[]) => {
@@ -503,9 +504,12 @@ export async function registerUser(
     }
 
     const now = new Date().toISOString();
+    // insert, not upsert: the existing-email check above already rejected known
+    // duplicates, and if a row we can't see (RLS) or a concurrent signup exists, this
+    // must fail instead of silently overwriting its plan_status/role/billing.
     const { data: userProfile, error: createError } = await supabase
       .from('users')
-      .upsert({
+      .insert({
         id: authData.user.id,
         email: normalizedEmail,
         name: userData.name,
@@ -526,8 +530,6 @@ export async function registerUser(
           privacy_policy_version: PRIVACY_VERSION,
         } : {}),
         ...(userData.attribution || {}),
-      }, {
-        onConflict: 'email'
       })
       .select()
       .single();
@@ -651,7 +653,10 @@ export async function resolveActiveSession(): Promise<{
     // Defensive check: a corretor profile missing WhatsApp was never finished through
     // registerUser()/completeGoogleProfile() (both require it). Route back to complete
     // the profile instead of letting an incomplete signup straight into the dashboard.
-    if (userProfile.role === 'corretor' && !userProfile.whatsapp) {
+    // A seller in WhatsApp "link" mode has whatsapp = null ON PURPOSE (only the link is
+    // stored), so checking the number alone sent every paying link-mode seller to the
+    // signup form — where submitting used to reset their plan to 'inactive'.
+    if (userProfile.role === 'corretor' && !hasWhatsAppContact(userProfile)) {
       return {
         user: null,
         error: null,
@@ -705,34 +710,64 @@ export async function completeGoogleProfile(
     }
 
     const now = new Date().toISOString();
-    const { data: userProfile, error: createError } = await supabase
+
+    // A row can already exist here (corretor saved without WhatsApp, e.g. created
+    // by an admin or an older signup). Never reset its plan/role/billing: only
+    // fill in the profile fields this form collects.
+    const { data: existingRow } = await supabase
       .from('users')
-      .upsert({
-        id: authUserId,
-        email: normalizedEmail,
-        name: userData.name,
-        owner_name: userData.owner_name || null,
-        niche_type: 'diversos',
-        country_code: userData.country_code || '55',
-        whatsapp: userData.whatsapp,
-        role: 'corretor',
-        is_blocked: false,
-        plan_status: 'inactive',
-        created_at: now,
-        ...(referredBy ? { referred_by: referredBy } : {}),
-        ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
-        ...(userData.accepted_terms ? {
-          accepted_terms_at: now,
-          accepted_privacy_policy_at: now,
-          terms_version: TERMS_VERSION,
-          privacy_policy_version: PRIVACY_VERSION,
-        } : {}),
-        ...(userData.attribution || {}),
-      }, {
-        onConflict: 'email'
-      })
-      .select()
-      .single();
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    const termsFields = userData.accepted_terms ? {
+      accepted_terms_at: now,
+      accepted_privacy_policy_at: now,
+      terms_version: TERMS_VERSION,
+      privacy_policy_version: PRIVACY_VERSION,
+    } : {};
+
+    let userProfile: any;
+    let createError: any;
+
+    if (existingRow) {
+      ({ data: userProfile, error: createError } = await supabase
+        .from('users')
+        .update({
+          name: userData.name,
+          owner_name: userData.owner_name || null,
+          country_code: userData.country_code || '55',
+          whatsapp: userData.whatsapp,
+          ...termsFields,
+        })
+        .eq('id', existingRow.id)
+        .select()
+        .single());
+    } else {
+      ({ data: userProfile, error: createError } = await supabase
+        .from('users')
+        .upsert({
+          id: authUserId,
+          email: normalizedEmail,
+          name: userData.name,
+          owner_name: userData.owner_name || null,
+          niche_type: 'diversos',
+          country_code: userData.country_code || '55',
+          whatsapp: userData.whatsapp,
+          role: 'corretor',
+          is_blocked: false,
+          plan_status: 'inactive',
+          created_at: now,
+          ...(referredBy ? { referred_by: referredBy } : {}),
+          ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
+          ...termsFields,
+          ...(userData.attribution || {}),
+        }, {
+          onConflict: 'email'
+        })
+        .select()
+        .single());
+    }
 
     if (createError || !userProfile) {
       console.error('📝 Google profile creation error:', createError);

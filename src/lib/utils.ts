@@ -248,6 +248,17 @@ export function generateWhatsAppUrl(phone: string, message: string = '', country
   return url;
 }
 
+// Whether a seller has any way to be reached on WhatsApp. In 'link' mode the
+// phone number is stored as null on purpose (only whatsapp_link is kept), so
+// checking `whatsapp` alone wrongly reports those sellers as having no contact.
+export function hasWhatsAppContact(
+  contact: { whatsapp?: string | null; whatsapp_mode?: string | null; whatsapp_link?: string | null } | null | undefined
+): boolean {
+  if (!contact) return false;
+  if (contact.whatsapp_mode === 'link') return !!contact.whatsapp_link?.trim();
+  return !!contact.whatsapp?.trim();
+}
+
 // Resolve a seller's WhatsApp contact URL, honoring their phone-vs-link mode.
 // In 'link' mode the stored link is opened as-is — no message is ever appended.
 export function getWhatsAppContactUrl(
