@@ -141,297 +141,297 @@ body {
 
 @layer components {
   /* Storefront themed overrides */
-  .sf-themed .rounded-xl.border.bg-card {
+  .sf-themed.theme-padrao .rounded-xl.border.bg-card {
     background-color: var(--sf-card-bg);
     border-color: var(--sf-card-border);
     border-radius: var(--sf-radius-card);
     box-shadow: var(--sf-shadow);
   }
-  .sf-themed .rounded-xl.border.bg-card h3 {
+  .sf-themed.theme-padrao .rounded-xl.border.bg-card h3 {
     color: var(--sf-text);
     font-family: var(--sf-font);
   }
-  .sf-themed .rounded-xl.border.bg-card .font-bold {
+  .sf-themed.theme-padrao .rounded-xl.border.bg-card .font-bold {
     color: var(--sf-heading);
   }
-  .sf-themed h2.text-xl,
-  .sf-themed h2.text-2xl {
+  .sf-themed.theme-padrao h2.text-xl,
+  .sf-themed.theme-padrao h2.text-2xl {
     color: var(--sf-heading);
     font-family: var(--sf-font-heading);
   }
-  .sf-themed .space-y-12 {
+  .sf-themed.theme-padrao .space-y-12 {
     gap: var(--sf-spacing);
   }
-  .sf-themed .grid.grid-cols-2 {
+  .sf-themed.theme-padrao .grid.grid-cols-2 {
     gap: var(--sf-gap);
   }
-  .sf-themed .border-t.border-border\/50 {
+  .sf-themed.theme-padrao .border-t.border-border\/50 {
     border-color: var(--sf-border);
   }
-  .sf-themed footer {
+  .sf-themed.theme-padrao footer {
     background-color: var(--sf-bg) !important;
   }
-  .sf-themed .text-muted-foreground {
+  .sf-themed.theme-padrao .text-muted-foreground {
     color: var(--sf-muted) !important;
   }
-  .sf-themed .text-foreground {
+  .sf-themed.theme-padrao .text-foreground {
     color: var(--sf-text) !important;
   }
-  .sf-themed .border-border {
+  .sf-themed.theme-padrao .border-border {
     border-color: var(--sf-border) !important;
   }
 
   /* Themed default (primary) buttons: bg, text, and radius from appearance settings */
-  .sf-themed button.rounded-full.bg-primary {
+  .sf-themed.theme-padrao button.rounded-full.bg-primary {
     background-color: var(--sf-button-bg) !important;
     color: var(--sf-button-text) !important;
     border-radius: var(--sf-radius-btn) !important;
     transition: transform 0.2s ease, filter 0.2s ease;
   }
-  .sf-themed button.rounded-full.bg-primary:hover {
+  .sf-themed.theme-padrao button.rounded-full.bg-primary:hover {
     background-color: var(--sf-button-bg) !important;
     color: var(--sf-button-text) !important;
     filter: brightness(0.9);
   }
 
   /* Themed search input: match storefront appearance */
-  .sf-themed input.rounded-xl.border {
+  .sf-themed.theme-padrao input.rounded-xl.border {
     border-radius: var(--sf-radius-btn) !important;
     background-color: var(--sf-card-bg) !important;
     border-color: var(--sf-border) !important;
     color: var(--sf-text) !important;
   }
-  .sf-themed input.rounded-xl.border::placeholder {
+  .sf-themed.theme-padrao input.rounded-xl.border::placeholder {
     color: var(--sf-muted) !important;
   }
 
   /* Themed outline buttons: border follows --sf-border, icons follow --sf-icon */
-  .sf-themed button.rounded-full.border,
-  .sf-themed a.rounded-full.border {
+  .sf-themed.theme-padrao button.rounded-full.border,
+  .sf-themed.theme-padrao a.rounded-full.border {
     border-color: var(--sf-border) !important;
     color: var(--sf-icon) !important;
     background-color: transparent !important;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   /* Apply themed radius only to non-icon outline buttons (e.g. Filtros) */
-  .sf-themed button.rounded-full.border:not([class*="w-14"]):not([class*="w-12"]):not([class*="w-9"]) {
+  .sf-themed.theme-padrao button.rounded-full.border:not([class*="w-14"]):not([class*="w-12"]):not([class*="w-9"]) {
     border-radius: var(--sf-radius-btn) !important;
   }
-  .sf-themed button.rounded-full.border:hover,
-  .sf-themed a.rounded-full.border:hover {
+  .sf-themed.theme-padrao button.rounded-full.border:hover,
+  .sf-themed.theme-padrao a.rounded-full.border:hover {
     border-color: var(--sf-border) !important;
     color: var(--sf-icon) !important;
     background-color: transparent !important;
     transform: scale(1.08);
   }
-  .sf-themed button.rounded-full.border:active,
-  .sf-themed a.rounded-full.border:active {
+  .sf-themed.theme-padrao button.rounded-full.border:active,
+  .sf-themed.theme-padrao a.rounded-full.border:active {
     transform: scale(0.95);
   }
 
   /* Themed outline buttons inside cards (full-width): apply custom radius */
-  .sf-themed button.w-full.rounded-full.border {
+  .sf-themed.theme-padrao button.w-full.rounded-full.border {
     border-radius: var(--sf-radius-btn) !important;
   }
 
   /* ─── Product Details Page theming ─────────────────────────────────── */
-  .sf-themed h1 {
+  .sf-themed.theme-padrao h1 {
     color: var(--sf-heading);
     font-family: var(--sf-font-heading);
   }
-  .sf-themed .bg-primary {
+  .sf-themed.theme-padrao .bg-primary {
     background-color: var(--sf-button-bg) !important;
     color: var(--sf-button-text) !important;
   }
-  .sf-themed .text-primary {
+  .sf-themed.theme-padrao .text-primary {
     color: var(--sf-text) !important;
   }
-  .sf-themed .border-primary\/20 {
+  .sf-themed.theme-padrao .border-primary\/20 {
     border-color: color-mix(in srgb, var(--sf-text) 20%, transparent) !important;
   }
 
-  /* ─── Dialog / Portal theming (rendered on body, inherits from html.sf-themed) */
-  .sf-themed [role="dialog"] {
+  /* ─── Dialog / Portal theming (rendered on body, inherits from html.sf-themed.theme-padrao) */
+  .sf-themed.theme-padrao [role="dialog"] {
     background-color: var(--sf-card-bg) !important;
     border-color: var(--sf-card-border) !important;
     color: var(--sf-text) !important;
     font-family: var(--sf-font);
   }
-  .sf-themed [role="dialog"] h2,
-  .sf-themed [role="dialog"] h3 {
+  .sf-themed.theme-padrao [role="dialog"] h2,
+  .sf-themed.theme-padrao [role="dialog"] h3 {
     color: var(--sf-heading) !important;
     font-family: var(--sf-font-heading);
   }
-  .sf-themed [role="dialog"] p {
+  .sf-themed.theme-padrao [role="dialog"] p {
     color: var(--sf-muted);
   }
-  .sf-themed [role="dialog"] input,
-  .sf-themed [role="dialog"] select,
-  .sf-themed [role="dialog"] button[role="combobox"] {
+  .sf-themed.theme-padrao [role="dialog"] input,
+  .sf-themed.theme-padrao [role="dialog"] select,
+  .sf-themed.theme-padrao [role="dialog"] button[role="combobox"] {
     background-color: var(--sf-bg) !important;
     border-color: var(--sf-border) !important;
     color: var(--sf-text) !important;
     border-radius: var(--sf-radius-btn) !important;
   }
-  .sf-themed [role="dialog"] input::placeholder {
+  .sf-themed.theme-padrao [role="dialog"] input::placeholder {
     color: var(--sf-muted) !important;
   }
-  .sf-themed [role="dialog"] label {
+  .sf-themed.theme-padrao [role="dialog"] label {
     color: var(--sf-text) !important;
   }
-  .sf-themed [role="dialog"] .bg-primary,
-  .sf-themed [role="dialog"] button.bg-primary {
+  .sf-themed.theme-padrao [role="dialog"] .bg-primary,
+  .sf-themed.theme-padrao [role="dialog"] button.bg-primary {
     background-color: var(--sf-button-bg) !important;
     color: var(--sf-button-text) !important;
     border-radius: var(--sf-radius-btn) !important;
   }
-  .sf-themed [role="dialog"] button[data-variant="outline"],
-  .sf-themed [role="dialog"] button.border {
+  .sf-themed.theme-padrao [role="dialog"] button[data-variant="outline"],
+  .sf-themed.theme-padrao [role="dialog"] button.border {
     border-color: var(--sf-border) !important;
     color: var(--sf-text) !important;
   }
-  .sf-themed [role="dialog"] .text-muted-foreground {
+  .sf-themed.theme-padrao [role="dialog"] .text-muted-foreground {
     color: var(--sf-muted) !important;
   }
-  .sf-themed [role="dialog"] .border-t,
-  .sf-themed [role="dialog"] .border-b,
-  .sf-themed [role="dialog"] [data-orientation="horizontal"] {
+  .sf-themed.theme-padrao [role="dialog"] .border-t,
+  .sf-themed.theme-padrao [role="dialog"] .border-b,
+  .sf-themed.theme-padrao [role="dialog"] [data-orientation="horizontal"] {
     border-color: var(--sf-border) !important;
   }
-  .sf-themed [role="dialog"] .bg-muted {
+  .sf-themed.theme-padrao [role="dialog"] .bg-muted {
     background-color: color-mix(in srgb, var(--sf-card-bg) 80%, var(--sf-border) 20%) !important;
   }
-  .sf-themed [role="dialog"] .text-primary {
+  .sf-themed.theme-padrao [role="dialog"] .text-primary {
     color: var(--sf-text) !important;
   }
-  .sf-themed [role="dialog"] .bg-primary\/10 {
+  .sf-themed.theme-padrao [role="dialog"] .bg-primary\/10 {
     background-color: color-mix(in srgb, var(--sf-button-bg) 10%, transparent) !important;
   }
 
   /* ─── Select dropdown (portal) theming ────────────────────────────── */
-  .sf-themed [role="listbox"] {
+  .sf-themed.theme-padrao [role="listbox"] {
     background-color: var(--sf-card-bg) !important;
     border-color: var(--sf-border) !important;
     color: var(--sf-text) !important;
   }
-  .sf-themed [role="listbox"] [role="option"] {
+  .sf-themed.theme-padrao [role="listbox"] [role="option"] {
     color: var(--sf-text) !important;
   }
-  .sf-themed [role="listbox"] [role="option"][data-highlighted] {
+  .sf-themed.theme-padrao [role="listbox"] [role="option"][data-highlighted] {
     background-color: color-mix(in srgb, var(--sf-button-bg) 15%, transparent) !important;
     color: var(--sf-text) !important;
   }
-  .sf-themed [role="listbox"] [role="option"][data-state="checked"] {
+  .sf-themed.theme-padrao [role="listbox"] [role="option"][data-state="checked"] {
     color: var(--sf-accent) !important;
   }
 
   /* ─── Command / cmdk popover (phone country selector) theming ─────── */
-  .sf-themed [cmdk-root] {
+  .sf-themed.theme-padrao [cmdk-root] {
     background-color: var(--sf-card-bg) !important;
     color: var(--sf-text) !important;
   }
-  .sf-themed [cmdk-input] {
+  .sf-themed.theme-padrao [cmdk-input] {
     background-color: var(--sf-bg) !important;
     border-color: var(--sf-border) !important;
     color: var(--sf-text) !important;
   }
-  .sf-themed [cmdk-input]::placeholder {
+  .sf-themed.theme-padrao [cmdk-input]::placeholder {
     color: var(--sf-muted) !important;
   }
-  .sf-themed [cmdk-item] {
+  .sf-themed.theme-padrao [cmdk-item] {
     color: var(--sf-text) !important;
   }
-  .sf-themed [cmdk-item][data-selected="true"] {
+  .sf-themed.theme-padrao [cmdk-item][data-selected="true"] {
     background-color: color-mix(in srgb, var(--sf-button-bg) 15%, transparent) !important;
     color: var(--sf-text) !important;
   }
-  .sf-themed [cmdk-group-heading] {
+  .sf-themed.theme-padrao [cmdk-group-heading] {
     color: var(--sf-muted) !important;
   }
 
   /* ─── ContactSidebar theming ───────────────────────────────────────── */
-  .sf-themed .bg-card {
+  .sf-themed.theme-padrao .bg-card {
     background-color: var(--sf-card-bg) !important;
     border-color: var(--sf-card-border) !important;
   }
 
   /* ─── Cookie consent banner (role=region, not dialog) ──────────────── */
-  .sf-themed [aria-label="Aviso de cookies"] > div {
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] > div {
     background-color: var(--sf-card-bg) !important;
     border-color: var(--sf-card-border) !important;
     color: var(--sf-text) !important;
     font-family: var(--sf-font);
   }
-  .sf-themed [aria-label="Aviso de cookies"] p {
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] p {
     color: var(--sf-muted) !important;
   }
-  .sf-themed [aria-label="Aviso de cookies"] .text-foreground,
-  .sf-themed [aria-label="Aviso de cookies"] .font-semibold {
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] .text-foreground,
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] .font-semibold {
     color: var(--sf-text) !important;
   }
-  .sf-themed [aria-label="Aviso de cookies"] a {
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] a {
     color: var(--sf-text) !important;
   }
-  .sf-themed [aria-label="Aviso de cookies"] button.bg-primary {
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] button.bg-primary {
     background-color: var(--sf-button-bg) !important;
     color: var(--sf-button-text) !important;
     border-radius: var(--sf-radius-btn) !important;
   }
-  .sf-themed [aria-label="Aviso de cookies"] button.border {
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] button.border {
     border-color: var(--sf-border) !important;
     color: var(--sf-text) !important;
     border-radius: var(--sf-radius-btn) !important;
     background-color: transparent !important;
   }
-  .sf-themed [aria-label="Aviso de cookies"] button.border:hover {
+  .sf-themed.theme-padrao [aria-label="Aviso de cookies"] button.border:hover {
     background-color: color-mix(in srgb, var(--sf-card-bg) 70%, var(--sf-border) 30%) !important;
   }
 
   /* ─── Cookie customize modal toggle switches ────────────────────────── */
-  .sf-themed [role="dialog"] button[role="switch"].bg-primary {
+  .sf-themed.theme-padrao [role="dialog"] button[role="switch"].bg-primary {
     background-color: var(--sf-button-bg) !important;
   }
-  .sf-themed [role="dialog"] button[role="switch"]:not(.bg-primary) {
+  .sf-themed.theme-padrao [role="dialog"] button[role="switch"]:not(.bg-primary) {
     background-color: color-mix(in srgb, var(--sf-border) 60%, var(--sf-card-bg) 40%) !important;
   }
-  .sf-themed [role="dialog"] .bg-muted\/30 {
+  .sf-themed.theme-padrao [role="dialog"] .bg-muted\/30 {
     background-color: color-mix(in srgb, var(--sf-card-bg) 60%, var(--sf-border) 40%) !important;
     border-color: var(--sf-border) !important;
   }
-  .sf-themed [role="dialog"] span.bg-muted {
+  .sf-themed.theme-padrao [role="dialog"] span.bg-muted {
     background-color: color-mix(in srgb, var(--sf-card-bg) 60%, var(--sf-border) 40%) !important;
     color: var(--sf-muted) !important;
   }
 
   /* ─── Sonner toasts theming ─────────────────────────────────────────── */
-  .sf-themed [data-sonner-toaster] [data-sonner-toast] {
+  .sf-themed.theme-padrao [data-sonner-toaster] [data-sonner-toast] {
     background-color: var(--sf-card-bg) !important;
     border-color: var(--sf-card-border) !important;
     color: var(--sf-text) !important;
     font-family: var(--sf-font);
   }
-  .sf-themed [data-sonner-toaster] [data-sonner-toast] [data-title] {
+  .sf-themed.theme-padrao [data-sonner-toaster] [data-sonner-toast] [data-title] {
     color: var(--sf-text) !important;
   }
-  .sf-themed [data-sonner-toaster] [data-sonner-toast] [data-description] {
+  .sf-themed.theme-padrao [data-sonner-toaster] [data-sonner-toast] [data-description] {
     color: var(--sf-muted) !important;
   }
-  .sf-themed [data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  .sf-themed.theme-padrao [data-sonner-toaster] [data-sonner-toast] [data-close-button] {
     background-color: var(--sf-card-bg) !important;
     border-color: var(--sf-border) !important;
     color: var(--sf-muted) !important;
   }
-  .sf-themed [data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-icon] {
+  .sf-themed.theme-padrao [data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-icon] {
     color: var(--sf-button-bg) !important;
   }
-  .sf-themed [data-sonner-toaster] [data-sonner-toast] button[data-button] {
+  .sf-themed.theme-padrao [data-sonner-toaster] [data-sonner-toast] button[data-button] {
     background-color: var(--sf-button-bg) !important;
     color: var(--sf-button-text) !important;
     border-radius: var(--sf-radius-btn) !important;
   }
 
   /* ─── Storefront default light theme (no custom appearance active) ─── */
-  .storefront-default {
+  .storefront-default.theme-padrao {
     --sd-bg: #F8F7F5;
     --sd-surface: #FFFFFF;
     --sd-text: #18181B;
@@ -447,209 +447,209 @@ body {
   }
 
   /* Page background */
-  .storefront-default > * {
+  .storefront-default.theme-padrao > * {
     background-color: var(--sd-bg);
   }
 
   /* Product card */
-  .storefront-default .rounded-xl.border.bg-card {
+  .storefront-default.theme-padrao .rounded-xl.border.bg-card {
     background-color: var(--sd-surface);
     border-color: var(--sd-border);
     border-radius: 12px;
     box-shadow: var(--sd-card-shadow);
     transition: box-shadow 0.25s ease, transform 0.25s ease;
   }
-  .storefront-default .rounded-xl.border.bg-card:hover {
+  .storefront-default.theme-padrao .rounded-xl.border.bg-card:hover {
     box-shadow: var(--sd-card-shadow-hover);
     transform: translateY(-2px);
   }
 
   /* Product image inner container */
-  .storefront-default .rounded-xl.border.bg-card .bg-white.rounded-lg {
+  .storefront-default.theme-padrao .rounded-xl.border.bg-card .bg-white.rounded-lg {
     background-color: #F4F4F5;
     border-color: #E4E4E7;
   }
 
   /* Product title */
-  .storefront-default .rounded-xl.border.bg-card h3 {
+  .storefront-default.theme-padrao .rounded-xl.border.bg-card h3 {
     color: var(--sd-text);
   }
 
   /* Price */
-  .storefront-default .text-primary {
+  .storefront-default.theme-padrao .text-primary {
     color: var(--sd-primary) !important;
   }
 
   /* Muted text */
-  .storefront-default .text-muted-foreground {
+  .storefront-default.theme-padrao .text-muted-foreground {
     color: var(--sd-muted) !important;
   }
 
   /* Foreground text */
-  .storefront-default .text-foreground {
+  .storefront-default.theme-padrao .text-foreground {
     color: var(--sd-text) !important;
   }
 
   /* Category headings */
-  .storefront-default h2.text-xl,
-  .storefront-default h2.text-2xl,
-  .storefront-default h1 {
+  .storefront-default.theme-padrao h2.text-xl,
+  .storefront-default.theme-padrao h2.text-2xl,
+  .storefront-default.theme-padrao h1 {
     color: var(--sd-heading);
   }
 
   /* Primary (add to cart) button */
-  .storefront-default button.bg-primary,
-  .storefront-default .bg-primary {
+  .storefront-default.theme-padrao button.bg-primary,
+  .storefront-default.theme-padrao .bg-primary {
     background-color: var(--sd-primary) !important;
     color: var(--sd-primary-fg) !important;
     border-radius: 8px !important;
   }
-  .storefront-default button.bg-primary:hover {
+  .storefront-default.theme-padrao button.bg-primary:hover {
     background-color: var(--sd-primary-hover) !important;
   }
 
   /* Full-width CTA buttons inside cards */
-  .storefront-default .rounded-xl.border.bg-card button {
+  .storefront-default.theme-padrao .rounded-xl.border.bg-card button {
     border-radius: 8px !important;
   }
 
   /* Outline / ghost buttons */
-  .storefront-default button.border:not(.bg-primary),
-  .storefront-default a.border:not(.bg-primary) {
+  .storefront-default.theme-padrao button.border:not(.bg-primary),
+  .storefront-default.theme-padrao a.border:not(.bg-primary) {
     border-color: var(--sd-border) !important;
     color: var(--sd-text) !important;
   }
 
   /* Icon buttons (round social/cart buttons in header) */
-  .storefront-default button.rounded-full.border,
-  .storefront-default a.rounded-full.border {
+  .storefront-default.theme-padrao button.rounded-full.border,
+  .storefront-default.theme-padrao a.rounded-full.border {
     border-color: var(--sd-border) !important;
     color: var(--sd-muted) !important;
     background-color: var(--sd-surface) !important;
     transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   }
-  .storefront-default button.rounded-full.border:hover,
-  .storefront-default a.rounded-full.border:hover {
+  .storefront-default.theme-padrao button.rounded-full.border:hover,
+  .storefront-default.theme-padrao a.rounded-full.border:hover {
     border-color: #A1A1AA !important;
     color: var(--sd-text) !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
 
   /* Search input */
-  .storefront-default input.rounded-xl.border,
-  .storefront-default input[type="text"] {
+  .storefront-default.theme-padrao input.rounded-xl.border,
+  .storefront-default.theme-padrao input[type="text"] {
     background-color: var(--sd-surface) !important;
     border-color: var(--sd-border) !important;
     color: var(--sd-text) !important;
     border-radius: 10px !important;
   }
-  .storefront-default input::placeholder {
+  .storefront-default.theme-padrao input::placeholder {
     color: var(--sd-muted) !important;
   }
 
   /* Cart / order dialog */
-  .storefront-default [role="dialog"] {
+  .storefront-default.theme-padrao [role="dialog"] {
     background-color: var(--sd-surface) !important;
     border-color: var(--sd-border) !important;
     color: var(--sd-text) !important;
   }
-  .storefront-default [role="dialog"] h2,
-  .storefront-default [role="dialog"] h3 {
+  .storefront-default.theme-padrao [role="dialog"] h2,
+  .storefront-default.theme-padrao [role="dialog"] h3 {
     color: var(--sd-heading) !important;
   }
-  .storefront-default [role="dialog"] p {
+  .storefront-default.theme-padrao [role="dialog"] p {
     color: var(--sd-muted);
   }
-  .storefront-default [role="dialog"] input,
-  .storefront-default [role="dialog"] select,
-  .storefront-default [role="dialog"] button[role="combobox"] {
+  .storefront-default.theme-padrao [role="dialog"] input,
+  .storefront-default.theme-padrao [role="dialog"] select,
+  .storefront-default.theme-padrao [role="dialog"] button[role="combobox"] {
     background-color: var(--sd-bg) !important;
     border-color: var(--sd-border) !important;
     color: var(--sd-text) !important;
     border-radius: 8px !important;
   }
-  .storefront-default [role="dialog"] label {
+  .storefront-default.theme-padrao [role="dialog"] label {
     color: var(--sd-text) !important;
   }
-  .storefront-default [role="dialog"] button.bg-primary,
-  .storefront-default [role="dialog"] .bg-primary {
+  .storefront-default.theme-padrao [role="dialog"] button.bg-primary,
+  .storefront-default.theme-padrao [role="dialog"] .bg-primary {
     background-color: var(--sd-primary) !important;
     color: var(--sd-primary-fg) !important;
     border-radius: 8px !important;
   }
-  .storefront-default [role="dialog"] .text-muted-foreground {
+  .storefront-default.theme-padrao [role="dialog"] .text-muted-foreground {
     color: var(--sd-muted) !important;
   }
-  .storefront-default [role="dialog"] .border-t,
-  .storefront-default [role="dialog"] .border-b {
+  .storefront-default.theme-padrao [role="dialog"] .border-t,
+  .storefront-default.theme-padrao [role="dialog"] .border-b {
     border-color: var(--sd-border) !important;
   }
-  .storefront-default [role="dialog"] .bg-muted {
+  .storefront-default.theme-padrao [role="dialog"] .bg-muted {
     background-color: #F4F4F5 !important;
   }
-  .storefront-default [role="dialog"] .text-primary {
+  .storefront-default.theme-padrao [role="dialog"] .text-primary {
     color: var(--sd-primary) !important;
   }
 
   /* Select dropdowns (portal) */
-  .storefront-default [role="listbox"] {
+  .storefront-default.theme-padrao [role="listbox"] {
     background-color: var(--sd-surface) !important;
     border-color: var(--sd-border) !important;
     color: var(--sd-text) !important;
   }
-  .storefront-default [role="listbox"] [role="option"] {
+  .storefront-default.theme-padrao [role="listbox"] [role="option"] {
     color: var(--sd-text) !important;
   }
-  .storefront-default [role="listbox"] [role="option"][data-highlighted] {
+  .storefront-default.theme-padrao [role="listbox"] [role="option"][data-highlighted] {
     background-color: #F4F4F5 !important;
     color: var(--sd-text) !important;
   }
 
   /* Command / cmdk popover (phone country selector) */
-  .storefront-default [cmdk-root] {
+  .storefront-default.theme-padrao [cmdk-root] {
     background-color: var(--sd-surface) !important;
     color: var(--sd-text) !important;
   }
-  .storefront-default [cmdk-input] {
+  .storefront-default.theme-padrao [cmdk-input] {
     background-color: var(--sd-surface) !important;
     border-color: var(--sd-border) !important;
     color: var(--sd-text) !important;
   }
-  .storefront-default [cmdk-input]::placeholder {
+  .storefront-default.theme-padrao [cmdk-input]::placeholder {
     color: var(--sd-muted) !important;
   }
-  .storefront-default [cmdk-item] {
+  .storefront-default.theme-padrao [cmdk-item] {
     color: var(--sd-text) !important;
   }
-  .storefront-default [cmdk-item][data-selected="true"] {
+  .storefront-default.theme-padrao [cmdk-item][data-selected="true"] {
     background-color: #F4F4F5 !important;
     color: var(--sd-text) !important;
   }
-  .storefront-default [cmdk-group-heading] {
+  .storefront-default.theme-padrao [cmdk-group-heading] {
     color: var(--sd-muted) !important;
   }
 
   /* bg-card usage (ContactSidebar etc.) */
-  .storefront-default .bg-card {
+  .storefront-default.theme-padrao .bg-card {
     background-color: var(--sd-surface) !important;
     border-color: var(--sd-border) !important;
   }
 
   /* bg-muted (filter badge, status bar) */
-  .storefront-default .bg-muted,
-  .storefront-default .bg-muted\/50 {
+  .storefront-default.theme-padrao .bg-muted,
+  .storefront-default.theme-padrao .bg-muted\/50 {
     background-color: #F4F4F5 !important;
   }
 
   /* Footer */
-  .storefront-default footer {
+  .storefront-default.theme-padrao footer {
     background-color: var(--sd-bg) !important;
   }
 
   /* Border separator */
-  .storefront-default .border-t,
-  .storefront-default .border-b,
-  .storefront-default .border-border {
+  .storefront-default.theme-padrao .border-t,
+  .storefront-default.theme-padrao .border-b,
+  .storefront-default.theme-padrao .border-border {
     border-color: var(--sd-border) !important;
   }
 

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { ProfileSettings } from '@/components/dashboard/ProfileSettings';
 import { StorefrontSettings } from '@/components/dashboard/StorefrontSettings';
-import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
+import { StorefrontThemeSettings } from '@/components/dashboard/StorefrontThemeSettings';
 import TrackingSettingsContent from '@/components/dashboard/TrackingSettingsContent';
 import CheckoutSettingsContent from '@/components/dashboard/CheckoutSettingsContent';
 import ShippingConnectorsSection from '@/components/dashboard/ShippingConnectorsSection';
@@ -15,7 +15,7 @@ import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
-const SETTINGS_TABS = ['profile', 'appearance', 'storefront', 'checkout', 'shipping', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
+const SETTINGS_TABS = ['profile', 'theme', 'storefront', 'checkout', 'shipping', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
@@ -39,7 +39,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-background">
       <div className={cn(
         "container mx-auto px-4 sm:px-6 py-4 sm:py-6",
-        activeTab === 'appearance' ? 'max-w-7xl' : 'max-w-5xl'
+        activeTab === 'theme' ? 'max-w-7xl' : 'max-w-5xl'
       )}>
         <Card className="border shadow-sm">
           <div className="p-4 sm:p-8">
@@ -56,7 +56,7 @@ export default function SettingsPage() {
               {visibleTabs.map((tab) => {
                 const labels: Record<string, string> = {
                   profile: 'Perfil',
-                  appearance: 'Aparência',
+                  theme: 'Tema',
                   storefront: 'Vitrine',
                   checkout: 'Regras de Pedido',
                   shipping: 'Frete',
@@ -89,7 +89,7 @@ export default function SettingsPage() {
             {/* Content */}
             <div>
               {activeTab === 'profile' && <ProfileSettings />}
-              {activeTab === 'appearance' && <AppearanceSettings />}
+              {activeTab === 'theme' && <StorefrontThemeSettings />}
               {activeTab === 'storefront' && <StorefrontSettings />}
               {activeTab === 'checkout' && <CheckoutSettingsContent />}
               {activeTab === 'shipping' && <ShippingConnectorsSection />}

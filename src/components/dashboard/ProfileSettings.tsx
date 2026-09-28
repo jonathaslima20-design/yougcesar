@@ -3,8 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader as Loader2, ChevronDown } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@radix-ui/react-collapsible';
+import { Loader as Loader2 } from 'lucide-react';
 
 import {
   Form,
@@ -31,12 +30,9 @@ import { cleanWhatsAppNumber, formatWhatsAppForDisplay } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/errorMessages';
 
 // Import refactored components
-import { AvatarSection } from '@/components/Profile/AvatarSection';
-import { CoverImageSection } from '@/components/Profile/CoverImageSection';
 import { BasicInfoForm } from '@/components/Profile/BasicInfoForm';
 import { PasswordChangeDialog } from '@/components/Profile/PasswordChangeDialog';
 import { ThemeToggleSection } from '@/components/Profile/ThemeToggleSection';
-import { PromotionalBannerSection } from '@/components/Profile/PromotionalBannerSection';
 
 const BR_STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -74,19 +70,8 @@ const formSchema = z.object({
 export function ProfileSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [previewCover, setPreviewCover] = useState<{ desktop: string | null; mobile: string | null }>({
-    desktop: null,
-    mobile: null
-  });
-  const [previewBanner, setPreviewBanner] = useState<{ desktop: string | null; mobile: string | null }>({
-    desktop: null,
-    mobile: null
-  });
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [coverImagesOpen, setCoverImagesOpen] = useState(false);
-  const [promotionalBannerOpen, setPromotionalBannerOpen] = useState(false);
   const { user, updateUser } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -115,15 +100,6 @@ export function ProfileSettings() {
 
   useEffect(() => {
     if (user) {
-      setPreviewImage(user.avatar_url || null);
-      setPreviewCover({
-        desktop: user.cover_url_desktop || null,
-        mobile: user.cover_url_mobile || null
-      });
-      setPreviewBanner({
-        desktop: user.promotional_banner_url_desktop || null,
-        mobile: user.promotional_banner_url_mobile || null
-      });
       setIsDarkTheme(user.theme === 'dark');
       
       // Reset form with properly formatted values
@@ -315,63 +291,6 @@ export function ProfileSettings() {
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Avatar Section */}
-          <div className="flex flex-col items-center space-y-4 py-6">
-            <AvatarSection
-              user={user}
-              previewImage={previewImage}
-              setPreviewImage={setPreviewImage}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Cover Images Section */}
-          <Collapsible open={coverImagesOpen} onOpenChange={setCoverImagesOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-between h-auto py-4 px-4 hover:bg-muted/50 rounded-lg border border-input"
-                type="button"
-              >
-                <span className="font-medium">Imagens de Capa</span>
-                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${coverImagesOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-4">
-              <CoverImageSection
-                user={user}
-                previewCover={previewCover}
-                setPreviewCover={setPreviewCover}
-              />
-            </CollapsibleContent>
-          </Collapsible>
-
-          <Separator />
-
-          {/* Promotional Banner Section */}
-          <Collapsible open={promotionalBannerOpen} onOpenChange={setPromotionalBannerOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-between h-auto py-4 px-4 hover:bg-muted/50 rounded-lg border border-input"
-                type="button"
-              >
-                <span className="font-medium">Banner Promocional</span>
-                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${promotionalBannerOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-4">
-              <PromotionalBannerSection
-                user={user}
-                previewBanner={previewBanner}
-                setPreviewBanner={setPreviewBanner}
-              />
-            </CollapsibleContent>
-          </Collapsible>
-
-          <Separator />
-
           {/* Basic Information - Grid Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField

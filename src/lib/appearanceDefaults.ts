@@ -1,6 +1,9 @@
+export type StorefrontThemeId = 'padrao' | 'eletronicos';
+
 export interface StorefrontAppearance {
   id?: string;
   user_id?: string;
+  theme_id: StorefrontThemeId;
   bg_color: string;
   text_color: string;
   heading_color: string;
@@ -36,6 +39,7 @@ export interface StorefrontAppearance {
 }
 
 export const DEFAULT_APPEARANCE: StorefrontAppearance = {
+  theme_id: 'padrao',
   bg_color: '#ffffff',
   text_color: '#0a0a0a',
   heading_color: '#0a0a0a',
@@ -124,6 +128,11 @@ export const GRADIENT_PRESETS = [
   { name: 'Noite', colorStart: '#1a237e', colorEnd: '#0d1117', direction: 'to bottom' },
   { name: 'Floresta', colorStart: '#e8f5e9', colorEnd: '#2e7d32', direction: 'to bottom' },
   { name: 'Neutro', colorStart: '#fafafa', colorEnd: '#e0e0e0', direction: 'to bottom' },
+];
+
+export const STOREFRONT_THEME_OPTIONS: { value: StorefrontThemeId; label: string; description: string }[] = [
+  { value: 'padrao', label: 'Padrão', description: 'O layout atual da sua vitrine.' },
+  { value: 'eletronicos', label: 'Eletrônicos', description: 'Vitrine estilo loja online, com banners, categorias em destaque e prateleiras de produtos.' },
 ];
 
 export const GRADIENT_DIRECTION_OPTIONS = [

@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 import { useSystemAppearance } from '@/hooks/useSystemAppearance';
 import {
   StorefrontAppearance,
+  StorefrontThemeId,
   DEFAULT_APPEARANCE,
   getRadiusPx,
   getShadowCss,
@@ -15,12 +17,16 @@ interface StorefrontThemeContextValue {
   appearance: StorefrontAppearance;
   isActive: boolean;
   sfStyles: React.CSSProperties | undefined;
+  // Layout/template choice. Unlike `appearance` (colors/typography), this is
+  // never gated by plan — every store can pick a storefront theme for free.
+  themeId: StorefrontThemeId;
 }
 
 const StorefrontThemeContext = createContext<StorefrontThemeContextValue>({
   appearance: DEFAULT_APPEARANCE,
   isActive: false,
   sfStyles: undefined,
+  themeId: 'padrao',
 });
 
 export function useStorefrontTheme() {
@@ -97,6 +103,24 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, preloadedAppearanc
     return buildSfStyles(activeAppearance);
   }, [isActive, activeAppearance]);
 
+  // themeId comes straight from the user's own row, regardless of plan/isActive —
+  // layout choice is free for every store, unlike the color customization above.
+  const themeId = userAppearance.theme_id || 'padrao';
+  // `.sf-themed`/`.storefront-default` carry ~150 !important color overrides in
+  // index.css written only for the "padrao" theme's own markup (e.g. `footer`,
+  // `.text-muted-foreground`). They're scoped with `.theme-padrao` so a second
+  // theme's own components (which reuse plain Tailwind classes too) don't get
+  // silently recolored by them — see the CorretorHeaderEletronicos/footer bug.
+  const themeScopeClass = `theme-${themeId}`;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add(themeScopeClass);
+    return () => {
+      root.classList.remove(themeScopeClass);
+    };
+  }, [themeScopeClass]);
+
   useEffect(() => {
     if (isActive && sfStyles) {
       const root = document.documentElement;
@@ -128,12 +152,15 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, preloadedAppearanc
     }
   }, [isActive, sfStyles, activeAppearance.footer_logo_mode, activeAppearance.footer_logo_format, activeAppearance.custom_logo_url]);
 
-  const value = useMemo(() => ({ appearance: activeAppearance, isActive, sfStyles }), [activeAppearance, isActive, sfStyles]);
+  const value = useMemo(
+    () => ({ appearance: activeAppearance, isActive, sfStyles, themeId }),
+    [activeAppearance, isActive, sfStyles, themeId]
+  );
 
   return (
     <StorefrontThemeContext.Provider value={value}>
       <div
-        className={isActive ? 'sf-themed' : 'storefront-default'}
+        className={cn(isActive ? 'sf-themed' : 'storefront-default', themeScopeClass)}
         style={{
           ...sfStyles,
           opacity: revealed ? 1 : 0,
