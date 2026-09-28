@@ -521,7 +521,12 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   });
 
   return (
-    <StorefrontThemeProvider userId={corretor.id} isPaidPlan={isPaidPlan} preloadedAppearance={preloadedAppearance}>
+    <StorefrontThemeProvider
+      userId={corretor.id}
+      isPaidPlan={isPaidPlan}
+      themeId={corretor.active_storefront_theme_id || 'padrao'}
+      preloadedAppearance={preloadedAppearance}
+    >
       <StorefrontThemedBody
         corretor={corretor}
         language={language}

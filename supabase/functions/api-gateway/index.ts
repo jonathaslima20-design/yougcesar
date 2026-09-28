@@ -1772,10 +1772,19 @@ async function handleStore(
       return errorResponse("forbidden", "Missing permission: store:read", 403);
     }
 
+    const { data: storeUser, error: storeUserError } = await supabase
+      .from("users")
+      .select("active_storefront_theme_id")
+      .eq("id", ctx.userId)
+      .maybeSingle();
+
+    if (storeUserError) return errorResponse("internal_error", storeUserError.message, 500);
+
     const { data: appearance, error } = await supabase
       .from("storefront_appearance")
       .select("*")
       .eq("user_id", ctx.userId)
+      .eq("theme_id", storeUser?.active_storefront_theme_id || "padrao")
       .maybeSingle();
 
     if (error) return errorResponse("internal_error", error.message, 500);

@@ -9,23 +9,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadImage, deleteImage } from '@/lib/image';
 import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
-import { useStorefrontBanners, type StorefrontBanner } from '@/hooks/useStorefrontBanners';
+import { useStorefrontMiniBanners, type StorefrontMiniBanner } from '@/hooks/useStorefrontMiniBanners';
+import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 
-type DraftSlot = 'desktop' | 'mobile';
-
-export function StorefrontBannerManager() {
+export function StorefrontMiniBannerManager() {
   const { user } = useAuth();
-  const { banners, loading, create, update, remove, move } = useStorefrontBanners(user?.id);
+  const { banners, loading, create, update, remove, move } = useStorefrontMiniBanners(user?.id);
+  const { appearance, loading: appearanceLoading, save: saveAppearance } = useStorefrontAppearance(user?.id, 'eletronicos');
 
-  const [draft, setDraft] = useState<{ desktop: string | null; mobile: string | null }>({ desktop: null, mobile: null });
+  const [draftImage, setDraftImage] = useState<string | null>(null);
   const [draftLink, setDraftLink] = useState('');
-  const [uploadingSlot, setUploadingSlot] = useState<DraftSlot | null>(null);
-  const [cropperSlot, setCropperSlot] = useState<DraftSlot | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyBannerId, setBusyBannerId] = useState<string | null>(null);
 
-  const handleFileChange = (slot: DraftSlot) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -33,37 +33,36 @@ export function StorefrontBannerManager() {
       return;
     }
     setSelectedFile(file);
-    setCropperSlot(slot);
+    setCropperOpen(true);
   };
 
-  const handleCropComplete = async (croppedBlob: Blob, slot: DraftSlot) => {
+  const handleCropComplete = async (croppedBlob: Blob) => {
     if (!user?.id) return;
     try {
-      setUploadingSlot(slot);
-      setCropperSlot(null);
-      const file = new File([croppedBlob], selectedFile?.name || `banner-${slot}.jpg`, { type: 'image/jpeg' });
-      const url = await uploadImage(file, user.id, slot === 'desktop' ? 'theme-banners-desktop' : 'theme-banners-mobile');
-      setDraft((prev) => ({ ...prev, [slot]: url }));
+      setUploading(true);
+      setCropperOpen(false);
+      const file = new File([croppedBlob], selectedFile?.name || 'mini-banner.jpg', { type: 'image/jpeg' });
+      const url = await uploadImage(file, user.id, 'theme-mini-banners');
+      setDraftImage(url);
     } catch (error: any) {
-      console.error('Error uploading theme banner image:', error);
+      console.error('Error uploading mini banner image:', error);
       toast.error(error.message || 'Erro ao enviar imagem');
     } finally {
-      setUploadingSlot(null);
+      setUploading(false);
       setSelectedFile(null);
     }
   };
 
   const handleSaveDraft = async () => {
-    if (!user?.id || !draft.desktop || !draft.mobile) return;
+    if (!user?.id || !draftImage) return;
     setSaving(true);
     const success = await create(user.id, {
-      image_url_desktop: draft.desktop,
-      image_url_mobile: draft.mobile,
+      image_url: draftImage,
       link_url: draftLink.trim() || null,
     });
     setSaving(false);
     if (success) {
-      setDraft({ desktop: null, mobile: null });
+      setDraftImage(null);
       setDraftLink('');
       toast.success('Banner adicionado');
     } else {
@@ -71,29 +70,32 @@ export function StorefrontBannerManager() {
     }
   };
 
-  const handleDelete = async (banner: StorefrontBanner) => {
+  const handleDelete = async (banner: StorefrontMiniBanner) => {
     setBusyBannerId(banner.id);
-    await deleteImage(banner.image_url_desktop).catch(() => {});
-    await deleteImage(banner.image_url_mobile).catch(() => {});
+    await deleteImage(banner.image_url).catch(() => {});
     const success = await remove(banner.id);
     setBusyBannerId(null);
     if (success) toast.success('Banner removido');
     else toast.error('Erro ao remover banner');
   };
 
-  const handleToggleActive = async (banner: StorefrontBanner) => {
+  const handleToggleActive = async (banner: StorefrontMiniBanner) => {
     setBusyBannerId(banner.id);
     await update(banner.id, { is_active: !banner.is_active });
     setBusyBannerId(null);
   };
 
-  const handleLinkBlur = async (banner: StorefrontBanner, value: string) => {
+  const handleLinkBlur = async (banner: StorefrontMiniBanner, value: string) => {
     const normalized = value.trim() || null;
     if (normalized === banner.link_url) return;
     await update(banner.id, { link_url: normalized });
   };
 
-  if (loading) {
+  const handleToggleEnabled = async () => {
+    await saveAppearance({ mini_banners_enabled: !appearance.mini_banners_enabled });
+  };
+
+  if (loading || appearanceLoading) {
     return (
       <div className="flex items-center justify-center py-10">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -104,21 +106,27 @@ export function StorefrontBannerManager() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-1">Banners</h2>
+        <h2 className="text-lg font-semibold mb-1">Mini banners</h2>
         <p className="text-sm text-muted-foreground">
-          Vários banners em carrossel na home do catálogo. Cada banner precisa de uma imagem
-          desktop e uma mobile.
+          Grade de 3 banners menores, logo abaixo da lista de produtos.
         </p>
       </div>
 
+      <div className="flex items-center gap-2">
+        <Switch checked={appearance.mini_banners_enabled} onCheckedChange={handleToggleEnabled} />
+        <span className="text-sm">{appearance.mini_banners_enabled ? 'Seção visível na loja' : 'Seção oculta na loja'}</span>
+      </div>
+
+      {!appearance.mini_banners_enabled ? null : (
+      <>
       <div className="space-y-3">
         {banners.map((banner, index) => (
           <Card key={banner.id}>
             <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4 p-4">
               <img
-                src={banner.image_url_desktop}
+                src={banner.image_url}
                 alt=""
-                className="w-full sm:w-40 aspect-[1920/450] object-cover rounded border shrink-0"
+                className="w-full sm:w-28 aspect-[416/480] object-cover rounded border shrink-0"
               />
               <div className="flex-1 space-y-2">
                 <Label className="text-xs text-muted-foreground">Link ao clicar (opcional)</Label>
@@ -157,52 +165,27 @@ export function StorefrontBannerManager() {
         <CardContent className="p-4 space-y-4">
           <h3 className="font-medium">Adicionar banner</h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem desktop (1920x450)</Label>
-              {draft.desktop && (
-                <img src={draft.desktop} alt="" className="w-full aspect-[1920/450] object-cover rounded border mb-2" />
-              )}
-              <input
-                type="file"
-                id="new-banner-desktop"
-                accept="image/*"
-                onChange={handleFileChange('desktop')}
-                className="hidden"
-                disabled={uploadingSlot === 'desktop'}
-              />
-              <label htmlFor="new-banner-desktop">
-                <Button type="button" variant="outline" size="sm" disabled={uploadingSlot === 'desktop'} asChild>
-                  <span>
-                    {uploadingSlot === 'desktop' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    {draft.desktop ? 'Trocar' : 'Escolher imagem'}
-                  </span>
-                </Button>
-              </label>
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem mobile (960x225)</Label>
-              {draft.mobile && (
-                <img src={draft.mobile} alt="" className="w-full aspect-[960/225] object-cover rounded border mb-2" />
-              )}
-              <input
-                type="file"
-                id="new-banner-mobile"
-                accept="image/*"
-                onChange={handleFileChange('mobile')}
-                className="hidden"
-                disabled={uploadingSlot === 'mobile'}
-              />
-              <label htmlFor="new-banner-mobile">
-                <Button type="button" variant="outline" size="sm" disabled={uploadingSlot === 'mobile'} asChild>
-                  <span>
-                    {uploadingSlot === 'mobile' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    {draft.mobile ? 'Trocar' : 'Escolher imagem'}
-                  </span>
-                </Button>
-              </label>
-            </div>
+          <div className="max-w-[200px]">
+            <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem (416x480)</Label>
+            {draftImage && (
+              <img src={draftImage} alt="" className="w-full aspect-[416/480] object-cover rounded border mb-2" />
+            )}
+            <input
+              type="file"
+              id="new-mini-banner"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              disabled={uploading}
+            />
+            <label htmlFor="new-mini-banner">
+              <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
+                <span>
+                  {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {draftImage ? 'Trocar' : 'Escolher imagem'}
+                </span>
+              </Button>
+            </label>
           </div>
 
           <div>
@@ -211,34 +194,31 @@ export function StorefrontBannerManager() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button onClick={handleSaveDraft} disabled={!draft.desktop || !draft.mobile || saving}>
+            <Button onClick={handleSaveDraft} disabled={!draftImage || saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Adicionar banner
             </Button>
-            {draft.desktop && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft({ desktop: null, mobile: null })}>
+            {draftImage && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setDraftImage(null)}>
                 <X className="mr-1 h-3.5 w-3.5" /> Cancelar
               </Button>
             )}
           </div>
-          {(!draft.desktop || !draft.mobile) && (draft.desktop || draft.mobile) && (
-            <p className="text-xs text-muted-foreground">
-              Falta enviar a imagem {!draft.desktop ? 'desktop' : 'mobile'} — as duas são obrigatórias para salvar o banner.
-            </p>
-          )}
         </CardContent>
       </Card>
+      </>
+      )}
 
-      {cropperSlot && selectedFile && (
+      {cropperOpen && selectedFile && (
         <ImageCropperBanner
           image={URL.createObjectURL(selectedFile)}
-          onCrop={(blob) => handleCropComplete(blob, cropperSlot)}
+          onCrop={handleCropComplete}
           onCancel={() => {
-            setCropperSlot(null);
+            setCropperOpen(false);
             setSelectedFile(null);
           }}
-          open={!!cropperSlot}
-          aspectRatio={cropperSlot === 'desktop' ? 1920 / 450 : 960 / 225}
+          open={cropperOpen}
+          aspectRatio={416 / 480}
         />
       )}
     </div>

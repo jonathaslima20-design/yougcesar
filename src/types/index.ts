@@ -53,6 +53,7 @@ export interface User {
   created_by?: string;
   managed_by_partner_id?: string | null;
   theme?: 'light' | 'dark';
+  active_storefront_theme_id?: 'padrao' | 'eletronicos';
   niche_type?: NicheType;
   currency?: string;
   language?: string;

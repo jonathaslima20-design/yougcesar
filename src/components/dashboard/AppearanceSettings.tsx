@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { Save, RotateCcw, ChevronDown, Lock, Palette, Type, Image, Upload, Trash2 } from 'lucide-react';
+import { Save, RotateCcw, ChevronDown, Lock, Palette, Type, Image, Upload, Trash2, PanelTop, PanelBottom, Loader2, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 import { useMockupData } from '@/hooks/useMockupData';
 import { PhoneMockup } from '@/components/dashboard/PhoneMockup';
+import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
+import { uploadImage } from '@/lib/image';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLogger';
 import { cn } from '@/lib/utils';
@@ -21,16 +25,24 @@ import {
   HEADING_FONT_OPTIONS,
   loadGoogleFont,
   type StorefrontAppearance,
+  type StorefrontThemeId,
 } from '@/lib/appearanceDefaults';
 
-export function AppearanceSettings() {
+interface AppearanceSettingsProps {
+  themeId?: StorefrontThemeId;
+}
+
+export function AppearanceSettings({ themeId = 'padrao' }: AppearanceSettingsProps) {
   const { user } = useAuth();
-  const { appearance, loading, save } = useStorefrontAppearance(user?.id);
+  const { appearance, loading, save } = useStorefrontAppearance(user?.id, themeId);
   const mockupData = useMockupData();
   const [localAppearance, setLocalAppearance] = useState<StorefrontAppearance>(DEFAULT_APPEARANCE);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showPremiumBlock, setShowPremiumBlock] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoCropperOpen, setLogoCropperOpen] = useState(false);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
 
   const isFreePlan = user?.plan_status === 'free' || user?.plan_status === 'expired';
 
@@ -88,6 +100,47 @@ export function AppearanceSettings() {
     updateField(field, value);
   };
 
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 5MB');
+      return;
+    }
+    setSelectedLogoFile(file);
+    setLogoCropperOpen(true);
+  };
+
+  const handleLogoCropComplete = async (croppedBlob: Blob) => {
+    if (!user?.id) return;
+    try {
+      setUploadingLogo(true);
+      setLogoCropperOpen(false);
+      const file = new File([croppedBlob], selectedLogoFile?.name || 'header-logo.jpg', { type: 'image/jpeg' });
+      const url = await uploadImage(file, user.id, 'theme-header-logo');
+      updateField('header_logo_url', url);
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao enviar imagem');
+    } finally {
+      setUploadingLogo(false);
+      setSelectedLogoFile(null);
+    }
+  };
+
+  const updateTopBarPhrase = (index: number, value: string) => {
+    const next = [...localAppearance.top_bar_phrases];
+    next[index] = value;
+    updateField('top_bar_phrases', next);
+  };
+
+  const removeTopBarPhrase = (index: number) => {
+    updateField('top_bar_phrases', localAppearance.top_bar_phrases.filter((_, i) => i !== index));
+  };
+
+  const addTopBarPhrase = () => {
+    updateField('top_bar_phrases', [...localAppearance.top_bar_phrases, '']);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -123,108 +176,299 @@ export function AppearanceSettings() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-8">
+    <div className={cn('grid grid-cols-1 gap-8', themeId === 'padrao' && 'lg:grid-cols-[1fr,auto]')}>
       {/* Controls Panel */}
       <div className="space-y-4 order-2 lg:order-1">
-        {/* Colors Section */}
-        <CollapsibleSection
-          icon={<Palette size={16} />}
-          title="Cores"
-          defaultOpen
-        >
-          <div className="space-y-5">
-            {/* Background color */}
-            <div>
-              <ColorPicker
-                label="Cor do fundo"
-                value={localAppearance.bg_color}
-                onChange={(v) => updateField('bg_color', v)}
-                disabled={false}
-              />
+        {/* Colors Section — only applies to "padrao": every rule that reads these
+            tokens (card, badge, icon, accent, border...) is scoped `.theme-padrao`
+            in index.css, so on "eletronicos" none of these fields do anything. */}
+        {themeId === 'padrao' && (
+          <CollapsibleSection
+            icon={<Palette size={16} />}
+            title="Cores"
+            defaultOpen
+          >
+            <div className="space-y-5">
+              {/* Background color */}
+              <div>
+                <ColorPicker
+                  label="Cor do fundo"
+                  value={localAppearance.bg_color}
+                  onChange={(v) => updateField('bg_color', v)}
+                  disabled={false}
+                />
 
-            </div>
+              </div>
 
-            {/* Core colors grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ColorPicker label="Cor do texto" value={localAppearance.text_color} onChange={(v) => updateField('text_color', v)} disabled={false} />
-              <ColorPicker label="Cor dos botões" value={localAppearance.button_bg_color} onChange={(v) => updateField('button_bg_color', v)} disabled={false} />
-              <ColorPicker label="Texto dos botões" value={localAppearance.button_text_color} onChange={(v) => updateField('button_text_color', v)} disabled={false} />
-              <ColorPicker label="Cor dos ícones" value={localAppearance.icon_color} onChange={(v) => updateField('icon_color', v)} disabled={false} />
-              <ColorPicker label="Cor de destaque" value={localAppearance.accent_color} onChange={(v) => updateField('accent_color', v)} disabled={false} />
-              <ColorPicker label="Cor das bordas" value={localAppearance.border_color} onChange={(v) => updateField('border_color', v)} disabled={false} />
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* Typography Section */}
-        <CollapsibleSection
-          icon={<Type size={16} />}
-          title="Tipografia"
-        >
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Fonte do corpo</Label>
-              <Select
-                value={localAppearance.font_family}
-                onValueChange={(v) => handleFontChange('font_family', v)}
-                disabled={false}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_OPTIONS.map(f => (
-                    <SelectItem key={f.value} value={f.value}>
-                      <span style={{ fontFamily: `'${f.value}', sans-serif` }}>{f.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Fonte dos títulos</Label>
-              <Select
-                value={localAppearance.heading_font_family}
-                onValueChange={(v) => handleFontChange('heading_font_family', v)}
-                disabled={false}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {HEADING_FONT_OPTIONS.map(f => (
-                    <SelectItem key={f.value} value={f.value}>
-                      <span style={{ fontFamily: `'${f.value}', sans-serif` }}>{f.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Tamanho base</Label>
-              <div className="flex gap-2">
-                {(['sm', 'md', 'lg'] as const).map(size => (
-                  <button
-                    key={size}
-                    disabled={false}
-                    onClick={() => updateField('font_size_base', size)}
-                    className={cn(
-                      'flex-1 py-2 rounded-md border text-sm font-medium transition-all',
-                      localAppearance.font_size_base === size
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border hover:border-primary/50'
-                    )}
-                  >
-                    {size === 'sm' ? 'P' : size === 'md' ? 'M' : 'G'}
-                  </button>
-                ))}
+              {/* Core colors grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <ColorPicker label="Cor do texto" value={localAppearance.text_color} onChange={(v) => updateField('text_color', v)} disabled={false} />
+                <ColorPicker label="Cor dos botões" value={localAppearance.button_bg_color} onChange={(v) => updateField('button_bg_color', v)} disabled={false} />
+                <ColorPicker label="Texto dos botões" value={localAppearance.button_text_color} onChange={(v) => updateField('button_text_color', v)} disabled={false} />
+                <ColorPicker label="Cor dos ícones" value={localAppearance.icon_color} onChange={(v) => updateField('icon_color', v)} disabled={false} />
+                <ColorPicker label="Cor de destaque" value={localAppearance.accent_color} onChange={(v) => updateField('accent_color', v)} disabled={false} />
+                <ColorPicker label="Cor das bordas" value={localAppearance.border_color} onChange={(v) => updateField('border_color', v)} disabled={false} />
               </div>
             </div>
-          </div>
-        </CollapsibleSection>
+          </CollapsibleSection>
+        )}
 
-        {/* Footer Logo Section - Annual plan only */}
-        {user?.billing_cycle === 'annually' && user?.plan_status === 'active' && (
+        {/* Eletrônicos-only chrome: every field here maps to an element this theme
+            actually renders — dark header/topbar/nav/footer, the announcement
+            phrase, and the search/"Ofertas Especiais" buttons in the header. */}
+        {themeId === 'eletronicos' && (
+          <CollapsibleSection
+            icon={<PanelTop size={16} />}
+            title="Cabeçalho, menu e rodapé"
+            defaultOpen
+          >
+            <div className="space-y-5">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs text-muted-foreground">Frases do topo</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Switch
+                      checked={localAppearance.top_bar_enabled}
+                      onCheckedChange={(v) => updateField('top_bar_enabled', v)}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {localAppearance.top_bar_enabled ? 'Visível' : 'Oculta'}
+                    </span>
+                  </div>
+                </div>
+                {localAppearance.top_bar_enabled && (
+                  <div className="space-y-2">
+                    {localAppearance.top_bar_phrases.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Sem frases cadastradas — mostra "Fale com a gente pelo WhatsApp" por padrão.
+                      </p>
+                    )}
+                    {localAppearance.top_bar_phrases.map((phrase, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          value={phrase}
+                          onChange={(e) => updateTopBarPhrase(index, e.target.value)}
+                          placeholder="Ex: Frete grátis acima de R$ 200"
+                          maxLength={120}
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeTopBarPhrase(index)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={addTopBarPhrase}>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" /> Adicionar frase
+                    </Button>
+                    {localAppearance.top_bar_phrases.length > 1 && (
+                      <p className="text-xs text-muted-foreground">
+                        Com mais de uma frase, elas alternam automaticamente no topo da loja.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Logo retangular (opcional)</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Substitui a foto de perfil (circular) no cabeçalho por uma logo retangular.
+                </p>
+                {localAppearance.header_logo_url && (
+                  <div className="bg-neutral-900 rounded p-2 mb-2 inline-block">
+                    <img src={localAppearance.header_logo_url} alt="" className="h-10 w-auto object-contain" />
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    id="header-logo-upload"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingLogo}
+                    onChange={handleLogoFileChange}
+                  />
+                  <label htmlFor="header-logo-upload">
+                    <Button type="button" variant="outline" size="sm" disabled={uploadingLogo} asChild>
+                      <span>
+                        {uploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        {localAppearance.header_logo_url ? 'Trocar' : 'Enviar logo'}
+                      </span>
+                    </Button>
+                  </label>
+                  {localAppearance.header_logo_url && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => updateField('header_logo_url', null)}>
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remover
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs text-muted-foreground">Tamanho da logo</Label>
+                  <span className="text-xs text-muted-foreground">{localAppearance.header_logo_scale ?? 100}%</span>
+                </div>
+                <Slider
+                  value={[localAppearance.header_logo_scale ?? 100]}
+                  onValueChange={([v]) => updateField('header_logo_scale', v)}
+                  min={50}
+                  max={200}
+                  step={5}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <ColorPicker
+                  label="Cor da seção (cabeçalho/rodapé)"
+                  value={localAppearance.header_bg_color}
+                  onChange={(v) => updateField('header_bg_color', v)}
+                  disabled={false}
+                />
+                <ColorPicker
+                  label="Cor do texto"
+                  value={localAppearance.header_text_color}
+                  onChange={(v) => updateField('header_text_color', v)}
+                  disabled={false}
+                />
+                <ColorPicker
+                  label="Cor do botão (busca / Ofertas Especiais)"
+                  value={localAppearance.button_bg_color}
+                  onChange={(v) => updateField('button_bg_color', v)}
+                  disabled={false}
+                />
+                <ColorPicker
+                  label="Cor do texto/ícone do botão"
+                  value={localAppearance.button_text_color}
+                  onChange={(v) => updateField('button_text_color', v)}
+                  disabled={false}
+                />
+              </div>
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* Eletrônicos-only footer controls: which columns show, the credit line,
+            and a footer-specific tagline (falls back to the profile bio). */}
+        {themeId === 'eletronicos' && (
+          <CollapsibleSection
+            icon={<PanelBottom size={16} />}
+            title="Rodapé"
+          >
+            <div className="space-y-5">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Frase abaixo do nome da loja</Label>
+                <Input
+                  value={localAppearance.footer_tagline ?? ''}
+                  onChange={(e) => updateField('footer_tagline', e.target.value || null)}
+                  placeholder={user?.bio || 'Usa a bio do perfil por padrão'}
+                  maxLength={160}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Coluna "Categorias"</span>
+                  <Switch
+                    checked={localAppearance.footer_categories_enabled}
+                    onCheckedChange={(v) => updateField('footer_categories_enabled', v)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Coluna "Atendimento"</span>
+                  <Switch
+                    checked={localAppearance.footer_contact_enabled}
+                    onCheckedChange={(v) => updateField('footer_contact_enabled', v)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Coluna "Formas de pagamento" / Selos</span>
+                  <Switch
+                    checked={localAppearance.footer_payment_enabled}
+                    onCheckedChange={(v) => updateField('footer_payment_enabled', v)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Linha "Catálogo online por VitrineTurbo"</span>
+                  <Switch
+                    checked={localAppearance.footer_credit_enabled}
+                    onCheckedChange={(v) => updateField('footer_credit_enabled', v)}
+                  />
+                </div>
+              </div>
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* Typography Section — only "padrao" markup reads --sf-font/--sf-font-heading */}
+        {themeId === 'padrao' && (
+          <CollapsibleSection
+            icon={<Type size={16} />}
+            title="Tipografia"
+          >
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Fonte do corpo</Label>
+                <Select
+                  value={localAppearance.font_family}
+                  onValueChange={(v) => handleFontChange('font_family', v)}
+                  disabled={false}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_OPTIONS.map(f => (
+                      <SelectItem key={f.value} value={f.value}>
+                        <span style={{ fontFamily: `'${f.value}', sans-serif` }}>{f.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Fonte dos títulos</Label>
+                <Select
+                  value={localAppearance.heading_font_family}
+                  onValueChange={(v) => handleFontChange('heading_font_family', v)}
+                  disabled={false}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HEADING_FONT_OPTIONS.map(f => (
+                      <SelectItem key={f.value} value={f.value}>
+                        <span style={{ fontFamily: `'${f.value}', sans-serif` }}>{f.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Tamanho base</Label>
+                <div className="flex gap-2">
+                  {(['sm', 'md', 'lg'] as const).map(size => (
+                    <button
+                      key={size}
+                      disabled={false}
+                      onClick={() => updateField('font_size_base', size)}
+                      className={cn(
+                        'flex-1 py-2 rounded-md border text-sm font-medium transition-all',
+                        localAppearance.font_size_base === size
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border hover:border-primary/50'
+                      )}
+                    >
+                      {size === 'sm' ? 'P' : size === 'md' ? 'M' : 'G'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* Footer Logo Section - "padrao" only, annual plan only */}
+        {themeId === 'padrao' && user?.billing_cycle === 'annually' && user?.plan_status === 'active' && (
           <CollapsibleSection
             icon={<Image size={16} />}
             title="Logomarca do Rodapé"
@@ -264,26 +508,41 @@ export function AppearanceSettings() {
 
       </div>
 
-      {/* Phone Mockup (sticky on desktop) */}
-      <div className="order-1 lg:order-2 lg:sticky lg:top-8 lg:self-start">
-        <div className="flex flex-col items-center">
-          <p className="text-xs text-muted-foreground mb-3 font-medium">Preview em tempo real</p>
-          <PhoneMockup
-            appearance={localAppearance}
-            name={mockupData.name}
-            bio={mockupData.bio}
-            avatar_url={mockupData.avatar_url}
-            cover_url_mobile={mockupData.cover_url_mobile}
-            promotional_banner_url_mobile={mockupData.promotional_banner_url_mobile}
-            whatsapp={mockupData.whatsapp}
-            instagram={mockupData.instagram}
-            phone={mockupData.phone}
-            location={mockupData.location}
-            products={mockupData.products}
-            categoryName={mockupData.categoryName}
-          />
+      {/* Phone Mockup (sticky on desktop) — only represents the "padrao" layout */}
+      {themeId === 'padrao' && (
+        <div className="order-1 lg:order-2 lg:sticky lg:top-8 lg:self-start">
+          <div className="flex flex-col items-center">
+            <p className="text-xs text-muted-foreground mb-3 font-medium">Preview em tempo real</p>
+            <PhoneMockup
+              appearance={localAppearance}
+              name={mockupData.name}
+              bio={mockupData.bio}
+              avatar_url={mockupData.avatar_url}
+              cover_url_mobile={mockupData.cover_url_mobile}
+              promotional_banner_url_mobile={mockupData.promotional_banner_url_mobile}
+              whatsapp={mockupData.whatsapp}
+              instagram={mockupData.instagram}
+              phone={mockupData.phone}
+              location={mockupData.location}
+              products={mockupData.products}
+              categoryName={mockupData.categoryName}
+            />
+          </div>
         </div>
-      </div>
+      )}
+
+      {logoCropperOpen && selectedLogoFile && (
+        <ImageCropperBanner
+          image={URL.createObjectURL(selectedLogoFile)}
+          onCrop={handleLogoCropComplete}
+          onCancel={() => {
+            setLogoCropperOpen(false);
+            setSelectedLogoFile(null);
+          }}
+          open={logoCropperOpen}
+          aspectRatio={3}
+        />
+      )}
     </div>
   );
 }

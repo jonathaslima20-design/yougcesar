@@ -6,17 +6,21 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { ProductCardSkeleton } from '@/components/product/ProductCardSkeleton';
 import ShareCategoryButton from '@/components/corretor/ShareCategoryButton';
 import PaginationControls from '@/components/corretor/PaginationControls';
-import InfiniteScrollTrigger from '@/components/corretor/InfiniteScrollTrigger';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
 /**
- * Product grid + pagination/infinite-scroll for the Eletrônicos theme only. No search
+ * Product grid + pagination for the Eletrônicos theme only. No search
  * bar here — this theme drives search/filters from its own header (see
  * CorretorHeaderEletronicos.tsx + EletronicosFiltersPanel.tsx) instead. Deliberately
  * NOT shared with the "padrão" theme's copy of this section
  * (StorefrontProductCatalogSectionPadrao.tsx) — the two are allowed to drift so a
  * change made for one theme can never affect the other. Data (search/pagination
  * state) still comes from CorretorPage.tsx either way; only the rendering is separate.
+ *
+ * Unlike "padrão" (which scrolls through every category one after another), this
+ * theme's landing page only ever shows ONE category's products at a time: whichever
+ * is active in "Navegue por Categorias" / the header nav, or the first category
+ * loaded when nothing has been picked yet. No auto-loading further categories on scroll.
  */
 export default function StorefrontProductCatalogSectionEletronicos({
   corretor,
@@ -43,10 +47,18 @@ export default function StorefrontProductCatalogSectionEletronicos({
   totalProductPages,
   totalProducts,
   pageSize,
-  hasNextCategory,
-  loadNextCategory,
   filters,
 }: StorefrontPageBodyProps) {
+  const categoryEntries = Object.entries(organizedProducts);
+  const activeCategoryFilter = filters?.category && filters.category !== 'todos' ? filters.category : null;
+  // Search results still show everything matching the query, across categories —
+  // the single-category restriction only applies to the default browse view.
+  const visibleEntries = isSearchActive
+    ? categoryEntries
+    : activeCategoryFilter
+      ? categoryEntries.filter(([name]) => name === activeCategoryFilter)
+      : categoryEntries.slice(0, 1);
+
   return (
     <section className="py-2" ref={productsContainerRef as RefObject<HTMLDivElement>}>
       <div className="container mx-auto px-4">
@@ -58,7 +70,7 @@ export default function StorefrontProductCatalogSectionEletronicos({
               <p className="text-muted-foreground">{productsError}</p>
             </CardContent>
           </Card>
-        ) : productsLoading && Object.keys(organizedProducts).length === 0 ? (
+        ) : productsLoading && categoryEntries.length === 0 ? (
           <div className="space-y-12">
             {[1, 2].map((categoryIdx) => (
               <div key={categoryIdx} className="space-y-6">
@@ -71,7 +83,7 @@ export default function StorefrontProductCatalogSectionEletronicos({
               </div>
             ))}
           </div>
-        ) : Object.keys(organizedProducts).length === 0 ? (
+        ) : categoryEntries.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
               <h2 className="text-xl font-semibold mb-2">
@@ -85,10 +97,17 @@ export default function StorefrontProductCatalogSectionEletronicos({
               </p>
             </CardContent>
           </Card>
+        ) : visibleEntries.length === 0 ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <h2 className="text-xl font-semibold mb-2">{t('messages.no_products')}</h2>
+              <p className="text-muted-foreground">Nenhum produto nesta categoria no momento</p>
+            </CardContent>
+          </Card>
         ) : (
           <>
             <div className="space-y-12">
-              {Object.entries(organizedProducts).map(([categoryName, products]) => (
+              {visibleEntries.map(([categoryName, products]) => (
                 <motion.div
                   key={categoryName}
                   initial={{ opacity: 0, y: 20 }}
@@ -158,14 +177,6 @@ export default function StorefrontProductCatalogSectionEletronicos({
                   isLoading={productsLoading}
                 />
               </div>
-            )}
-
-            {!isSearchActive && !usePagination && hasNextCategory && (
-              <InfiniteScrollTrigger
-                onLoadMore={loadNextCategory}
-                hasNextPage={hasNextCategory}
-                isLoading={productsLoading}
-              />
             )}
 
             {isSearchActive && serverSearchLoading && (

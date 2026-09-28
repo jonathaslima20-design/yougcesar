@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_APPEARANCE, type StorefrontAppearance } from '@/lib/appearanceDefaults';
+import { DEFAULT_APPEARANCE, type StorefrontAppearance, type StorefrontThemeId } from '@/lib/appearanceDefaults';
 
 interface UseStorefrontAppearanceResult {
   appearance: StorefrontAppearance;
@@ -13,6 +13,7 @@ interface UseStorefrontAppearanceResult {
 
 export function useStorefrontAppearance(
   userId: string | undefined,
+  themeId: StorefrontThemeId = 'padrao',
   initialAppearance?: StorefrontAppearance | null
 ): UseStorefrontAppearanceResult {
   const hasInitial = !!initialAppearance;
@@ -47,38 +48,43 @@ export function useStorefrontAppearance(
         .from('storefront_appearance')
         .select('*')
         .eq('user_id', userId)
+        .eq('theme_id', themeId)
         .maybeSingle();
 
       if (error) {
         console.error('Error fetching appearance:', error);
         if (!hasInitial) {
-          setAppearance(DEFAULT_APPEARANCE);
+          setAppearance({ ...DEFAULT_APPEARANCE, theme_id: themeId });
           setIsCustomized(false);
         }
       } else if (data) {
-        setAppearance(data as StorefrontAppearance);
+        // Merge over defaults so a column added after this row was created
+        // (migration not applied yet, or just rolled out) never shows up as
+        // `undefined` in a control — it falls back to its documented default.
+        setAppearance({ ...DEFAULT_APPEARANCE, ...(data as StorefrontAppearance) });
         setIsCustomized(true);
       } else {
-        setAppearance(DEFAULT_APPEARANCE);
+        setAppearance({ ...DEFAULT_APPEARANCE, theme_id: themeId });
         setIsCustomized(false);
       }
       setLoading(false);
     };
 
     fetchAppearance();
-  }, [userId, refreshKey]);
+  }, [userId, themeId, refreshKey]);
 
   const save = useCallback(async (data: Partial<StorefrontAppearance>): Promise<boolean> => {
     if (!userId) return false;
 
-    const payload = { ...data, user_id: userId, updated_at: new Date().toISOString() };
+    const payload = { ...data, user_id: userId, theme_id: themeId, updated_at: new Date().toISOString() };
     delete payload.id;
 
     if (isCustomized) {
       const { error } = await supabase
         .from('storefront_appearance')
         .update(payload)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('theme_id', themeId);
       if (error) {
         console.error('Error updating appearance:', error);
         return false;
@@ -96,27 +102,28 @@ export function useStorefrontAppearance(
 
     setAppearance(prev => ({ ...prev, ...data }));
     return true;
-  }, [userId, isCustomized]);
+  }, [userId, themeId, isCustomized]);
 
   const reset = useCallback(async (): Promise<boolean> => {
     if (!userId) return false;
 
-    const resetData = { ...DEFAULT_APPEARANCE, user_id: userId, updated_at: new Date().toISOString() };
+    const resetData = { ...DEFAULT_APPEARANCE, user_id: userId, theme_id: themeId, updated_at: new Date().toISOString() };
 
     if (isCustomized) {
       const { error } = await supabase
         .from('storefront_appearance')
         .update(resetData)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('theme_id', themeId);
       if (error) {
         console.error('Error resetting appearance:', error);
         return false;
       }
     }
 
-    setAppearance(DEFAULT_APPEARANCE);
+    setAppearance({ ...DEFAULT_APPEARANCE, theme_id: themeId });
     return true;
-  }, [userId, isCustomized]);
+  }, [userId, themeId, isCustomized]);
 
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
 

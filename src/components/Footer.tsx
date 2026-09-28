@@ -13,6 +13,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
   const [footerLogoMode, setFooterLogoMode] = useState<string>('default');
   const [footerLogoFormat, setFooterLogoFormat] = useState<string>('rectangular');
   const [referralLink, setReferralLink] = useState<string | null>(null);
+  const [hidePlatformFooter, setHidePlatformFooter] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -28,6 +29,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
       setFooterLogoMode(root.getAttribute('data-footer-logo-mode') || 'default');
       setFooterLogoFormat(root.getAttribute('data-footer-logo-format') || 'rectangular');
       setReferralLink(root.getAttribute('data-referral-link'));
+      setHidePlatformFooter(root.hasAttribute('data-hide-platform-footer'));
     };
 
     readState();
@@ -35,11 +37,13 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
     const observer = new MutationObserver(readState);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format', 'data-referral-link'],
+      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format', 'data-referral-link', 'data-hide-platform-footer'],
     });
 
     return () => observer.disconnect();
   }, []);
+
+  if (hidePlatformFooter) return null;
 
   const logoHeight = footerLogoFormat === 'square' ? '96px' : '72px';
 

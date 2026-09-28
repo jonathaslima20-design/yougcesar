@@ -7,16 +7,19 @@ import { validateSession } from '@/lib/auth/simpleAuth';
 import { loadGoogleFont, type StorefrontAppearance } from '@/lib/appearanceDefaults';
 import type { User } from '@/types';
 
-const APPEARANCE_CACHE_PREFIX = 'sf-theme-';
+// v2: keyed by theme too, since a store now holds one appearance row per theme
+// instead of a single shared row — bump the prefix so old (pre-split) cached
+// blobs, which lack header_bg_color/header_text_color/top_bar_text, never get served.
+const APPEARANCE_CACHE_PREFIX = 'sf-theme-v2-';
 const APPEARANCE_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-function getCachedAppearance(userId: string): StorefrontAppearance | null {
+function getCachedAppearance(userId: string, themeId: string): StorefrontAppearance | null {
   try {
-    const raw = localStorage.getItem(`${APPEARANCE_CACHE_PREFIX}${userId}`);
+    const raw = localStorage.getItem(`${APPEARANCE_CACHE_PREFIX}${userId}-${themeId}`);
     if (!raw) return null;
     const { data, ts } = JSON.parse(raw);
     if (Date.now() - ts > APPEARANCE_CACHE_TTL) {
-      localStorage.removeItem(`${APPEARANCE_CACHE_PREFIX}${userId}`);
+      localStorage.removeItem(`${APPEARANCE_CACHE_PREFIX}${userId}-${themeId}`);
       return null;
     }
     return data as StorefrontAppearance;
@@ -25,10 +28,10 @@ function getCachedAppearance(userId: string): StorefrontAppearance | null {
   }
 }
 
-function setCachedAppearance(userId: string, data: StorefrontAppearance): void {
+function setCachedAppearance(userId: string, themeId: string, data: StorefrontAppearance): void {
   try {
     localStorage.setItem(
-      `${APPEARANCE_CACHE_PREFIX}${userId}`,
+      `${APPEARANCE_CACHE_PREFIX}${userId}-${themeId}`,
       JSON.stringify({ data, ts: Date.now() })
     );
   } catch {}
@@ -115,6 +118,7 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
             store_latitude,
             store_longitude,
             theme,
+            active_storefront_theme_id,
             currency,
             language,
             plan_status,
@@ -151,7 +155,8 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
       setCorretor(corretorData);
 
       // Pre-fetch storefront appearance: try cache first, then fetch in background
-      const cachedAppearance = getCachedAppearance(corretorData.id);
+      const activeThemeId = corretorData.active_storefront_theme_id || 'padrao';
+      const cachedAppearance = getCachedAppearance(corretorData.id, activeThemeId);
       if (cachedAppearance) {
         setPreloadedAppearance(cachedAppearance);
         loadGoogleFont(cachedAppearance.font_family);
@@ -162,12 +167,13 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
         .from('storefront_appearance')
         .select('*')
         .eq('user_id', corretorData.id)
+        .eq('theme_id', activeThemeId)
         .maybeSingle()
         .then(({ data }) => {
           if (data) {
             const appearance = data as StorefrontAppearance;
             setPreloadedAppearance(appearance);
-            setCachedAppearance(corretorData.id, appearance);
+            setCachedAppearance(corretorData.id, activeThemeId, appearance);
             loadGoogleFont(appearance.font_family);
             loadGoogleFont(appearance.heading_font_family);
           }

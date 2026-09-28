@@ -37,7 +37,7 @@ export default function BannerCarousel({ userId }: BannerCarouselProps) {
   if (loading || banners.length === 0) return null;
 
   return (
-    <div className="container mx-auto px-4 mt-4">
+    <div>
       <Carousel setApi={(api) => { apiRef.current = api; }} opts={{ loop: true }}>
         <CarouselContent>
           {banners.map((banner) => {
@@ -48,7 +48,7 @@ export default function BannerCarousel({ userId }: BannerCarouselProps) {
                   src={banner.image_url_desktop || banner.image_url_mobile}
                   alt=""
                   loading="lazy"
-                  className="w-full h-auto rounded-lg object-cover"
+                  className="w-full aspect-[1920/450] object-cover"
                 />
               </picture>
             );

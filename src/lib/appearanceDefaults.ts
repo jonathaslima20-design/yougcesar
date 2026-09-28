@@ -36,6 +36,24 @@ export interface StorefrontAppearance {
   footer_logo_format: 'rectangular' | 'square';
   custom_logo_url: string | null;
   is_active: boolean;
+  // Eletrônicos-theme-only chrome (dark header/topbar/nav/footer background+text
+  // and the announcement-bar phrase). Ignored by the "padrao" theme's components.
+  header_bg_color: string;
+  header_text_color: string;
+  top_bar_text: string | null;
+  header_logo_scale: number;
+  category_showcase_enabled: boolean;
+  category_showcase_title: string | null;
+  header_logo_url: string | null;
+  top_bar_phrases: string[];
+  top_bar_enabled: boolean;
+  benefits_bar_enabled: boolean;
+  mini_banners_enabled: boolean;
+  footer_categories_enabled: boolean;
+  footer_contact_enabled: boolean;
+  footer_payment_enabled: boolean;
+  footer_credit_enabled: boolean;
+  footer_tagline: string | null;
 }
 
 export const DEFAULT_APPEARANCE: StorefrontAppearance = {
@@ -72,6 +90,22 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   footer_logo_format: 'rectangular',
   custom_logo_url: null,
   is_active: true,
+  header_bg_color: '#171717',
+  header_text_color: '#ffffff',
+  top_bar_text: null,
+  header_logo_scale: 100,
+  category_showcase_enabled: true,
+  category_showcase_title: null,
+  header_logo_url: null,
+  top_bar_phrases: [],
+  top_bar_enabled: true,
+  benefits_bar_enabled: true,
+  mini_banners_enabled: true,
+  footer_categories_enabled: true,
+  footer_contact_enabled: true,
+  footer_payment_enabled: true,
+  footer_credit_enabled: true,
+  footer_tagline: null,
 };
 
 export const FONT_OPTIONS = [

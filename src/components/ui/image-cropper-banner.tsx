@@ -14,7 +14,7 @@ interface ImageCropperBannerProps {
   open?: boolean;
 }
 
-export function ImageCropperBanner({ image, onCrop, onCancel, aspectRatio = 1530/200, open = true }: ImageCropperBannerProps) {
+export function ImageCropperBanner({ image, onCrop, onCancel, aspectRatio = 1920/450, open = true }: ImageCropperBannerProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);

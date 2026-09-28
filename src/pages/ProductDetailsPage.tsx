@@ -125,7 +125,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         // avoid leaking email, referral_code, subscription/billing fields, custom_domain, etc.)
         const { data: corretorData, error: corretorError } = await supabase
           .from('users')
-          .select('id, name, slug, avatar_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, location_url, theme, currency, language, plan_status, affiliate_program_enabled')
+          .select('id, name, slug, avatar_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, location_url, theme, active_storefront_theme_id, currency, language, plan_status, affiliate_program_enabled')
           .eq('id', productData.user_id)
           .single();
 
@@ -382,7 +382,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const isPaidPlan = corretor?.plan_status !== 'free';
 
   return (
-    <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan}>
+    <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan} themeId={corretor?.active_storefront_theme_id || 'padrao'}>
       <div className="flex-1">
         {/* Back button */}
         <div className="container mx-auto px-4 py-4">

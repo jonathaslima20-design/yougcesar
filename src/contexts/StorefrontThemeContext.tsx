@@ -36,6 +36,10 @@ export function useStorefrontTheme() {
 interface StorefrontThemeProviderProps {
   userId: string | undefined;
   isPaidPlan: boolean;
+  // Which layout the store shows — comes straight from `users.active_storefront_theme_id`,
+  // not from the appearance row anymore (a store can now hold one customized
+  // appearance row per theme, so the row itself no longer says which is "active").
+  themeId: StorefrontThemeId;
   preloadedAppearance?: StorefrontAppearance | null;
   children: ReactNode;
 }
@@ -70,9 +74,10 @@ function buildSfStyles(app: StorefrontAppearance): React.CSSProperties {
   } as React.CSSProperties;
 }
 
-export function StorefrontThemeProvider({ userId, isPaidPlan, preloadedAppearance, children }: StorefrontThemeProviderProps) {
+export function StorefrontThemeProvider({ userId, isPaidPlan, themeId, preloadedAppearance, children }: StorefrontThemeProviderProps) {
   const { appearance: userAppearance, isCustomized, loading: userLoading } = useStorefrontAppearance(
     userId,
+    themeId,
     isPaidPlan ? preloadedAppearance : undefined
   );
   const { appearance: systemAppearance, loading: systemLoading } = useSystemAppearance();
@@ -103,9 +108,6 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, preloadedAppearanc
     return buildSfStyles(activeAppearance);
   }, [isActive, activeAppearance]);
 
-  // themeId comes straight from the user's own row, regardless of plan/isActive —
-  // layout choice is free for every store, unlike the color customization above.
-  const themeId = userAppearance.theme_id || 'padrao';
   // `.sf-themed`/`.storefront-default` carry ~150 !important color overrides in
   // index.css written only for the "padrao" theme's own markup (e.g. `footer`,
   // `.text-muted-foreground`). They're scoped with `.theme-padrao` so a second
@@ -120,6 +122,20 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, preloadedAppearanc
       root.classList.remove(themeScopeClass);
     };
   }, [themeScopeClass]);
+
+  // Eletrônicos has its own full footer (CorretorFooterEletronicos) — the platform's
+  // generic <Footer> (VitrineTurbo logo + "Crie sua Vitrine Digital") would be a second,
+  // redundant footer under it. PublicLayout doesn't know the store's theme itself, so
+  // it reads this attribute the same way it already reads footer_logo_mode etc.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (themeId === 'eletronicos') {
+      root.setAttribute('data-hide-platform-footer', 'true');
+    }
+    return () => {
+      root.removeAttribute('data-hide-platform-footer');
+    };
+  }, [themeId]);
 
   useEffect(() => {
     if (isActive && sfStyles) {

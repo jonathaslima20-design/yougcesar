@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, MapPin, Phone, ArrowUp } from 'lucide-react';
+import { ChevronDown, MapPin, Phone, Mail, ArrowUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@radix-ui/react-collapsible';
 import { getWhatsAppContactUrl, cn } from '@/lib/utils';
 import { generateWhatsAppMessage } from '@/lib/i18n';
+import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
-type FooterProps = Pick<StorefrontPageBodyProps, 'corretor' | 'language' | 'filterMetadata' | 'filters' | 'onFiltersChange'>;
+type FooterProps = Pick<StorefrontPageBodyProps, 'corretor' | 'language' | 'currency' | 'filterMetadata' | 'filters' | 'onFiltersChange'>;
 
 const InstagramIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -19,12 +20,15 @@ const WhatsAppIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
   </svg>
 );
 
-const PAYMENT_BADGES = [
-  { label: 'Pix', bg: 'bg-teal-600' },
-  { label: 'Visa', bg: 'bg-blue-700' },
-  { label: 'Master', bg: 'bg-orange-600' },
-  { label: 'Elo', bg: 'bg-yellow-600' },
-  { label: 'Boleto', bg: 'bg-neutral-600' },
+// Same badge images the VitrineTurbo landing page uses (footer.legalHeading section) —
+// Mercado Pago/Pix/bandeiras are BRL-only features, so these only render for BRL stores.
+const PAYMENT_LOGOS = [
+  { src: '/logos/mercado-pago.png', alt: 'Mercado Pago', className: 'h-6' },
+  { src: 'https://auth.vitrineturbo.com/storage/v1/object/public/landing/logopix.png', alt: 'Pix', className: 'h-6' },
+  { src: 'https://auth.vitrineturbo.com/storage/v1/object/public/landing/logobandeiras.png', alt: 'Bandeiras aceitas', className: 'h-6' },
+];
+const SECURITY_LOGOS = [
+  { src: 'https://auth.vitrineturbo.com/storage/v1/object/public/landing/logossl.webp', alt: 'Pagamento seguro', className: 'h-10' },
 ];
 
 function FooterSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -49,7 +53,9 @@ function FooterSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-export default function CorretorFooterEletronicos({ corretor, language, filterMetadata, filters, onFiltersChange }: FooterProps) {
+export default function CorretorFooterEletronicos({ corretor, language, currency, filterMetadata, filters, onFiltersChange }: FooterProps) {
+  const { appearance } = useStorefrontTheme();
+  const chromeStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
@@ -68,11 +74,13 @@ export default function CorretorFooterEletronicos({ corretor, language, filterMe
 
   return (
     <>
-      <footer className="mt-16 bg-neutral-900 text-white">
+      <footer className="mt-16" style={chromeStyle}>
         <div className="container mx-auto px-4 py-10">
           <div className="flex flex-col items-center text-center gap-3 mb-8">
             <h3 className="font-bold text-xl">{corretor.name}</h3>
-            {corretor.bio && <p className="text-sm opacity-70 max-w-md">{corretor.bio}</p>}
+            {(appearance.footer_tagline || corretor.bio) && (
+              <p className="text-sm opacity-70 max-w-md">{appearance.footer_tagline || corretor.bio}</p>
+            )}
             {(instagramUrl || hasWhatsApp) && (
               <div className="flex items-center gap-4 mt-1">
                 {instagramUrl && (
@@ -90,7 +98,7 @@ export default function CorretorFooterEletronicos({ corretor, language, filterMe
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-10">
-            {categories.length > 0 && (
+            {appearance.footer_categories_enabled && categories.length > 0 && (
               <FooterSection title="Categorias">
                 {categories.slice(0, 8).map((category) => (
                   <button
@@ -105,10 +113,16 @@ export default function CorretorFooterEletronicos({ corretor, language, filterMe
               </FooterSection>
             )}
 
+            {appearance.footer_contact_enabled && (
             <FooterSection title="Atendimento">
               {hasWhatsApp && (
                 <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-100">
                   <Phone className="h-4 w-4" /> WhatsApp
+                </a>
+              )}
+              {corretor.email && (
+                <a href={`mailto:${corretor.email}`} className="flex items-center gap-2 hover:opacity-100">
+                  <Mail className="h-4 w-4" /> {corretor.email}
                 </a>
               )}
               {corretor.location_url && (
@@ -117,24 +131,39 @@ export default function CorretorFooterEletronicos({ corretor, language, filterMe
                 </a>
               )}
             </FooterSection>
+            )}
 
-            <FooterSection title="Formas de pagamento">
-              <div className="flex flex-wrap gap-2 pt-1">
-                {PAYMENT_BADGES.map(({ label, bg }) => (
-                  <span key={label} className={cn('text-[10px] font-bold text-white rounded px-2 py-1', bg)}>
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </FooterSection>
+            {appearance.footer_payment_enabled && currency === 'BRL' && (
+              <FooterSection title="Formas de pagamento">
+                <div className="space-y-4 pt-1">
+                  {/* No extra bg-white wrapper here: these badge images already carry
+                      their own light background baked in, not a transparent one. */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    {PAYMENT_LOGOS.map(({ src, alt, className }) => (
+                      <img key={alt} src={src} alt={alt} className={cn(className, 'w-auto object-contain rounded')} loading="lazy" />
+                    ))}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold mb-2 opacity-70">Selos de segurança</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {SECURITY_LOGOS.map(({ src, alt, className }) => (
+                        <img key={alt} src={src} alt={alt} className={cn(className, 'w-auto object-contain rounded')} loading="lazy" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </FooterSection>
+            )}
           </div>
         </div>
 
-        <div className="border-t border-white/10">
-          <div className="container mx-auto px-4 py-4 text-xs opacity-60 text-center">
-            {corretor.name} — Catálogo online por VitrineTurbo
+        {appearance.footer_credit_enabled && (
+          <div className="border-t border-white/10">
+            <div className="container mx-auto px-4 py-4 text-xs opacity-60 text-center">
+              {corretor.name} — Catálogo online por VitrineTurbo
+            </div>
           </div>
-        </div>
+        )}
       </footer>
 
       <div className="fixed bottom-5 right-5 flex flex-col items-center gap-2 z-40">

@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { ProfileSettings } from '@/components/dashboard/ProfileSettings';
 import { StorefrontSettings } from '@/components/dashboard/StorefrontSettings';
 import { StorefrontThemeSettings } from '@/components/dashboard/StorefrontThemeSettings';
+import { StorefrontThemeCustomizeSettings } from '@/components/dashboard/StorefrontThemeCustomizeSettings';
 import TrackingSettingsContent from '@/components/dashboard/TrackingSettingsContent';
 import CheckoutSettingsContent from '@/components/dashboard/CheckoutSettingsContent';
 import ShippingConnectorsSection from '@/components/dashboard/ShippingConnectorsSection';
@@ -13,21 +14,40 @@ import IntegrationsSettingsContent from '@/components/dashboard/IntegrationsSett
 import { CustomDomainSettings } from '@/components/dashboard/CustomDomainSettings';
 import { usePlatformPaymentsEnabled } from '@/hooks/usePlatformPaymentsEnabled';
 import { useAuth } from '@/contexts/AuthContext';
+import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearanceDefaults';
 import { cn } from '@/lib/utils';
 
-const SETTINGS_TABS = ['profile', 'theme', 'storefront', 'checkout', 'shipping', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
+const SETTINGS_TABS = ['profile', 'theme', 'theme-customize', 'storefront', 'checkout', 'shipping', 'payment', 'inventory', 'tracking', 'domain', 'integrations'] as const;
 
 export default function SettingsPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const { user } = useAuth();
   const { enabled: paymentsEnabled, loading: paymentsLoading } = usePlatformPaymentsEnabled(user?.id);
   const [activeTab, setActiveTab] = useState(
     tabFromUrl && (SETTINGS_TABS as readonly string[]).includes(tabFromUrl) ? tabFromUrl : 'profile'
   );
-  const visibleTabs = SETTINGS_TABS.filter(
-    (tab) => tab !== 'payment' || (!paymentsLoading && paymentsEnabled)
+  const themeFromUrl = searchParams.get('theme');
+  const [customizeThemeId, setCustomizeThemeId] = useState<StorefrontThemeId>(
+    themeFromUrl === 'eletronicos' ? 'eletronicos' : 'padrao'
   );
+  // "Personalizar <tema>" isn't a persistent tab in the bar — it only shows up,
+  // right after "Tema", while it's the active tab (opened via the picker's
+  // "Personalizar" button) and disappears once you navigate elsewhere.
+  const visibleTabs = SETTINGS_TABS.filter(
+    (tab) => tab !== 'theme-customize' && (tab !== 'payment' || (!paymentsLoading && paymentsEnabled))
+  );
+
+  const openCustomize = (themeId: StorefrontThemeId) => {
+    setCustomizeThemeId(themeId);
+    setActiveTab('theme-customize');
+    setSearchParams({ tab: 'theme-customize', theme: themeId });
+  };
+
+  const goToThemeTab = () => {
+    setActiveTab('theme');
+    setSearchParams({ tab: 'theme' });
+  };
 
   useEffect(() => {
     if (!paymentsLoading && activeTab === 'payment' && !paymentsEnabled) {
@@ -39,7 +59,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-background">
       <div className={cn(
         "container mx-auto px-4 sm:px-6 py-4 sm:py-6",
-        activeTab === 'theme' ? 'max-w-7xl' : 'max-w-5xl'
+        activeTab === 'theme' || activeTab === 'theme-customize' ? 'max-w-7xl' : 'max-w-5xl'
       )}>
         <Card className="border shadow-sm">
           <div className="p-4 sm:p-8">
@@ -53,7 +73,7 @@ export default function SettingsPage() {
 
             {/* Tabs */}
             <div className="flex flex-wrap gap-1 sm:gap-4 border-b mb-6 sm:mb-8">
-              {visibleTabs.map((tab) => {
+              {visibleTabs.flatMap((tab) => {
                 const labels: Record<string, string> = {
                   profile: 'Perfil',
                   theme: 'Tema',
@@ -66,10 +86,10 @@ export default function SettingsPage() {
                   domain: 'Domínio',
                   integrations: 'Integrações',
                 };
-                return (
+                const button = (
                   <button
                     key={tab}
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => tab === 'theme' ? goToThemeTab() : setActiveTab(tab)}
                     className={cn(
                       'px-3 sm:px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap',
                       activeTab === tab
@@ -83,13 +103,32 @@ export default function SettingsPage() {
                     )}
                   </button>
                 );
+
+                // "Personalizar <tema>" only shows up right after "Tema", and only
+                // while it's the active tab — it's not a persistent bar item.
+                if (tab === 'theme' && activeTab === 'theme-customize') {
+                  return [
+                    button,
+                    <button
+                      key="theme-customize"
+                      className="px-3 sm:px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap text-foreground"
+                    >
+                      Personalizar {STOREFRONT_THEME_OPTIONS.find((t) => t.value === customizeThemeId)?.label}
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+                    </button>,
+                  ];
+                }
+                return [button];
               })}
             </div>
 
             {/* Content */}
             <div>
               {activeTab === 'profile' && <ProfileSettings />}
-              {activeTab === 'theme' && <StorefrontThemeSettings />}
+              {activeTab === 'theme' && <StorefrontThemeSettings onCustomize={openCustomize} />}
+              {activeTab === 'theme-customize' && (
+                <StorefrontThemeCustomizeSettings themeId={customizeThemeId} onBack={goToThemeTab} />
+              )}
               {activeTab === 'storefront' && <StorefrontSettings />}
               {activeTab === 'checkout' && <CheckoutSettingsContent />}
               {activeTab === 'shipping' && <ShippingConnectorsSection />}

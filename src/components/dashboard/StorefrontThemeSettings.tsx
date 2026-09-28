@@ -1,40 +1,34 @@
 import { useState } from 'react';
-import { Check, Loader as LoaderIcon } from 'lucide-react';
+import { Check, Loader as LoaderIcon, Settings2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearanceDefaults';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { StorefrontVisualIdentity } from '@/components/dashboard/StorefrontVisualIdentity';
-import { StorefrontBannerManager } from '@/components/dashboard/StorefrontBannerManager';
-import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 
-export function StorefrontThemeSettings() {
-  const { user } = useAuth();
-  const { appearance, loading, save } = useStorefrontAppearance(user?.id);
+interface StorefrontThemeSettingsProps {
+  // Opens the "Personalizar <tema>" tab for the given theme — its banners,
+  // identidade visual and cores live there now, not stacked on this picker.
+  onCustomize: (themeId: StorefrontThemeId) => void;
+}
+
+export function StorefrontThemeSettings({ onCustomize }: StorefrontThemeSettingsProps) {
+  const { user, updateUser } = useAuth();
+  const activeThemeId: StorefrontThemeId = user?.active_storefront_theme_id || 'padrao';
   const [savingTheme, setSavingTheme] = useState<StorefrontThemeId | null>(null);
 
   const handleSelect = async (themeId: StorefrontThemeId) => {
-    if (themeId === appearance.theme_id || savingTheme) return;
+    if (themeId === activeThemeId || savingTheme) return;
     setSavingTheme(themeId);
-    const success = await save({ theme_id: themeId });
+    const { error } = await updateUser({ active_storefront_theme_id: themeId });
     setSavingTheme(null);
-    if (success) {
+    if (!error) {
       toast.success('Tema da vitrine atualizado');
     } else {
       toast.error('Não foi possível atualizar o tema. Tente novamente.');
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <LoaderIcon className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -48,7 +42,7 @@ export function StorefrontThemeSettings() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {STOREFRONT_THEME_OPTIONS.map((theme) => {
-          const isActive = appearance.theme_id === theme.value;
+          const isActive = activeThemeId === theme.value;
           const isSaving = savingTheme === theme.value;
           return (
             <Card
@@ -74,7 +68,20 @@ export function StorefrontThemeSettings() {
                 Prévia em breve
               </div>
               <h3 className="font-medium mb-1">{theme.label}</h3>
-              <p className="text-sm text-muted-foreground">{theme.description}</p>
+              <p className="text-sm text-muted-foreground mb-3">{theme.description}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCustomize(theme.value);
+                }}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+                Personalizar
+              </Button>
               {isSaving && (
                 <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <LoaderIcon className="h-3 w-3 animate-spin" /> Salvando...
@@ -83,33 +90,6 @@ export function StorefrontThemeSettings() {
             </Card>
           );
         })}
-      </div>
-
-      {appearance.theme_id === 'eletronicos' && (
-        <>
-          <Separator />
-          <StorefrontBannerManager />
-        </>
-      )}
-
-      <Separator />
-
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Identidade visual</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Logo, capa e banner promocional exibidos no seu catálogo.
-        </p>
-        <StorefrontVisualIdentity />
-      </div>
-
-      <Separator />
-
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Cores e tipografia</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Ajuste as cores e fontes do seu catálogo público.
-        </p>
-        <AppearanceSettings />
       </div>
     </div>
   );
