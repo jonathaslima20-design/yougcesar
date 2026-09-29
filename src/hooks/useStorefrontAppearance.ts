@@ -17,8 +17,11 @@ export function useStorefrontAppearance(
   initialAppearance?: StorefrontAppearance | null
 ): UseStorefrontAppearanceResult {
   const hasInitial = !!initialAppearance;
+  // Merge over defaults here too — same reason as the fetch path below: a column
+  // added after this preloaded row was cached (migration not applied yet, or just
+  // rolled out) must fall back to its documented default instead of `undefined`.
   const [appearance, setAppearance] = useState<StorefrontAppearance>(
-    initialAppearance || DEFAULT_APPEARANCE
+    initialAppearance ? { ...DEFAULT_APPEARANCE, ...initialAppearance } : DEFAULT_APPEARANCE
   );
   const [loading, setLoading] = useState(!hasInitial);
   const [isCustomized, setIsCustomized] = useState(hasInitial);
@@ -26,7 +29,7 @@ export function useStorefrontAppearance(
 
   useEffect(() => {
     if (initialAppearance) {
-      setAppearance(initialAppearance);
+      setAppearance({ ...DEFAULT_APPEARANCE, ...initialAppearance });
       setIsCustomized(true);
       setLoading(false);
     }

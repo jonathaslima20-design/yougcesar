@@ -131,6 +131,11 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, themeId, preloaded
     const root = document.documentElement;
     if (themeId === 'eletronicos') {
       root.setAttribute('data-hide-platform-footer', 'true');
+    } else {
+      // Explicit clear (not just the cleanup below) so a client-side navigation
+      // from an Eletrônicos store straight into a Padrão one can't leave this
+      // attribute stuck and hide the Padrão store's own footer.
+      root.removeAttribute('data-hide-platform-footer');
     }
     return () => {
       root.removeAttribute('data-hide-platform-footer');
