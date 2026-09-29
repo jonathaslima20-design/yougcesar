@@ -44,6 +44,20 @@ const SECURITY_LOGOS = [
   { src: 'https://auth.vitrineturbo.com/storage/v1/object/public/landing/logossl.webp', alt: 'Pagamento seguro', className: 'h-10' },
 ];
 
+const VITRINETURBO_URL = 'https://vitrineturbo.com';
+
+/** Platform credit — "VitrineTurbo" itself links out to the landing page. */
+function CreatedWithCredit({ className }: { className?: string }) {
+  return (
+    <p className={cn('text-xs opacity-60', className)}>
+      Criado com{' '}
+      <a href={VITRINETURBO_URL} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">
+        VitrineTurbo
+      </a>
+    </p>
+  );
+}
+
 function FooterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="text-sm">
@@ -157,16 +171,20 @@ export default function CorretorFooterEletronicos({ corretor, language, currency
                       ))}
                     </div>
                   </div>
+                  <CreatedWithCredit />
                 </div>
               </FooterSection>
             )}
           </div>
-        </div>
 
-        <div className="border-t" style={DIVIDER_STYLE}>
-          <div className="container mx-auto px-4 py-4 text-xs opacity-60 text-center">
-            {corretor.name} — Catálogo online por VitrineTurbo
-          </div>
+          {/* The credit above lives inside "Formas de pagamento" (below the security
+              seals) — but that column only renders for BRL stores with it enabled, so
+              stores without it still get a plain, unobtrusive line here. */}
+          {!(appearance.footer_payment_enabled && currency === 'BRL') && (
+            <div className="mt-8 pt-6 border-t text-center" style={DIVIDER_STYLE}>
+              <CreatedWithCredit />
+            </div>
+          )}
         </div>
       </footer>
 
