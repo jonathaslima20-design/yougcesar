@@ -1,0 +1,31 @@
+import { Link } from 'react-router-dom';
+
+interface ProductBreadcrumbEletronicosProps {
+  homeHref: string;
+  category: string | null;
+  productTitle: string;
+}
+
+export default function ProductBreadcrumbEletronicos({ homeHref, category, productTitle }: ProductBreadcrumbEletronicosProps) {
+  return (
+    <div className="border-b bg-background">
+      <div className="container mx-auto px-4 py-3">
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden">
+          <Link to={homeHref} className="hover:text-foreground hover:underline shrink-0">
+            Home
+          </Link>
+          {category && (
+            <>
+              <span className="shrink-0">/</span>
+              <Link to={`${homeHref}?category=${encodeURIComponent(category)}`} className="hover:text-foreground hover:underline shrink-0">
+                {category}
+              </Link>
+            </>
+          )}
+          <span className="shrink-0">/</span>
+          <span className="text-foreground font-medium truncate">{productTitle}</span>
+        </nav>
+      </div>
+    </div>
+  );
+}

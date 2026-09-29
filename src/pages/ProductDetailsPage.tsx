@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useSearchParams, useLocation } from 'react-router-dom';
+import { Link, useParams, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, ArrowLeft, Loader, Package, ShoppingCart, MessageCircle, TriangleAlert as AlertTriangle } from 'lucide-react';
@@ -28,6 +28,10 @@ import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { captureAffiliateClick } from '@/lib/affiliateUtils';
 import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
+import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
+import ProductDetailsHeaderEletronicos from '@/components/storefront-themes/eletronicos/ProductDetailsHeaderEletronicos';
+import ProductBreadcrumbEletronicos from '@/components/storefront-themes/eletronicos/ProductBreadcrumbEletronicos';
+import CorretorFooterEletronicos from '@/components/storefront-themes/eletronicos/CorretorFooterEletronicos';
 import type { ProductVariantStock } from '@/types';
 
 interface ProductDetailsPageProps {
@@ -38,6 +42,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const { slug: paramSlug, productId } = useParams();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const preselectedColor = searchParams.get('cor');
   const slug = customDomainSlug || paramSlug;
   const [product, setProduct] = useState<any | null>(null);
@@ -53,6 +58,19 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const { addToCart, getItemQuantity, cart } = useCart();
   const [showCart, setShowCart] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | undefined>(preselectedColor || undefined);
+
+  // Eletrônicos-only chrome (header/breadcrumb/footer) — everything below this
+  // still runs unconditionally for both themes; only the JSX further down branches.
+  const isEletronicos = corretor?.active_storefront_theme_id === 'eletronicos';
+  const homeHref = customDomainSlug ? '/' : `/${slug}`;
+  const { metadata: eletronicosFilterMetadata } = useProductFilterMetadata({
+    userId: corretor?.id || '',
+    enabled: isEletronicos && !!corretor?.id,
+  });
+  const goToStoreCategory = (newFilters: any) => {
+    const category = newFilters?.category;
+    navigate(category && category !== 'todos' ? `${homeHref}?category=${encodeURIComponent(category)}` : homeHref);
+  };
 
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
   const { settings: checkoutSettings } = useCheckoutSettingsForStore(corretor?.id);
@@ -109,23 +127,13 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
           return;
         }
 
-        // Debug: Log the raw product data from database
-        console.log('🔍 RAW PRODUCT DATA FROM DATABASE:', {
-          id: productData.id,
-          title: productData.title,
-          colors: productData.colors,
-          sizes: productData.sizes,
-          colorsType: typeof productData.colors,
-          sizesType: typeof productData.sizes,
-          allKeys: Object.keys(productData)
-        });
         setProduct(productData);
 
         // Fetch corretor details (only the columns this page and its children actually use —
         // avoid leaking email, referral_code, subscription/billing fields, custom_domain, etc.)
         const { data: corretorData, error: corretorError } = await supabase
           .from('users')
-          .select('id, name, slug, avatar_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, location_url, theme, active_storefront_theme_id, currency, language, plan_status, affiliate_program_enabled')
+          .select('id, name, slug, avatar_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, facebook_url, x_url, youtube_url, pinterest_url, linkedin_url, tiktok_url, location_url, theme, active_storefront_theme_id, currency, language, plan_status, affiliate_program_enabled')
           .eq('id', productData.user_id)
           .single();
 
@@ -165,7 +173,6 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         }
 
         // Track product view - this is crucial for the stats
-        console.log('Tracking view for product:', productId);
         const viewTracked = await trackView(productId, 'product');
         if (!viewTracked) {
           console.error('Failed to track product view');
@@ -384,20 +391,35 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   return (
     <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan} themeId={corretor?.active_storefront_theme_id || 'padrao'}>
       <div className="flex-1">
-        {/* Back button */}
-        <div className="container mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            asChild
-            className="pl-0 hover:pl-1 transition-all"
-            onClick={() => console.log('Back button clicked - returning to storefront')}
-          >
-            <Link to={customDomainSlug ? "/" : `/${slug}`} state={{ from: 'product-detail' }} className="flex items-center">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t('header.back_to_storefront')}
-            </Link>
-        </Button>
-      </div>
+        {isEletronicos ? (
+          <>
+            <ProductDetailsHeaderEletronicos
+              corretor={corretor}
+              homeHref={homeHref}
+              cartEnabled={cartEnabled}
+              onOpenCart={() => setShowCart(true)}
+            />
+            <ProductBreadcrumbEletronicos
+              homeHref={homeHref}
+              category={product.category?.[0] || null}
+              productTitle={product.title}
+            />
+          </>
+        ) : (
+          /* Back button — unchanged for the "padrao" theme */
+          <div className="container mx-auto px-4 py-4">
+            <Button
+              variant="ghost"
+              asChild
+              className="pl-0 hover:pl-1 transition-all"
+            >
+              <Link to={customDomainSlug ? "/" : `/${slug}`} state={{ from: 'product-detail' }} className="flex items-center">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t('header.back_to_storefront')}
+              </Link>
+          </Button>
+        </div>
+        )}
 
       <section className="py-8">
         <div className="container mx-auto px-4">
@@ -834,9 +856,10 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
           showStockOnStorefront={showStockOnStorefront}
         />
 
-        {/* Floating Cart Button */}
+        {/* Floating Cart Button — redundant on Eletrônicos, whose header already has
+            its own persistent cart icon */}
         <AnimatePresence>
-          {cartEnabled && cart.itemCount > 0 && (
+          {!isEletronicos && cartEnabled && cart.itemCount > 0 && (
             <motion.button
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -864,6 +887,17 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
           />
         )}
       </div>
+
+      {isEletronicos && (
+        <CorretorFooterEletronicos
+          corretor={corretor}
+          language={language}
+          currency={currency}
+          filterMetadata={eletronicosFilterMetadata}
+          filters={{}}
+          onFiltersChange={goToStoreCategory}
+        />
+      )}
     </StorefrontThemeProvider>
   );
 }
