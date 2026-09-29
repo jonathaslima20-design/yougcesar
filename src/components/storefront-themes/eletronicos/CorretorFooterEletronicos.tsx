@@ -27,30 +27,6 @@ const FacebookIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
   </svg>
 );
 
-const XIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2H21.5l-7.19 8.22L23 22h-6.828l-4.78-6.24L6.34 22H3.08l7.69-8.79L2 2h7l4.32 5.71L18.244 2zm-1.197 18h1.833L7.084 4H5.117L17.047 20z" />
-  </svg>
-);
-
-const YouTubeIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M23.5 6.2a2.9 2.9 0 0 0-2.04-2.05C19.7 3.6 12 3.6 12 3.6s-7.7 0-9.46.55A2.9 2.9 0 0 0 .5 6.2 30 30 0 0 0 0 12a30 30 0 0 0 .5 5.8 2.9 2.9 0 0 0 2.04 2.05C4.3 20.4 12 20.4 12 20.4s7.7 0 9.46-.55A2.9 2.9 0 0 0 23.5 17.8 30 30 0 0 0 24 12a30 30 0 0 0-.5-5.8zM9.6 15.6V8.4L16 12l-6.4 3.6z" />
-  </svg>
-);
-
-const PinterestIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C6.48 2 2 6.48 2 12c0 4.24 2.64 7.86 6.36 9.32-.09-.79-.17-2.01.03-2.88.19-.8 1.23-5.09 1.23-5.09s-.31-.63-.31-1.55c0-1.46.85-2.55 1.9-2.55.9 0 1.33.67 1.33 1.48 0 .9-.57 2.25-.87 3.5-.25 1.05.52 1.9 1.55 1.9 1.86 0 3.29-1.96 3.29-4.79 0-2.5-1.8-4.26-4.37-4.26-2.98 0-4.73 2.23-4.73 4.54 0 .9.35 1.86.78 2.39.09.1.1.2.07.3-.08.33-.26 1.05-.29 1.19-.05.19-.15.24-.35.14-1.3-.6-2.11-2.5-2.11-4.02 0-3.27 2.38-6.28 6.86-6.28 3.6 0 6.4 2.57 6.4 6 0 3.58-2.26 6.46-5.39 6.46-1.05 0-2.04-.55-2.38-1.19l-.65 2.48c-.23.9-.87 2.02-1.29 2.71.97.3 2 .46 3.06.46 5.52 0 10-4.48 10-10S17.52 2 12 2z" />
-  </svg>
-);
-
-const LinkedInIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 3A2 2 0 0 1 21 5V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H19M18.5 18.5V13.2C18.5 11.02 17.62 9.86 15.83 9.86C14.4 9.86 13.61 10.68 13.25 11.46H13.2V10.13H10.94V18.5H13.28V13.57C13.28 12.36 13.5 11.19 15 11.19C16.46 11.19 16.5 12.57 16.5 13.65V18.5H18.5M7.5 8.63C8.32 8.63 8.97 7.97 8.97 7.16C8.97 6.35 8.32 5.69 7.5 5.69C6.68 5.69 6 6.35 6 7.16C6 7.97 6.68 8.63 7.5 8.63M8.65 18.5V10.13H6.35V18.5H8.65Z" />
-  </svg>
-);
-
 const TikTokIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M16.6 5.82c-.9-.9-1.4-2.12-1.4-3.4h-3.4v13.6a2.6 2.6 0 1 1-1.84-2.49V9.9a6 6 0 1 0 5.24 5.95V9.7a7.4 7.4 0 0 0 4.4 1.44v-3.4c-1.02 0-2-.31-2.8-.92l-.2-.2z" />
@@ -99,20 +75,14 @@ export default function CorretorFooterEletronicos({ corretor, language, currency
   const socialLinks = [
     { url: instagramUrl, label: 'Instagram', Icon: InstagramIcon },
     { url: corretor.facebook_url, label: 'Facebook', Icon: FacebookIcon },
-    { url: corretor.x_url, label: 'X (Twitter)', Icon: XIcon },
-    { url: corretor.youtube_url, label: 'YouTube', Icon: YouTubeIcon },
-    { url: corretor.pinterest_url, label: 'Pinterest', Icon: PinterestIcon },
-    { url: corretor.linkedin_url, label: 'LinkedIn', Icon: LinkedInIcon },
     { url: corretor.tiktok_url, label: 'TikTok', Icon: TikTokIcon },
   ].filter((item): item is { url: string; label: string; Icon: typeof InstagramIcon } => !!item.url);
-
-  const institutionalLinks = appearance.footer_institutional_links;
 
   return (
     <>
       <footer className="mt-16" style={footerStyle}>
         <div className="container mx-auto px-4 py-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-x-10 gap-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-8">
             {/* Brand column: own footer logo (or store name), tagline and social icons */}
             <div className="flex flex-col items-start gap-3 sm:col-span-2 lg:col-span-1">
               {appearance.footer_logo_url ? (
@@ -145,16 +115,6 @@ export default function CorretorFooterEletronicos({ corretor, language, currency
                   >
                     {category}
                   </button>
-                ))}
-              </FooterSection>
-            )}
-
-            {institutionalLinks.length > 0 && (
-              <FooterSection title="Institucional">
-                {institutionalLinks.map((link) => (
-                  <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer" className="block hover:opacity-100">
-                    {link.label}
-                  </a>
                 ))}
               </FooterSection>
             )}
@@ -203,13 +163,11 @@ export default function CorretorFooterEletronicos({ corretor, language, currency
           </div>
         </div>
 
-        {appearance.footer_credit_enabled && (
-          <div className="border-t" style={DIVIDER_STYLE}>
-            <div className="container mx-auto px-4 py-4 text-xs opacity-60 text-center">
-              {corretor.name} — Catálogo online por VitrineTurbo
-            </div>
+        <div className="border-t" style={DIVIDER_STYLE}>
+          <div className="container mx-auto px-4 py-4 text-xs opacity-60 text-center">
+            {corretor.name} — Catálogo online por VitrineTurbo
           </div>
-        )}
+        </div>
       </footer>
 
       <div className="fixed bottom-5 right-5 flex flex-col items-center gap-2 z-40">

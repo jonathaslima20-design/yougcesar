@@ -54,7 +54,7 @@ export default function CategoryShowcase({ corretor, allProducts, filterMetadata
 
         <Carousel opts={{ align: 'start', dragFree: true }} className="relative">
           <CarouselContent className="-ml-6 py-1">
-            {categories.map((category) => {
+            {categories.map((category, index) => {
               const image = categoryImage(category);
               return (
                 <CarouselItem key={category} className="basis-auto pl-6">
@@ -65,7 +65,18 @@ export default function CategoryShowcase({ corretor, allProducts, filterMetadata
                   >
                     <span className="h-20 w-20 rounded-full overflow-hidden bg-muted border flex items-center justify-center pointer-events-none">
                       {image ? (
-                        <img src={image} alt={category} className="h-full w-full object-cover" draggable={false} />
+                        <img
+                          src={image}
+                          alt={category}
+                          width={80}
+                          height={80}
+                          // The first few circles are on screen right away; the rest sit off to
+                          // the side of the carousel, so they shouldn't compete with the banner.
+                          loading={index < 4 ? 'eager' : 'lazy'}
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                          draggable={false}
+                        />
                       ) : (
                         <span className="text-xs text-muted-foreground">{category.slice(0, 2)}</span>
                       )}

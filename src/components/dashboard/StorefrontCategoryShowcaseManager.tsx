@@ -12,6 +12,32 @@ import { useStorefrontCategoryImages } from '@/hooks/useStorefrontCategoryImages
 import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
 import { uploadImage } from '@/lib/image';
 
+// Category circles are shown at ~80px, so a raw upload (often 1000-1600px, hundreds
+// of KB) is pure waste. Center-crop to a square and downscale to 400px (still sharp
+// on 2x screens) as WebP before uploading. Falls back to the original file if the
+// browser can't decode/encode it. Only used by this theme's category images.
+const CATEGORY_IMAGE_SIZE = 400;
+
+async function toCategoryThumbnail(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const side = Math.min(bitmap.width, bitmap.height);
+    const target = Math.min(side, CATEGORY_IMAGE_SIZE);
+    const canvas = document.createElement('canvas');
+    canvas.width = target;
+    canvas.height = target;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, target, target);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85));
+    if (!blob || blob.type !== 'image/webp') return file;
+    return new File([blob], `category.webp`, { type: 'image/webp' });
+  } catch {
+    return file;
+  }
+}
+
 export function StorefrontCategoryShowcaseManager() {
   const { user } = useAuth();
   const { appearance, loading: appearanceLoading, save } = useStorefrontAppearance(user?.id, 'eletronicos');
@@ -44,7 +70,7 @@ export function StorefrontCategoryShowcaseManager() {
     }
     setUploadingCategory(category);
     try {
-      const url = await uploadImage(file, user.id, 'theme-category-images');
+      const url = await uploadImage(await toCategoryThumbnail(file), user.id, 'theme-category-images');
       const success = await setImage(user.id, category, url);
       if (success) toast.success('Imagem da categoria atualizada');
       else toast.error('Erro ao salvar imagem');

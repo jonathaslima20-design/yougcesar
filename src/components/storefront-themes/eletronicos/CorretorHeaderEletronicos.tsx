@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import EletronicosFiltersPanel from '@/components/storefront-themes/eletronicos/EletronicosFiltersPanel';
+import EletronicosCategoryDrawer from '@/components/storefront-themes/eletronicos/EletronicosCategoryDrawer';
 import { cn, getInitials, getWhatsAppContactUrl } from '@/lib/utils';
 import { generateWhatsAppMessage } from '@/lib/i18n';
 import { trackWhatsAppClick, STOREFRONT_UUID } from '@/lib/tracking';
@@ -36,7 +36,7 @@ import CartModal from '@/components/corretor/CartModal';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
 type CategoryNavProps = Pick<StorefrontPageBodyProps, 'filterMetadata' | 'filters' | 'onFiltersChange'> & {
-  onOpenAllFilters: () => void;
+  onOpenAllCategories: () => void;
   navStyle: { backgroundColor: string; color: string };
   buttonStyle: { backgroundColor: string; color: string };
 };
@@ -48,11 +48,10 @@ function useCategoryNav({ filterMetadata, filters, onFiltersChange }: Pick<Store
   return { categories, activeCategory, selectCategory };
 }
 
-// "Todas Categorias" opens the single, full filter panel (status/gender/category/
-// brand/sizes/condition/price — same one ProductSearch already builds elsewhere in
-// the app) instead of just resetting the category — there's only one filter entry
-// point in this theme, not a category shortcut plus a separate duplicate filter bar.
-function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllFilters, navStyle, buttonStyle }: CategoryNavProps) {
+// "Todas Categorias" opens the category list (EletronicosCategoryDrawer); the full
+// filter panel is reached from that drawer and from the toolbar above the product
+// grid (see CorretorPageEletronicos.tsx).
+function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCategories, navStyle, buttonStyle }: CategoryNavProps) {
   const { categories, activeCategory, selectCategory } = useCategoryNav({ filterMetadata, filters, onFiltersChange });
   const offersCategory = categories.find((c) => c.toLowerCase().includes('oferta'));
 
@@ -62,7 +61,7 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllFil
         <div className="flex items-center gap-8 overflow-x-auto py-2 text-sm">
           <button
             type="button"
-            onClick={onOpenAllFilters}
+            onClick={onOpenAllCategories}
             className={cn(
               'shrink-0 flex flex-row items-center gap-1.5 font-semibold leading-tight transition-opacity',
               !activeCategory ? 'opacity-100' : 'opacity-80 hover:opacity-100'
@@ -109,10 +108,10 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllFil
  * that component's big cover+avatar layout is what makes the "padrão" theme look the
  * way it does, and reusing it here defeats the point of a visually distinct theme.
  */
-export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps) {
+export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps & { onOpenFilters: () => void }) {
   const {
     corretor, cartEnabled, onlineSalesEnabled, filterMetadata, filters, onFiltersChange, language,
-    allProducts, settings, sizeTypeMapping, currency,
+    currency, onOpenFilters,
   } = props;
   const { cart } = useCart();
   const { customer } = useBuyerAuth();
@@ -130,7 +129,7 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
   const [topBarIndex, setTopBarIndex] = useState(0);
   const [showCart, setShowCart] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [searchValue, setSearchValue] = useState(filters?.query || '');
 
   const loginLink = `/conta/entrar?loja=${corretor.slug}&from=${encodeURIComponent(`/${corretor.slug}/conta`)}`;
@@ -253,7 +252,7 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
       {/* Mobile: single dark bar, like the reference collapses to at small widths */}
       <header className="md:hidden" style={chromeStyle}>
         <div className="px-3 py-2.5 flex items-center gap-3">
-          <button aria-label="Categorias e filtros" onClick={() => setDrawerOpen(true)}>
+          <button aria-label="Categorias" onClick={() => setCategoriesOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
 
@@ -402,26 +401,21 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
         filterMetadata={filterMetadata}
         filters={filters}
         onFiltersChange={onFiltersChange}
-        onOpenAllFilters={() => setDrawerOpen(true)}
+        onOpenAllCategories={() => setCategoriesOpen(true)}
         navStyle={navStyle}
         buttonStyle={buttonStyle}
       />
 
-      {/* Single filter entry point for this theme: hamburger (mobile) and "Todas
-          Categorias" (desktop) both open this same panel — no separate duplicate
-          search/filters bar in the product listing (see showSearchBar={false} in
-          CorretorPageEletronicos.tsx). */}
-      <EletronicosFiltersPanel
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        allProducts={allProducts}
-        filterMetadata={filterMetadata}
-        currency={currency}
-        language={language}
-        settings={settings}
-        sizeTypeMapping={sizeTypeMapping}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
+      {/* Category menu: hamburger (mobile) and "Todas Categorias" (desktop) both open
+          this list. The filter panel itself now lives in CorretorPageEletronicos and is
+          opened from here ("Filtros avançados") or from the toolbar above the grid. */}
+      <EletronicosCategoryDrawer
+        open={categoriesOpen}
+        onOpenChange={setCategoriesOpen}
+        categories={filterMetadata?.categories || []}
+        activeCategory={filters?.category && filters.category !== 'todos' ? filters.category : null}
+        onSelectCategory={(category) => onFiltersChange({ ...filters, category: category || 'todos' })}
+        onOpenFilters={onOpenFilters}
       />
 
       {cartEnabled && (

@@ -6,6 +6,7 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { ProductCardSkeleton } from '@/components/product/ProductCardSkeleton';
 import ShareCategoryButton from '@/components/corretor/ShareCategoryButton';
 import PaginationControls from '@/components/corretor/PaginationControls';
+import { sortProducts, type EletronicosSortKey } from '@/components/storefront-themes/eletronicos/eletronicosSort';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
 /**
@@ -48,7 +49,8 @@ export default function StorefrontProductCatalogSectionEletronicos({
   totalProducts,
   pageSize,
   filters,
-}: StorefrontPageBodyProps) {
+  sortBy = 'relevance',
+}: StorefrontPageBodyProps & { sortBy?: EletronicosSortKey }) {
   const categoryEntries = Object.entries(organizedProducts);
   const activeCategoryFilter = filters?.category && filters.category !== 'todos' ? filters.category : null;
   // Search results still show everything matching the query, across categories —
@@ -129,7 +131,7 @@ export default function StorefrontProductCatalogSectionEletronicos({
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                    {products.map((product) => (
+                    {sortProducts(products, sortBy).map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}

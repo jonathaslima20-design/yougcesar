@@ -55,6 +55,13 @@ export interface StorefrontAppearance {
   top_bar_enabled: boolean;
   benefits_bar_enabled: boolean;
   mini_banners_enabled: boolean;
+  // "Banner de destaque": one wide banner (separate desktop/mobile images), no rotation.
+  feature_banner_enabled: boolean;
+  feature_banner_desktop_url: string | null;
+  feature_banner_mobile_url: string | null;
+  feature_banner_link_url: string | null;
+  // Order of the movable home sections (see HOME_SECTIONS); null = default order.
+  home_section_order: string[] | null;
   footer_categories_enabled: boolean;
   footer_contact_enabled: boolean;
   footer_payment_enabled: boolean;
@@ -127,6 +134,11 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   top_bar_enabled: true,
   benefits_bar_enabled: true,
   mini_banners_enabled: true,
+  feature_banner_enabled: true,
+  feature_banner_desktop_url: null,
+  feature_banner_mobile_url: null,
+  feature_banner_link_url: null,
+  home_section_order: null,
   footer_categories_enabled: true,
   footer_contact_enabled: true,
   footer_payment_enabled: true,
@@ -146,6 +158,31 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   new_arrivals_bg_color: '#ffffff',
   new_arrivals_text_color: '#0a0a0a',
 };
+
+/**
+ * The "Eletrônicos" home sections a merchant can reorder, in their default order.
+ * Top bar, header, menu and footer are fixed and deliberately not listed here.
+ */
+export const HOME_SECTIONS = [
+  { id: 'banners', label: 'Banners' },
+  { id: 'benefits', label: 'Barra de benefícios' },
+  { id: 'categories', label: 'Navegue por Categorias' },
+  { id: 'offers', label: 'Ofertas' },
+  { id: 'feature_banner', label: 'Banner de destaque' },
+  { id: 'mini_banners', label: 'Mini banners' },
+  { id: 'new_arrivals', label: 'Novidades' },
+] as const;
+
+export type HomeSectionId = (typeof HOME_SECTIONS)[number]['id'];
+
+/** Saved order merged with the defaults: unknown ids dropped, missing ones appended. */
+export function resolveHomeSectionOrder(saved: string[] | null | undefined): HomeSectionId[] {
+  const known = HOME_SECTIONS.map((s) => s.id) as HomeSectionId[];
+  const kept = (saved ?? []).filter((id, i, arr): id is HomeSectionId =>
+    (known as string[]).includes(id) && arr.indexOf(id) === i
+  );
+  return [...kept, ...known.filter((id) => !kept.includes(id))];
+}
 
 export const FONT_OPTIONS = [
   { value: 'Inter', label: 'Inter' },

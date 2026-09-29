@@ -1,4 +1,4 @@
-import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, MousePointerClick, GalleryHorizontal, BadgePercent, LayoutGrid, Images, Sparkles, PanelBottom } from 'lucide-react';
+import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, MousePointerClick, PanelBottom } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,11 +7,7 @@ import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearan
 import { StorefrontVisualIdentity } from '@/components/dashboard/StorefrontVisualIdentity';
 import { StorefrontTopBarManager } from '@/components/dashboard/StorefrontTopBarManager';
 import { StorefrontFooterContentManager } from '@/components/dashboard/StorefrontFooterContentManager';
-import { StorefrontBannerManager } from '@/components/dashboard/StorefrontBannerManager';
-import { StorefrontBenefitsManager } from '@/components/dashboard/StorefrontBenefitsManager';
-import { StorefrontCategoryShowcaseManager } from '@/components/dashboard/StorefrontCategoryShowcaseManager';
-import { StorefrontMiniBannerManager } from '@/components/dashboard/StorefrontMiniBannerManager';
-import { StorefrontNewArrivalsManager, StorefrontOffersManager } from '@/components/dashboard/StorefrontNewArrivalsManager';
+import { StorefrontMovableSections } from '@/components/dashboard/StorefrontMovableSections';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import { ThemeSection, SectionColorSwatches, ColorOnlyRow } from '@/components/dashboard/ThemeSection';
 
@@ -103,98 +99,9 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
             disabled={appearanceLoading}
           />
 
-          <ThemeSection
-            icon={<GalleryHorizontal size={16} />}
-            title="Banners"
-            description="Vários banners em carrossel na home do catálogo. Cada banner precisa de uma imagem desktop e uma mobile."
-            headerExtra={
-              <SectionColorSwatches
-                bgColor={appearance.banners_bg_color}
-                textColor={appearance.banners_text_color}
-                onBgChange={(v) => save({ banners_bg_color: v })}
-                onTextChange={(v) => save({ banners_text_color: v })}
-                disabled={appearanceLoading}
-              />
-            }
-          >
-            <StorefrontBannerManager />
-          </ThemeSection>
+          {/* Reorderable home sections (each has its own up/down), in page order. */}
+          <StorefrontMovableSections />
 
-          <ThemeSection
-            icon={<BadgePercent size={16} />}
-            title="Barra de benefícios"
-            description="Os ícones com texto exibidos logo abaixo do cabeçalho (parcelamento, envios, atendimento...)."
-            headerExtra={
-              <SectionColorSwatches
-                bgColor={appearance.benefits_bg_color}
-                textColor={appearance.benefits_text_color}
-                onBgChange={(v) => save({ benefits_bg_color: v })}
-                onTextChange={(v) => save({ benefits_text_color: v })}
-                disabled={appearanceLoading}
-              />
-            }
-          >
-            <StorefrontBenefitsManager />
-          </ThemeSection>
-
-          <ThemeSection
-            icon={<LayoutGrid size={16} />}
-            title="Navegue por Categorias"
-            description="A fileira de categorias em círculo, logo abaixo da barra de benefícios."
-            headerExtra={
-              <SectionColorSwatches
-                bgColor={appearance.category_showcase_bg_color}
-                textColor={appearance.category_showcase_text_color}
-                onBgChange={(v) => save({ category_showcase_bg_color: v })}
-                onTextChange={(v) => save({ category_showcase_text_color: v })}
-                disabled={appearanceLoading}
-              />
-            }
-          >
-            <StorefrontCategoryShowcaseManager />
-          </ThemeSection>
-
-          <ThemeSection
-            icon={<BadgePercent size={16} />}
-            title="Ofertas"
-            description="Carrossel de produtos em oferta, logo abaixo de Navegue por Categorias."
-          >
-            <StorefrontOffersManager />
-          </ThemeSection>
-
-          <ThemeSection
-            icon={<Images size={16} />}
-            title="Mini banners"
-            description="Grade de 3 banners menores, logo abaixo da lista de produtos."
-            headerExtra={
-              <SectionColorSwatches
-                bgColor={appearance.mini_banners_bg_color}
-                textColor={appearance.mini_banners_text_color}
-                onBgChange={(v) => save({ mini_banners_bg_color: v })}
-                onTextChange={(v) => save({ mini_banners_text_color: v })}
-                disabled={appearanceLoading}
-              />
-            }
-          >
-            <StorefrontMiniBannerManager />
-          </ThemeSection>
-
-          <ThemeSection
-            icon={<Sparkles size={16} />}
-            title="Novidades"
-            description="Carrossel de produtos em destaque, logo abaixo dos mini banners."
-            headerExtra={
-              <SectionColorSwatches
-                bgColor={appearance.new_arrivals_bg_color}
-                textColor={appearance.new_arrivals_text_color}
-                onBgChange={(v) => save({ new_arrivals_bg_color: v })}
-                onTextChange={(v) => save({ new_arrivals_text_color: v })}
-                disabled={appearanceLoading}
-              />
-            }
-          >
-            <StorefrontNewArrivalsManager />
-          </ThemeSection>
 
           <ThemeSection
             icon={<PanelBottom size={16} />}
