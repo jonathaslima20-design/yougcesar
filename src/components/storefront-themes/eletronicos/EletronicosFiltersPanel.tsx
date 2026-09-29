@@ -19,14 +19,19 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { formatSizeLabel, getSizeTypeWithFallback } from '@/lib/sizeTypeUtils';
+import { rowMatches, type CatalogRow } from '@/components/storefront-themes/eletronicos/eletronicosCatalog';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
 type FiltersPanelProps = Pick<
   StorefrontPageBodyProps,
-  'allProducts' | 'filterMetadata' | 'filters' | 'onFiltersChange' | 'currency' | 'language' | 'settings' | 'sizeTypeMapping'
+  'filterMetadata' | 'filters' | 'onFiltersChange' | 'currency' | 'language' | 'settings' | 'sizeTypeMapping'
 > & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Real min/max price of the store's catalog (from the lightweight summary). */
+  priceRange: { min: number; max: number };
+  /** Summary rows, used to show how many products the pending filters would list. */
+  rows: CatalogRow[];
 };
 
 /**
@@ -38,7 +43,8 @@ type FiltersPanelProps = Pick<
  * components may drift over time; that's an accepted tradeoff for isolation.
  */
 export default function EletronicosFiltersPanel({
-  allProducts,
+  priceRange: catalogPriceRange,
+  rows,
   filterMetadata,
   filters,
   onFiltersChange,
@@ -57,36 +63,27 @@ export default function EletronicosFiltersPanel({
     filters?.minPrice ?? configuredMinPrice,
     filters?.maxPrice ?? configuredMaxPrice,
   ]);
-  const [actualMinPrice, setActualMinPrice] = useState(configuredMinPrice);
-  const [actualMaxPrice, setActualMaxPrice] = useState(configuredMaxPrice);
+  // Slider bounds are the catalog's real cheapest/priciest product, not a fixed 0-5000.
+  const hasCatalogRange = catalogPriceRange.max > catalogPriceRange.min;
+  const actualMinPrice = hasCatalogRange ? catalogPriceRange.min : configuredMinPrice;
+  const actualMaxPrice = hasCatalogRange ? catalogPriceRange.max : configuredMaxPrice;
+  const clampPrice = (value: number) => Math.min(Math.max(value, actualMinPrice), actualMaxPrice);
 
   useEffect(() => {
     if (open) {
       setLocalFilters(filters);
-      setPriceRange([filters?.minPrice ?? configuredMinPrice, filters?.maxPrice ?? configuredMaxPrice]);
+      setPriceRange([
+        clampPrice(filters?.minPrice ?? configuredMinPrice),
+        clampPrice(filters?.maxPrice ?? configuredMaxPrice),
+      ]);
     }
   }, [open]);
 
-  useEffect(() => {
-    const products = allProducts || [];
-    if (products.length === 0) return;
-    let minPrice = Infinity;
-    let maxPrice = 0;
-    products.forEach((product) => {
-      if (product.has_tiered_pricing && product.min_tiered_price !== undefined && product.max_tiered_price !== undefined) {
-        minPrice = Math.min(minPrice, product.min_tiered_price);
-        maxPrice = Math.max(maxPrice, product.max_tiered_price);
-      } else {
-        const productPrice = product.discounted_price ?? product.price ?? 0;
-        minPrice = Math.min(minPrice, productPrice);
-        maxPrice = Math.max(maxPrice, productPrice);
-      }
-    });
-    if (minPrice !== Infinity && maxPrice > 0) {
-      setActualMinPrice(Math.floor(minPrice));
-      setActualMaxPrice(Math.ceil(maxPrice));
-    }
-  }, [allProducts]);
+  // How many products the pending (not yet applied) filters would list.
+  const priceDefaults = { min: actualMinPrice, max: actualMaxPrice };
+  const pendingCount = rows.filter((row) =>
+    rowMatches(row, { ...localFilters, minPrice: priceRange[0], maxPrice: priceRange[1] }, undefined, priceDefaults)
+  ).length;
 
   const categories = filterMetadata?.categories || [];
   const brands = filterMetadata?.brands || [];
@@ -99,7 +96,14 @@ export default function EletronicosFiltersPanel({
   });
 
   const handleApply = () => {
-    onFiltersChange({ ...localFilters, minPrice: priceRange[0], maxPrice: priceRange[1] });
+    // Leaving the slider at the catalog's full range means "no price filter": send the
+    // store defaults so the page doesn't count it as an active filter.
+    const fullRange = priceRange[0] <= actualMinPrice && priceRange[1] >= actualMaxPrice;
+    onFiltersChange({
+      ...localFilters,
+      minPrice: fullRange ? configuredMinPrice : priceRange[0],
+      maxPrice: fullRange ? configuredMaxPrice : priceRange[1],
+    });
     onOpenChange(false);
   };
 
@@ -241,7 +245,9 @@ export default function EletronicosFiltersPanel({
 
         <SheetFooter className="mt-6 pt-6 border-t gap-3">
           <Button variant="outline" onClick={handleClear}>Limpar Filtros</Button>
-          <Button onClick={handleApply}>Aplicar Filtros</Button>
+          <Button onClick={handleApply} disabled={rows.length > 0 && pendingCount === 0}>
+            {rows.length > 0 ? `Ver ${pendingCount} produto${pendingCount === 1 ? '' : 's'}` : 'Aplicar Filtros'}
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

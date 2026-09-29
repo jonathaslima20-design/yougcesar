@@ -7,6 +7,8 @@ import type { Product } from '@/types';
 interface UseProductSearchProps {
   allProducts: Product[];
   settings: any;
+  /** The catalog isn't preloaded (see useProductData.deferCatalog), so URL filters must still apply. */
+  catalogDeferred?: boolean;
 }
 
 interface UseProductSearchReturn {
@@ -22,7 +24,8 @@ interface UseProductSearchReturn {
  */
 export function useProductSearch({
   allProducts,
-  settings
+  settings,
+  catalogDeferred = false
 }: UseProductSearchProps): UseProductSearchReturn {
   const [searchParams] = useSearchParams();
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -46,7 +49,7 @@ export function useProductSearch({
 
   // Apply URL filters when products and settings are loaded
   useEffect(() => {
-    if (allProducts.length > 0 && settings) {
+    if ((allProducts.length > 0 || catalogDeferred) && settings) {
       const urlCategory = searchParams.get('category');
       const urlQuery = searchParams.get('query');
       

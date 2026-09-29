@@ -1,5 +1,6 @@
 import { useStorefrontMiniBanners } from '@/hooks/useStorefrontMiniBanners';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
+import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 
 interface MiniBannerGridProps {
   userId: string;
@@ -18,9 +19,12 @@ export default function MiniBannerGrid({ userId }: MiniBannerGridProps) {
         {banners.map((banner) => {
           const content = (
             <img
-              src={banner.image_url}
+              src={getResizedImageUrl(banner.image_url, 640)}
+              srcSet={getImageSrcSet(banner.image_url, [320, 640, 960])}
+              sizes="(min-width: 640px) 33vw, 100vw"
               alt=""
               loading="lazy"
+              decoding="async"
               className="w-full aspect-[416/480] object-cover"
             />
           );

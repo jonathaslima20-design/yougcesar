@@ -50,7 +50,8 @@ export default function StorefrontProductCatalogSectionEletronicos({
   pageSize,
   filters,
   sortBy = 'relevance',
-}: StorefrontPageBodyProps & { sortBy?: EletronicosSortKey }) {
+  withSidebar = false,
+}: StorefrontPageBodyProps & { sortBy?: EletronicosSortKey; withSidebar?: boolean }) {
   const categoryEntries = Object.entries(organizedProducts);
   const activeCategoryFilter = filters?.category && filters.category !== 'todos' ? filters.category : null;
   // Search results still show everything matching the query, across categories —
@@ -63,7 +64,9 @@ export default function StorefrontProductCatalogSectionEletronicos({
 
   return (
     <section className="py-2" ref={productsContainerRef as RefObject<HTMLDivElement>}>
-      <div className="container mx-auto px-4">
+      {/* With the desktop filter sidebar the page already provides the container; the
+          grid then gets one column less at lg so cards keep a comfortable width. */}
+      <div className={withSidebar ? '' : 'container mx-auto px-4'}>
         {productsError ? (
           <Card className="text-center py-12">
             <CardContent>
@@ -130,7 +133,7 @@ export default function StorefrontProductCatalogSectionEletronicos({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                  <div className={withSidebar ? 'grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6' : 'grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6'}>
                     {sortProducts(products, sortBy).map((product) => (
                       <ProductCard
                         key={product.id}

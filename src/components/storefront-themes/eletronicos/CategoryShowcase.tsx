@@ -1,5 +1,6 @@
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { useStorefrontCategoryImages } from '@/hooks/useStorefrontCategoryImages';
+import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import {
   Carousel,
   CarouselContent,
@@ -9,7 +10,10 @@ import {
 } from '@/components/ui/carousel';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
-type CategoryShowcaseProps = Pick<StorefrontPageBodyProps, 'corretor' | 'allProducts' | 'filterMetadata' | 'filters' | 'onFiltersChange'>;
+type CategoryShowcaseProps = Pick<StorefrontPageBodyProps, 'corretor' | 'filterMetadata' | 'filters' | 'onFiltersChange'> & {
+  /** category -> cover image (first product's photo), from the lightweight catalog summary. */
+  covers: Record<string, string>;
+};
 
 /**
  * "Navegue por Categorias" row from the reference theme. Each circle uses the featured
@@ -21,7 +25,7 @@ type CategoryShowcaseProps = Pick<StorefrontPageBodyProps, 'corretor' | 'allProd
  * lets a visitor flick/drag through categories and release anywhere, while a plain
  * tap (no drag) still selects the category — Embla tells the two apart natively.
  */
-export default function CategoryShowcase({ corretor, allProducts, filterMetadata, filters, onFiltersChange }: CategoryShowcaseProps) {
+export default function CategoryShowcase({ corretor, covers, filterMetadata, filters, onFiltersChange }: CategoryShowcaseProps) {
   const { appearance } = useStorefrontTheme();
   const { getImage } = useStorefrontCategoryImages(corretor.id);
   const categories: string[] = filterMetadata?.categories || [];
@@ -31,8 +35,7 @@ export default function CategoryShowcase({ corretor, allProducts, filterMetadata
   const categoryImage = (category: string) => {
     const override = getImage(category);
     if (override) return override;
-    const match = allProducts.find((p) => p.category?.includes(category) && p.featured_image_url);
-    return match?.featured_image_url;
+    return covers[category];
   };
 
   const selectCategory = (category: string) => {
@@ -66,7 +69,9 @@ export default function CategoryShowcase({ corretor, allProducts, filterMetadata
                     <span className="h-20 w-20 rounded-full overflow-hidden bg-muted border flex items-center justify-center pointer-events-none">
                       {image ? (
                         <img
-                          src={image}
+                          src={getResizedImageUrl(image, 160)}
+                          srcSet={getImageSrcSet(image, [80, 160, 240])}
+                          sizes="80px"
                           alt={category}
                           width={80}
                           height={80}

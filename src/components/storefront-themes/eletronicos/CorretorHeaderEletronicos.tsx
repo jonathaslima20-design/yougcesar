@@ -16,7 +16,6 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -25,6 +24,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import EletronicosCategoryDrawer from '@/components/storefront-themes/eletronicos/EletronicosCategoryDrawer';
+import EletronicosSearchBox from '@/components/storefront-themes/eletronicos/EletronicosSearchBox';
+import type { CatalogRow } from '@/components/storefront-themes/eletronicos/eletronicosCatalog';
+import { useCustomDomain } from '@/contexts/CustomDomainContext';
 import { cn, getInitials, getWhatsAppContactUrl } from '@/lib/utils';
 import { generateWhatsAppMessage } from '@/lib/i18n';
 import { trackWhatsAppClick, STOREFRONT_UUID } from '@/lib/tracking';
@@ -108,11 +110,13 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCat
  * that component's big cover+avatar layout is what makes the "padrão" theme look the
  * way it does, and reusing it here defeats the point of a visually distinct theme.
  */
-export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps & { onOpenFilters: () => void }) {
+export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps & { onOpenFilters: () => void; catalogRows: CatalogRow[] }) {
   const {
     corretor, cartEnabled, onlineSalesEnabled, filterMetadata, filters, onFiltersChange, language,
-    currency, onOpenFilters,
+    currency, onOpenFilters, catalogRows,
   } = props;
+  const { isCustomDomain } = useCustomDomain();
+  const productHref = (id: string) => (isCustomDomain ? `/produtos/${id}` : `/${corretor.slug}/produtos/${id}`);
   const { cart } = useCart();
   const { customer } = useBuyerAuth();
   const { appearance } = useStorefrontTheme();
@@ -298,25 +302,24 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
 
         {showMobileSearch && (
           <div className="px-3 pb-3">
-            <div className="relative">
-              <Input
-                autoFocus
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
-                placeholder="O que deseja procurar?"
-                className="pr-11 rounded-md h-9 bg-white text-foreground"
-              />
-              <button
-                type="button"
-                onClick={submitSearch}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 flex items-center justify-center rounded"
-                style={buttonStyle}
-                aria-label="Buscar"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            </div>
+            <EletronicosSearchBox
+              autoFocus
+              value={searchValue}
+              onChange={setSearchValue}
+              onSubmit={submitSearch}
+              rows={catalogRows}
+              categories={filterMetadata?.categories || []}
+              onPickCategory={(category) => {
+                setShowMobileSearch(false);
+                onFiltersChange({ ...filters, category });
+              }}
+              productHref={productHref}
+              currency={currency}
+              language={language}
+              buttonStyle={buttonStyle}
+              inputClassName="pr-11 rounded-md h-9 bg-white text-foreground"
+              buttonClassName="h-7 w-8"
+            />
           </div>
         )}
       </header>
@@ -337,24 +340,20 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
           </Link>
 
           <div className="flex-1 max-w-xl mx-auto">
-            <div className="relative">
-              <Input
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
-                placeholder="O que deseja procurar?"
-                className="pr-11 rounded-md h-10 bg-white text-foreground border-0"
-              />
-              <button
-                type="button"
-                onClick={submitSearch}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-9 flex items-center justify-center rounded hover:opacity-90"
-                style={buttonStyle}
-                aria-label="Buscar"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            </div>
+            <EletronicosSearchBox
+              value={searchValue}
+              onChange={setSearchValue}
+              onSubmit={submitSearch}
+              rows={catalogRows}
+              categories={filterMetadata?.categories || []}
+              onPickCategory={(category) => onFiltersChange({ ...filters, category })}
+              productHref={productHref}
+              currency={currency}
+              language={language}
+              buttonStyle={buttonStyle}
+              inputClassName="pr-11 rounded-md h-10 bg-white text-foreground border-0"
+              buttonClassName="h-8 w-9"
+            />
           </div>
 
           <div className="flex items-center gap-4 ml-auto text-sm shrink-0">

@@ -46,6 +46,12 @@ const PRODUCTS_SELECT = `
 interface UseProductDataProps {
   userId: string;
   language?: SupportedLanguage;
+  /**
+   * Skip downloading the catalog up front (only settings + count are fetched). For
+   * themes whose home doesn't list products and that read filtered results from the
+   * server-side search instead (the "eletronicos" theme). Default false = unchanged.
+   */
+  deferCatalog?: boolean;
 }
 
 interface UseProductDataReturn {
@@ -67,7 +73,8 @@ interface UseProductDataReturn {
 
 export function useProductData({
   userId,
-  language = 'pt-BR'
+  language = 'pt-BR',
+  deferCatalog = false
 }: UseProductDataProps): UseProductDataReturn {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [categorySettings, setCategorySettings] = useState<CategoryDisplaySetting[]>([]);
@@ -427,6 +434,17 @@ export function useProductData({
 
       const count = await countProducts(userId);
       setTotalProducts(count);
+
+      if (deferCatalog) {
+        setPaginatedMode(false);
+        setAllProducts([]);
+        setPaginatedProducts([]);
+        setPriceTiersMap(new Map());
+        setSettings(settingsData.effectiveSettings);
+        setCategorySettings(settingsData.categoryDisplaySettings);
+        setSizeTypeMapping(sizeMapping);
+        return;
+      }
 
       if (count >= PAGINATION_THRESHOLD) {
         setPaginatedMode(true);

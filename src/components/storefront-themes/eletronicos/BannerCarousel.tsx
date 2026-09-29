@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorefrontBanners } from '@/hooks/useStorefrontBanners';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { cn } from '@/lib/utils';
+import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import {
   Carousel,
   CarouselContent,
@@ -54,14 +55,25 @@ export default function BannerCarousel({ userId }: BannerCarouselProps) {
     <div className="relative" style={{ backgroundColor: appearance.banners_bg_color }}>
       <Carousel setApi={(api) => { apiRef.current = api; }} opts={{ loop: true }}>
         <CarouselContent>
-          {banners.map((banner) => {
+          {banners.map((banner, index) => {
+            const desktopUrl = banner.image_url_desktop || banner.image_url_mobile;
             const content = (
               <picture>
-                <source media="(max-width: 767px)" srcSet={banner.image_url_mobile} />
+                <source
+                  media="(max-width: 767px)"
+                  srcSet={getImageSrcSet(banner.image_url_mobile, [480, 768, 960]) ?? banner.image_url_mobile}
+                  sizes="100vw"
+                />
                 <img
-                  src={banner.image_url_desktop || banner.image_url_mobile}
+                  src={getResizedImageUrl(desktopUrl, 1440)}
+                  srcSet={getImageSrcSet(desktopUrl, [960, 1440, 1920])}
+                  sizes="100vw"
                   alt=""
-                  loading="lazy"
+                  // The first banner is the page's largest image: load it right away and
+                  // at high priority. The rest of the carousel can wait.
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  fetchPriority={index === 0 ? 'high' : undefined}
+                  decoding="async"
                   className="w-full aspect-[1920/650] object-cover"
                 />
               </picture>

@@ -1,4 +1,5 @@
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
+import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 
 /**
  * "Banner de destaque" — a single wide banner between the product shelves, with a
@@ -14,11 +15,16 @@ export default function FeatureBanner() {
 
   const image = (
     <picture>
-      {mobile && <source media="(max-width: 767px)" srcSet={mobile} />}
+      {mobile && (
+        <source media="(max-width: 767px)" srcSet={getImageSrcSet(mobile, [480, 768, 960]) ?? mobile} sizes="100vw" />
+      )}
       <img
-        src={desktop || mobile || ''}
+        src={getResizedImageUrl(desktop || mobile || '', 1440)}
+        srcSet={getImageSrcSet(desktop || mobile, [960, 1440, 1920])}
+        sizes="(min-width: 1280px) 1248px, 100vw"
         alt=""
         loading="lazy"
+        decoding="async"
         className="w-full aspect-[4/3] md:aspect-[1290/300] object-cover rounded-lg"
       />
     </picture>

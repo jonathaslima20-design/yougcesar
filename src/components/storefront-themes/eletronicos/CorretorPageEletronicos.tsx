@@ -13,6 +13,8 @@ import NewArrivalsCarousel from '@/components/storefront-themes/eletronicos/NewA
 import EletronicosBreadcrumb from '@/components/storefront-themes/eletronicos/EletronicosBreadcrumb';
 import CorretorFooterEletronicos from '@/components/storefront-themes/eletronicos/CorretorFooterEletronicos';
 import StorefrontProductCatalogSectionEletronicos from '@/components/storefront-themes/eletronicos/StorefrontProductCatalogSectionEletronicos';
+import EletronicosFiltersSidebar from '@/components/storefront-themes/eletronicos/EletronicosFiltersSidebar';
+import { useEletronicosCatalogSummary } from '@/components/storefront-themes/eletronicos/eletronicosCatalog';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { resolveHomeSectionOrder, type HomeSectionId } from '@/lib/appearanceDefaults';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
@@ -24,13 +26,16 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
   // header/category menu and the toolbar above the grid can open the same panel.
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortBy, setSortBy] = useState<EletronicosSortKey>('relevance');
+  // Light per-product summary (cover images, price range, filter counts, search
+  // suggestions). The full catalog is no longer downloaded for this theme's home.
+  const summary = useEletronicosCatalogSummary(props.corretor.id);
 
   // The movable home sections; order comes from the merchant's saved layout
   // (Personalizar Eletrônicos → Ordem das seções), defaulting to the original one.
   const homeSections: Record<HomeSectionId, JSX.Element> = {
     banners: <BannerCarousel userId={props.corretor.id} />,
     benefits: <BenefitsBar userId={props.corretor.id} />,
-    categories: <CategoryShowcase {...props} />,
+    categories: <CategoryShowcase {...props} covers={summary.covers} />,
     offers: <OffersCarousel {...props} />,
     feature_banner: <FeatureBanner />,
     mini_banners: <MiniBannerGrid userId={props.corretor.id} />,
@@ -72,12 +77,13 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
 
   return (
     <div className="flex-1 flex flex-col min-h-screen">
-      <CorretorHeaderEletronicos {...props} onOpenFilters={() => setFiltersOpen(true)} />
+      <CorretorHeaderEletronicos {...props} onOpenFilters={() => setFiltersOpen(true)} catalogRows={summary.rows} />
 
       <EletronicosFiltersPanel
         open={filtersOpen}
         onOpenChange={setFiltersOpen}
-        allProducts={props.allProducts}
+        priceRange={summary.priceRange}
+        rows={summary.rows}
         filterMetadata={props.filterMetadata}
         currency={props.currency}
         language={props.language}
@@ -116,8 +122,20 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
       {/* The product grid only appears once a category/search/filter is active —
           the home itself stays light, driven by the Ofertas/Novidades carousels. */}
       {isBrowsing ? (
-        <div className="flex-1">
-          <StorefrontProductCatalogSectionEletronicos {...props} sortBy={sortBy} />
+        <div className="flex-1 container mx-auto px-4 flex gap-8 items-start">
+          <EletronicosFiltersSidebar
+            filters={filters}
+            onFiltersChange={onFiltersChange}
+            currency={props.currency}
+            language={props.language}
+            settings={props.settings}
+            filterMetadata={props.filterMetadata}
+            rows={summary.rows}
+            priceRange={summary.priceRange}
+          />
+          <div className="flex-1 min-w-0">
+            <StorefrontProductCatalogSectionEletronicos {...props} sortBy={sortBy} withSidebar />
+          </div>
         </div>
       ) : (
         <div className="flex-1" />

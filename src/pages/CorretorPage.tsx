@@ -63,7 +63,14 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
 
   // Load corretor data
   const { corretor, loading: corretorLoading, error: corretorError, preloadedAppearance } = useCorretorData({ slug });
-  const { settings: platformThemeSettings } = usePlatformThemeSettings();
+  const { settings: platformThemeSettings, loading: platformThemeLoading } = usePlatformThemeSettings();
+  // "Eletrônicos" stores don't preload the whole catalog: their home shows carousels and
+  // the grid comes from the server-side search. Which theme actually renders depends on
+  // the platform switch, so hold the product load until that flag is known (only for
+  // stores that picked "eletronicos" — everyone else starts loading immediately).
+  const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, platformThemeSettings, corretor?.id);
+  const waitingForThemeFlag = corretor?.active_storefront_theme_id === 'eletronicos' && platformThemeLoading;
+  const deferCatalog = storefrontThemeId === 'eletronicos';
 
   const isPaidPlan = corretor?.plan_status === 'active';
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
@@ -101,8 +108,9 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     totalProductPages,
     loadProductPage,
   } = useProductData({
-    userId: corretor?.id || '',
+    userId: waitingForThemeFlag ? '' : corretor?.id || '',
     language,
+    deferCatalog,
   });
 
   const { searchProducts, loading: serverSearchLoading } = useServerSideProductSearch();
@@ -115,7 +123,8 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     searchQuery = '',
   } = useProductSearch({
     allProducts,
-    settings
+    settings,
+    catalogDeferred: deferCatalog
   });
 
   const usePagination = paginatedMode && !isSearchActive;
@@ -527,7 +536,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     <StorefrontThemeProvider
       userId={corretor.id}
       isPaidPlan={isPaidPlan}
-      themeId={resolveStorefrontThemeId(corretor.active_storefront_theme_id, platformThemeSettings, corretor.id)}
+      themeId={storefrontThemeId}
       preloadedAppearance={preloadedAppearance}
     >
       <StorefrontThemedBody
