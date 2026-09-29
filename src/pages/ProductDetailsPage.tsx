@@ -9,7 +9,7 @@ import { formatCurrency, getColorValue, getWhatsAppContactUrl } from '@/lib/util
 import { loadTrackingSettings, injectMetaPixel, injectGoogleAnalytics, trackView } from '@/lib/tracking';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
-import { useTranslation, getPageTitle, formatCurrencyI18n, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
+import { useTranslation, getPageTitle, formatCurrencyI18n, generateWhatsAppMessage, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
 import { updateMetaTags, updateFavicon, getProductMetaTags, resetMetaTags } from '@/utils/metaTags';
 import ImageGallery from '@/components/details/ImageGallery';
 import ItemDescription from '@/components/details/ItemDescription';
@@ -394,6 +394,15 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   };
 
   const isPaidPlan = corretor?.plan_status !== 'free';
+
+  // Same message the "Fale conosco agora" sidebar sends (mentions this product by
+  // name/ref, with a link back to it) — the Eletrônicos theme uses this for its own,
+  // more compact WhatsApp CTA instead of that real-estate-style contact card.
+  const productWhatsAppMessage = effectiveWhatsAppContact.whatsapp_mode === 'link' || corretor.whatsapp_message_enabled === false
+    ? ''
+    : generateWhatsAppMessage(language, corretor.name, product.title, product.id, window.location.href);
+  const productWhatsAppUrl = getWhatsAppContactUrl(effectiveWhatsAppContact, productWhatsAppMessage);
+  const hasProductWhatsApp = !!productWhatsAppUrl && productWhatsAppUrl !== '#';
 
   return (
     <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan} themeId={storefrontThemeId}>
@@ -822,30 +831,51 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                 </p>
               )}
 
+              {/* Eletrônicos: compact WhatsApp CTA instead of the "Fale conosco agora"
+                  sidebar (real-estate-style vendor card with a circular avatar — out of
+                  place next to a cart-first checkout, and it showed up after the
+                  description on mobile, far from the buy button). Carries the exact same
+                  pre-filled "interested in this product" message. Skipped when out of
+                  stock — that state already has its own "Consultar disponibilidade" CTA. */}
+              {isEletronicos && hasProductWhatsApp && !isOutOfStock && (
+                <div className="mt-3">
+                  <Button size="lg" variant="outline" className="w-full gap-2" asChild>
+                    <a href={productWhatsAppUrl} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="h-5 w-5" />
+                      Perguntar no WhatsApp sobre este produto
+                    </a>
+                  </Button>
+                </div>
+              )}
+
               {/* Description */}
               <div className="mt-8">
                 <ItemDescription description={product.description} isRichText={true} />
               </div>
             </motion.div>
             
-            {/* Seller Information Sidebar */}
-            <motion.div 
-              className="w-full md:w-80 lg:w-96"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-            >
-              <ContactSidebar
-                corretor={corretor}
-                itemId={product.id}
-                itemTitle={product.title}
-                itemType="produto"
-                createdAt={product.created_at}
-                itemImageUrl={product.featured_image_url}
-                itemPrice={product.discounted_price || product.price}
-                language={language}
-              />
-            </motion.div>
+            {/* Seller Information Sidebar — a real-estate-style "talk to the seller" card
+                that doesn't fit a cart-first e-commerce flow; Eletrônicos gets its own
+                compact WhatsApp CTA above instead (see productWhatsAppUrl). */}
+            {!isEletronicos && (
+              <motion.div
+                className="w-full md:w-80 lg:w-96"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <ContactSidebar
+                  corretor={corretor}
+                  itemId={product.id}
+                  itemTitle={product.title}
+                  itemType="produto"
+                  createdAt={product.created_at}
+                  itemImageUrl={product.featured_image_url}
+                  itemPrice={product.discounted_price || product.price}
+                  language={language}
+                />
+              </motion.div>
+            )}
           </div>
         </div>
       </section>
