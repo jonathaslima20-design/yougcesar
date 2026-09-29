@@ -5,6 +5,7 @@ import { logCategoryOperation, sanitizeCategoryName } from '@/lib/categoryUtils'
 import { updateMetaTags, updateFavicon, getCorretorMetaTags, resetMetaTags } from '@/utils/metaTags';
 import { validateSession } from '@/lib/auth/simpleAuth';
 import { loadGoogleFont, type StorefrontAppearance } from '@/lib/appearanceDefaults';
+import { fetchEletronicosThemeEnabled, resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
 import type { User } from '@/types';
 
 // v2: keyed by theme too, since a store now holds one appearance row per theme
@@ -155,7 +156,12 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
       setCorretor(corretorData);
 
       // Pre-fetch storefront appearance: try cache first, then fetch in background
-      const activeThemeId = corretorData.active_storefront_theme_id || 'padrao';
+      // Same fallback the page applies at render time, so we never preload the
+      // hidden theme's appearance row into a store that will render "padrao".
+      const activeThemeId = resolveStorefrontThemeId(
+        corretorData.active_storefront_theme_id,
+        await fetchEletronicosThemeEnabled()
+      );
       const cachedAppearance = getCachedAppearance(corretorData.id, activeThemeId);
       if (cachedAppearance) {
         setPreloadedAppearance(cachedAppearance);

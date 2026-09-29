@@ -11,7 +11,7 @@ import { StorefrontBannerManager } from '@/components/dashboard/StorefrontBanner
 import { StorefrontBenefitsManager } from '@/components/dashboard/StorefrontBenefitsManager';
 import { StorefrontCategoryShowcaseManager } from '@/components/dashboard/StorefrontCategoryShowcaseManager';
 import { StorefrontMiniBannerManager } from '@/components/dashboard/StorefrontMiniBannerManager';
-import { StorefrontNewArrivalsManager } from '@/components/dashboard/StorefrontNewArrivalsManager';
+import { StorefrontNewArrivalsManager, StorefrontOffersManager } from '@/components/dashboard/StorefrontNewArrivalsManager';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import { ThemeSection, SectionColorSwatches, ColorOnlyRow } from '@/components/dashboard/ThemeSection';
 
@@ -152,6 +152,14 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
             }
           >
             <StorefrontCategoryShowcaseManager />
+          </ThemeSection>
+
+          <ThemeSection
+            icon={<BadgePercent size={16} />}
+            title="Ofertas"
+            description="Carrossel de produtos em oferta, logo abaixo de Navegue por Categorias."
+          >
+            <StorefrontOffersManager />
           </ThemeSection>
 
           <ThemeSection

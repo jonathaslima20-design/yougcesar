@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { ProfileSettings } from '@/components/dashboard/ProfileSettings';
 import { StorefrontSettings } from '@/components/dashboard/StorefrontSettings';
+import { useEletronicosThemeEnabled } from '@/hooks/useEletronicosThemeEnabled';
 import { StorefrontThemeSettings } from '@/components/dashboard/StorefrontThemeSettings';
 import { StorefrontThemeCustomizeSettings } from '@/components/dashboard/StorefrontThemeCustomizeSettings';
 import TrackingSettingsContent from '@/components/dashboard/TrackingSettingsContent';
@@ -31,6 +32,11 @@ export default function SettingsPage() {
   const [customizeThemeId, setCustomizeThemeId] = useState<StorefrontThemeId>(
     themeFromUrl === 'eletronicos' ? 'eletronicos' : 'padrao'
   );
+  // A hidden theme can't be opened by URL either, except by admins.
+  const { enabled: eletronicosThemeEnabled } = useEletronicosThemeEnabled();
+  const canCustomizeEletronicos = eletronicosThemeEnabled || user?.role === 'admin';
+  const effectiveCustomizeThemeId: StorefrontThemeId =
+    customizeThemeId === 'eletronicos' && !canCustomizeEletronicos ? 'padrao' : customizeThemeId;
   // "Personalizar <tema>" isn't a persistent tab in the bar — it only shows up,
   // right after "Tema", while it's the active tab (opened via the picker's
   // "Personalizar" button) and disappears once you navigate elsewhere.
@@ -113,7 +119,7 @@ export default function SettingsPage() {
                       key="theme-customize"
                       className="px-3 sm:px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap text-foreground"
                     >
-                      Personalizar {STOREFRONT_THEME_OPTIONS.find((t) => t.value === customizeThemeId)?.label}
+                      Personalizar {STOREFRONT_THEME_OPTIONS.find((t) => t.value === effectiveCustomizeThemeId)?.label}
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
                     </button>,
                   ];
@@ -127,7 +133,7 @@ export default function SettingsPage() {
               {activeTab === 'profile' && <ProfileSettings />}
               {activeTab === 'theme' && <StorefrontThemeSettings onCustomize={openCustomize} />}
               {activeTab === 'theme-customize' && (
-                <StorefrontThemeCustomizeSettings themeId={customizeThemeId} onBack={goToThemeTab} />
+                <StorefrontThemeCustomizeSettings themeId={effectiveCustomizeThemeId} onBack={goToThemeTab} />
               )}
               {activeTab === 'storefront' && <StorefrontSettings />}
               {activeTab === 'checkout' && <CheckoutSettingsContent />}

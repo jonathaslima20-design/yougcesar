@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearanceDefaults';
+import { useEletronicosThemeEnabled } from '@/hooks/useEletronicosThemeEnabled';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -15,7 +16,16 @@ interface StorefrontThemeSettingsProps {
 
 export function StorefrontThemeSettings({ onCustomize }: StorefrontThemeSettingsProps) {
   const { user, updateUser } = useAuth();
-  const activeThemeId: StorefrontThemeId = user?.active_storefront_theme_id || 'padrao';
+  const { enabled: eletronicosEnabled } = useEletronicosThemeEnabled();
+  const isAdmin = user?.role === 'admin';
+  // While the platform switch is off, merchants only see "Padrão"; admins still
+  // see "Eletrônicos" (tagged) so they can keep configuring it ahead of launch.
+  const visibleThemes = STOREFRONT_THEME_OPTIONS.filter(
+    (theme) => theme.value !== 'eletronicos' || eletronicosEnabled || isAdmin
+  );
+  const storedThemeId: StorefrontThemeId = user?.active_storefront_theme_id || 'padrao';
+  const activeThemeId: StorefrontThemeId =
+    storedThemeId === 'eletronicos' && !eletronicosEnabled && !isAdmin ? 'padrao' : storedThemeId;
   const [savingTheme, setSavingTheme] = useState<StorefrontThemeId | null>(null);
 
   const handleSelect = async (themeId: StorefrontThemeId) => {
@@ -41,7 +51,7 @@ export function StorefrontThemeSettings({ onCustomize }: StorefrontThemeSettings
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {STOREFRONT_THEME_OPTIONS.map((theme) => {
+        {visibleThemes.map((theme) => {
           const isActive = activeThemeId === theme.value;
           const isSaving = savingTheme === theme.value;
           return (
@@ -67,7 +77,12 @@ export function StorefrontThemeSettings({ onCustomize }: StorefrontThemeSettings
               <div className="aspect-video rounded-md bg-muted mb-3 flex items-center justify-center text-xs text-muted-foreground">
                 Prévia em breve
               </div>
-              <h3 className="font-medium mb-1">{theme.label}</h3>
+              <h3 className="font-medium mb-1">
+                {theme.label}
+                {theme.value === 'eletronicos' && !eletronicosEnabled && (
+                  <span className="ml-2 text-xs font-normal text-amber-600">Oculto para lojistas</span>
+                )}
+              </h3>
               <p className="text-sm text-muted-foreground mb-3">{theme.description}</p>
               <Button
                 type="button"

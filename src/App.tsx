@@ -124,6 +124,7 @@ import LinkPreviewPage from '@/pages/admin/LinkPreviewPage.tsx';
 import OffersManagementPage from '@/pages/admin/OffersManagementPage.tsx';
 import OfferEditorPage from '@/pages/admin/OfferEditorPage.tsx';
 import OfferAnalyticsPage from '@/pages/admin/OfferAnalyticsPage.tsx';
+import StorefrontThemesPage from '@/pages/admin/StorefrontThemesPage.tsx';
 import SignupDiscountPage from '@/pages/admin/SignupDiscountPage.tsx';
 import NotificationSettingsPage from '@/pages/admin/NotificationSettingsPage.tsx';
 import AdminTrackingPage from '@/pages/admin/TrackingPage.tsx';
@@ -411,6 +412,7 @@ function AppContent() {
             <Route path="/admin/offers/new" element={<OfferEditorPage />} />
             <Route path="/admin/offers/:offerId" element={<OfferEditorPage />} />
             <Route path="/admin/offers/:offerId/analytics" element={<OfferAnalyticsPage />} />
+            <Route path="/admin/storefront-themes" element={<StorefrontThemesPage />} />
             <Route path="/admin/signup-discount" element={<SignupDiscountPage />} />
           </Route>
         </Route>

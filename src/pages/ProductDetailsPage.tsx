@@ -28,6 +28,8 @@ import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { captureAffiliateClick } from '@/lib/affiliateUtils';
 import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
+import { useEletronicosThemeEnabled } from '@/hooks/useEletronicosThemeEnabled';
+import { resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
 import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
 import ProductDetailsHeaderEletronicos from '@/components/storefront-themes/eletronicos/ProductDetailsHeaderEletronicos';
 import ProductBreadcrumbEletronicos from '@/components/storefront-themes/eletronicos/ProductBreadcrumbEletronicos';
@@ -61,7 +63,9 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
   // Eletrônicos-only chrome (header/breadcrumb/footer) — everything below this
   // still runs unconditionally for both themes; only the JSX further down branches.
-  const isEletronicos = corretor?.active_storefront_theme_id === 'eletronicos';
+  const { enabled: eletronicosThemeEnabled } = useEletronicosThemeEnabled();
+  const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, eletronicosThemeEnabled);
+  const isEletronicos = storefrontThemeId === 'eletronicos';
   const homeHref = customDomainSlug ? '/' : `/${slug}`;
   const { metadata: eletronicosFilterMetadata } = useProductFilterMetadata({
     userId: corretor?.id || '',
@@ -389,7 +393,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const isPaidPlan = corretor?.plan_status !== 'free';
 
   return (
-    <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan} themeId={corretor?.active_storefront_theme_id || 'padrao'}>
+    <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan} themeId={storefrontThemeId}>
       <div className="flex-1">
         {isEletronicos ? (
           <>

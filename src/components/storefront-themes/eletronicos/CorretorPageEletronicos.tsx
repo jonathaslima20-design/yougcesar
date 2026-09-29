@@ -3,6 +3,7 @@ import BannerCarousel from '@/components/storefront-themes/eletronicos/BannerCar
 import BenefitsBar from '@/components/storefront-themes/eletronicos/BenefitsBar';
 import CategoryShowcase from '@/components/storefront-themes/eletronicos/CategoryShowcase';
 import MiniBannerGrid from '@/components/storefront-themes/eletronicos/MiniBannerGrid';
+import OffersCarousel from '@/components/storefront-themes/eletronicos/OffersCarousel';
 import NewArrivalsCarousel from '@/components/storefront-themes/eletronicos/NewArrivalsCarousel';
 import EletronicosBreadcrumb from '@/components/storefront-themes/eletronicos/EletronicosBreadcrumb';
 import CorretorFooterEletronicos from '@/components/storefront-themes/eletronicos/CorretorFooterEletronicos';
@@ -57,6 +58,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
           <BannerCarousel userId={props.corretor.id} />
           <BenefitsBar userId={props.corretor.id} />
           <CategoryShowcase {...props} />
+          <OffersCarousel {...props} />
         </>
       )}
 
@@ -68,9 +70,15 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
         />
       )}
 
-      <div className="flex-1">
-        <StorefrontProductCatalogSectionEletronicos {...props} />
-      </div>
+      {/* The product grid only appears once a category/search/filter is active —
+          the home itself stays light, driven by the Ofertas/Novidades carousels. */}
+      {isBrowsing ? (
+        <div className="flex-1">
+          <StorefrontProductCatalogSectionEletronicos {...props} />
+        </div>
+      ) : (
+        <div className="flex-1" />
+      )}
 
       {!isBrowsing && (
         <>

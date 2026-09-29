@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Palette, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +52,7 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
       label: 'Aparencia e Conteudo',
       items: [
         { name: 'Aparencia do Sistema', href: '/admin/system-appearance', icon: Paintbrush, roles: ['admin'] },
+        { name: 'Temas da Vitrine', href: '/admin/storefront-themes', icon: Palette, roles: ['admin'] },
         { name: 'Previews de Links', href: '/admin/link-previews', icon: Link2, roles: ['admin'] },
         { name: 'Banner de Clientes', href: '/admin/banner-clients', icon: UsersRound, roles: ['admin'] },
         { name: 'Hero Landing', href: '/admin/landing-hero', icon: Smartphone, roles: ['admin'] },
