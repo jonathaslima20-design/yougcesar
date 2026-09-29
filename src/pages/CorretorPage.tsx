@@ -547,6 +547,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
         onlineSalesEnabled={!!checkoutSettings.onlinePaymentEnabled}
         allProducts={allProducts}
         filterMetadata={filterMetadata}
+        categorySettings={categorySettings}
         settings={settings}
         sizeTypeMapping={sizeTypeMapping}
         filters={filters}

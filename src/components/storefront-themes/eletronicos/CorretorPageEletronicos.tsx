@@ -1,4 +1,5 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import { applyCategoryDisplayOrder } from '@/lib/categoryDisplayOrder';
 import EletronicosFiltersPanel from '@/components/storefront-themes/eletronicos/EletronicosFiltersPanel';
 import EletronicosProductToolbar from '@/components/storefront-themes/eletronicos/EletronicosProductToolbar';
 import type { EletronicosSortKey } from '@/components/storefront-themes/eletronicos/eletronicosSort';
@@ -31,6 +32,18 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
   // suggestions). The full catalog is no longer downloaded for this theme's home.
   const summary = useEletronicosCatalogSummary(props.corretor.id);
 
+  // The category nav bar, the drawer, the circles and the filter lists all read
+  // categories from here — override once so all of them respect the merchant's
+  // show/hide + order choices (Configurações → Vitrine), same setting the "padrao"
+  // theme's product grid already honors.
+  const eletronicosFilterMetadata = useMemo(
+    () => ({
+      ...props.filterMetadata,
+      categories: applyCategoryDisplayOrder(props.filterMetadata?.categories || [], props.categorySettings),
+    }),
+    [props.filterMetadata, props.categorySettings]
+  );
+
   // Merchant-picked product grid colors, applied only when set (see index.css,
   // ".theme-eletronicos [data-product-card]"). Unset ones keep the card's own look.
   const gridColorVars: Record<string, string> = {};
@@ -50,7 +63,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
   const homeSections: Record<HomeSectionId, JSX.Element> = {
     banners: <BannerCarousel userId={props.corretor.id} linkContext={linkContext} />,
     benefits: <BenefitsBar userId={props.corretor.id} />,
-    categories: <CategoryShowcase {...props} covers={summary.covers} />,
+    categories: <CategoryShowcase {...props} filterMetadata={eletronicosFilterMetadata} covers={summary.covers} />,
     offers: <OffersCarousel {...props} />,
     feature_banner: <FeatureBanner linkContext={linkContext} />,
     mini_banners: <MiniBannerGrid userId={props.corretor.id} linkContext={linkContext} />,
@@ -92,14 +105,19 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
 
   return (
     <div className="flex-1 flex flex-col min-h-screen" style={gridColorVars as React.CSSProperties}>
-      <CorretorHeaderEletronicos {...props} onOpenFilters={() => setFiltersOpen(true)} catalogRows={summary.rows} />
+      <CorretorHeaderEletronicos
+        {...props}
+        filterMetadata={eletronicosFilterMetadata}
+        onOpenFilters={() => setFiltersOpen(true)}
+        catalogRows={summary.rows}
+      />
 
       <EletronicosFiltersPanel
         open={filtersOpen}
         onOpenChange={setFiltersOpen}
         priceRange={summary.priceRange}
         rows={summary.rows}
-        filterMetadata={props.filterMetadata}
+        filterMetadata={eletronicosFilterMetadata}
         currency={props.currency}
         language={props.language}
         settings={props.settings}
@@ -148,7 +166,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
             currency={props.currency}
             language={props.language}
             settings={props.settings}
-            filterMetadata={props.filterMetadata}
+            filterMetadata={eletronicosFilterMetadata}
             rows={summary.rows}
             priceRange={summary.priceRange}
           />

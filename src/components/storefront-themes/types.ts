@@ -16,6 +16,8 @@ export interface StorefrontPageBodyProps {
   onlineSalesEnabled: boolean;
   allProducts: Product[];
   filterMetadata: any;
+  /** Merchant's show/hide + order choices for categories (Configurações → Vitrine). */
+  categorySettings?: any[];
   settings: any;
   sizeTypeMapping: any;
   filters: any;

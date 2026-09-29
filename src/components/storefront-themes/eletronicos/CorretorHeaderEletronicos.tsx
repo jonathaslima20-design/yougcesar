@@ -12,6 +12,7 @@ import {
   HelpCircle,
   X,
   Percent,
+  LogIn,
   Mail,
   MessageCircle,
 } from 'lucide-react';
@@ -197,12 +198,12 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
   const AccountMenu = onlineSalesEnabled ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1 text-inherit">
+        <button className="flex items-center gap-1 text-inherit" title={customer ? 'Minha conta' : 'Entrar'} aria-label={customer ? 'Minha conta' : 'Entrar'}>
           <UserRound className="h-5 w-5" />
           <ChevronDown className="h-3 w-3 hidden sm:block" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className={customer ? undefined : 'min-w-0 w-auto rounded-xl p-1.5'}>
         {customer ? (
           <>
             <DropdownMenuItem asChild>
@@ -222,9 +223,15 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
             </DropdownMenuItem>
           </>
         ) : (
-          <DropdownMenuItem asChild>
-            <Link to={loginLink} className="flex items-center gap-2 cursor-pointer">
-              <UserRound className="h-4 w-4" /> Entrar
+          // Logged out: one prominent pill button (in the theme's button colors) instead of
+          // a tiny text row, so the way in is obvious.
+          <DropdownMenuItem asChild className="p-0 focus:bg-transparent">
+            <Link
+              to={loginLink}
+              style={buttonStyle}
+              className="flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium whitespace-nowrap cursor-pointer transition-opacity hover:opacity-90 focus:opacity-90"
+            >
+              <LogIn className="h-4 w-4" /> Entrar
             </Link>
           </DropdownMenuItem>
         )}
