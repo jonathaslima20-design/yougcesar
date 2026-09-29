@@ -73,7 +73,10 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   });
   const goToStoreCategory = (newFilters: any) => {
     const category = newFilters?.category;
-    navigate(category && category !== 'todos' ? `${homeHref}?category=${encodeURIComponent(category)}` : homeHref);
+    const target = category && category !== 'todos' ? `${homeHref}?category=${encodeURIComponent(category)}` : homeHref;
+    // `state` lets CorretorPage restore scroll/filters on return, same as the
+    // breadcrumb's links (this is the footer's category list on the product page).
+    navigate(target, { state: { from: 'product-detail' } });
   };
 
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);

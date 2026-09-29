@@ -11,7 +11,7 @@ import type { StorefrontPageBodyProps } from '@/components/storefront-themes/typ
 
 type OffersCarouselProps = Pick<
   StorefrontPageBodyProps,
-  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled'
+  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled' | 'onProductNavigate'
 >;
 
 /**
@@ -26,6 +26,7 @@ export default function OffersCarousel({
   showStockOnStorefront,
   blockZeroStock,
   cartEnabled,
+  onProductNavigate,
 }: OffersCarouselProps) {
   const { products, loading } = useStorefrontOfferProducts(corretor.id);
 
@@ -55,6 +56,7 @@ export default function OffersCarousel({
                     showStockOnStorefront={showStockOnStorefront}
                     blockZeroStock={blockZeroStock}
                     cartEnabled={cartEnabled}
+                    onNavigate={onProductNavigate}
                   />
                 </div>
               </CarouselItem>

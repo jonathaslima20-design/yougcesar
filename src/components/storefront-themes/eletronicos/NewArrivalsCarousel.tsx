@@ -12,7 +12,7 @@ import type { StorefrontPageBodyProps } from '@/components/storefront-themes/typ
 
 type NewArrivalsCarouselProps = Pick<
   StorefrontPageBodyProps,
-  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled'
+  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled' | 'onProductNavigate'
 >;
 
 /**
@@ -28,6 +28,7 @@ export default function NewArrivalsCarousel({
   showStockOnStorefront,
   blockZeroStock,
   cartEnabled,
+  onProductNavigate,
 }: NewArrivalsCarouselProps) {
   const { appearance } = useStorefrontTheme();
   const { products, loading } = useStorefrontFeaturedProducts(corretor.id);
@@ -64,6 +65,7 @@ export default function NewArrivalsCarousel({
                     showStockOnStorefront={showStockOnStorefront}
                     blockZeroStock={blockZeroStock}
                     cartEnabled={cartEnabled}
+                    onNavigate={onProductNavigate}
                   />
                 </div>
               </CarouselItem>

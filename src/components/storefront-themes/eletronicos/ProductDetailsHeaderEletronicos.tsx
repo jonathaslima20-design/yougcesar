@@ -43,7 +43,9 @@ export default function ProductDetailsHeaderEletronicos({ corretor, homeHref, ca
   return (
     <header style={chromeStyle}>
       <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-        <Link to={homeHref} className="shrink-0">
+        {/* `state` lets CorretorPage restore the scroll position + filters the shopper
+            left behind, same as the breadcrumb's "Home" link. */}
+        <Link to={homeHref} state={{ from: 'product-detail' }} className="shrink-0">
           {appearance.header_logo_url ? (
             <img src={appearance.header_logo_url} alt={corretor.name} className="object-contain" style={{ height: logoPx }} />
           ) : (
