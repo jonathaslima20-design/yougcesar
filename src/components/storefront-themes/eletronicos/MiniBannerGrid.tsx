@@ -27,7 +27,7 @@ export default function MiniBannerGrid({ userId, linkContext }: MiniBannerGridPr
                 link={banner.link_url}
                 context={linkContext}
                 className={cn(
-                  'group block overflow-hidden rounded-lg transition-all duration-300 motion-reduce:transition-none',
+                  'group block overflow-hidden transition-all duration-300 motion-reduce:transition-none',
                   'hover:shadow-lg hover:-translate-y-0.5 motion-reduce:hover:translate-y-0',
                   clickable && 'cursor-pointer active:translate-y-0 active:scale-[0.99]'
                 )}

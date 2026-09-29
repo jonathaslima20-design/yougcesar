@@ -1,4 +1,4 @@
-import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, MousePointerClick, LayoutGrid, PanelBottom } from 'lucide-react';
+import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, LayoutGrid, PanelBottom } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,17 +75,6 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
             textColor={appearance.header_text_color}
             onBgChange={(v) => save({ header_bg_color: v })}
             onTextChange={(v) => save({ header_text_color: v })}
-            disabled={appearanceLoading}
-          />
-
-          <ColorOnlyRow
-            icon={<MousePointerClick size={16} />}
-            title="Botões"
-            description='Botão de busca e o botão "Ofertas Especiais" no cabeçalho.'
-            bgColor={appearance.button_bg_color}
-            textColor={appearance.button_text_color}
-            onBgChange={(v) => save({ button_bg_color: v })}
-            onTextChange={(v) => save({ button_text_color: v })}
             disabled={appearanceLoading}
           />
 

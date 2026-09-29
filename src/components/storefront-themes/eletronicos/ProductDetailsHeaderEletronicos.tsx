@@ -30,7 +30,8 @@ export default function ProductDetailsHeaderEletronicos({ corretor, homeHref, ca
   const [searchValue, setSearchValue] = useState('');
 
   const chromeStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
-  const buttonStyle = { backgroundColor: appearance.button_bg_color, color: appearance.button_text_color };
+  // Buttons always follow the header's own colors — see CorretorHeaderEletronicos.tsx.
+  const buttonStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
   const logoScale = (appearance.header_logo_scale ?? 100) / 100;
   const logoPx = `${56 * logoScale}px`;
 

@@ -11,7 +11,6 @@ import {
   User as UserIcon,
   HelpCircle,
   X,
-  Percent,
   LogIn,
   Mail,
   MessageCircle,
@@ -41,7 +40,6 @@ import type { StorefrontPageBodyProps } from '@/components/storefront-themes/typ
 type CategoryNavProps = Pick<StorefrontPageBodyProps, 'filterMetadata' | 'filters' | 'onFiltersChange'> & {
   onOpenAllCategories: () => void;
   navStyle: { backgroundColor: string; color: string };
-  buttonStyle: { backgroundColor: string; color: string };
 };
 
 function useCategoryNav({ filterMetadata, filters, onFiltersChange }: Pick<StorefrontPageBodyProps, 'filterMetadata' | 'filters' | 'onFiltersChange'>) {
@@ -54,9 +52,8 @@ function useCategoryNav({ filterMetadata, filters, onFiltersChange }: Pick<Store
 // "Todas Categorias" opens the category list (EletronicosCategoryDrawer); the full
 // filter panel is reached from that drawer and from the toolbar above the product
 // grid (see CorretorPageEletronicos.tsx).
-function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCategories, navStyle, buttonStyle }: CategoryNavProps) {
+function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCategories, navStyle }: CategoryNavProps) {
   const { categories, activeCategory, selectCategory } = useCategoryNav({ filterMetadata, filters, onFiltersChange });
-  const offersCategory = categories.find((c) => c.toLowerCase().includes('oferta'));
 
   return (
     <nav className="hidden md:block" style={navStyle}>
@@ -86,16 +83,6 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCat
               {category}
             </button>
           ))}
-
-          <button
-            type="button"
-            onClick={() => offersCategory && selectCategory(offersCategory)}
-            className="shrink-0 ml-auto flex items-center gap-2 rounded-full px-4 py-2 font-medium whitespace-nowrap transition-opacity hover:opacity-90"
-            style={buttonStyle}
-          >
-            <Percent className="h-4 w-4" />
-            Ofertas Especiais
-          </button>
         </div>
       </div>
     </nav>
@@ -124,7 +111,9 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
   const chromeStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
   const topBarStyle = { backgroundColor: appearance.topbar_bg_color, color: appearance.topbar_text_color };
   const navStyle = { backgroundColor: appearance.nav_bg_color, color: appearance.nav_text_color };
-  const buttonStyle = { backgroundColor: appearance.button_bg_color, color: appearance.button_text_color };
+  // Buttons always follow the header's own colors — no separate control for them
+  // (removed from Personalizar Eletrônicos: one less color to keep in sync).
+  const buttonStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
   const logoScale = appearance.header_logo_scale / 100;
   const mobileLogoPx = `${44 * logoScale}px`;
   const desktopLogoPx = `${64 * logoScale}px`;
@@ -409,7 +398,6 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
         onFiltersChange={onFiltersChange}
         onOpenAllCategories={() => setCategoriesOpen(true)}
         navStyle={navStyle}
-        buttonStyle={buttonStyle}
       />
 
       {/* Category menu: hamburger (mobile) and "Todas Categorias" (desktop) both open

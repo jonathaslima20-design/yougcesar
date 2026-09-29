@@ -19,25 +19,26 @@ interface BannerCarouselProps {
 export default function BannerCarousel({ userId, linkContext }: BannerCarouselProps) {
   const { appearance } = useStorefrontTheme();
   const { banners, loading } = useStorefrontBanners(userId, { activeOnly: true });
-  const apiRef = useRef<CarouselApi | null>(null);
+  // A plain ref here used to be read once, synchronously, the moment each effect below
+  // was set up — but embla's api isn't ready on that very first pass (it becomes
+  // available a render later), so both the autoplay timer and the dot highlighting
+  // silently never activated. State instead, so the effects that need it re-run once
+  // it's actually there.
+  const [api, setApi] = useState<CarouselApi | null>(null);
   const hoveredRef = useRef(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
-
     const onSelect = () => setSelectedIndex(api.selectedScrollSnap());
     onSelect();
     api.on('select', onSelect);
     return () => {
       api.off('select', onSelect);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [banners.length]);
+  }, [api]);
 
   useEffect(() => {
-    const api = apiRef.current;
     const intervalMs = (appearance.banners_autoplay_seconds ?? 5) * 1000;
     if (!api || banners.length <= 1 || intervalMs <= 0) return;
 
@@ -52,7 +53,7 @@ export default function BannerCarousel({ userId, linkContext }: BannerCarouselPr
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [banners.length, appearance.banners_autoplay_seconds]);
+  }, [api, banners.length, appearance.banners_autoplay_seconds]);
 
   if (loading || banners.length === 0) return null;
 
@@ -63,7 +64,7 @@ export default function BannerCarousel({ userId, linkContext }: BannerCarouselPr
       onMouseEnter={() => { hoveredRef.current = true; }}
       onMouseLeave={() => { hoveredRef.current = false; }}
     >
-      <Carousel setApi={(api) => { apiRef.current = api; }} opts={{ loop: true }}>
+      <Carousel setApi={setApi} opts={{ loop: true }}>
         <CarouselContent>
           {banners.map((banner, index) => {
             const desktopUrl = banner.image_url_desktop || banner.image_url_mobile;
@@ -120,7 +121,7 @@ export default function BannerCarousel({ userId, linkContext }: BannerCarouselPr
               key={banner.id}
               type="button"
               aria-label={`Ir para o banner ${index + 1}`}
-              onClick={() => apiRef.current?.scrollTo(index)}
+              onClick={() => api?.scrollTo(index)}
               className={cn(
                 'rounded-full transition-all',
                 index === selectedIndex
