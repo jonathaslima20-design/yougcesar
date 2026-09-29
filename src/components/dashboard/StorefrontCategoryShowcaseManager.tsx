@@ -75,13 +75,6 @@ export function StorefrontCategoryShowcaseManager() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Navegue por Categorias</h2>
-        <p className="text-sm text-muted-foreground">
-          A fileira de categorias em círculo, logo abaixo da barra de benefícios.
-        </p>
-      </div>
-
       <div className="flex items-center gap-2">
         <Switch checked={appearance.category_showcase_enabled} onCheckedChange={handleToggleEnabled} />
         <span className="text-sm">{appearance.category_showcase_enabled ? 'Seção visível na loja' : 'Seção oculta na loja'}</span>

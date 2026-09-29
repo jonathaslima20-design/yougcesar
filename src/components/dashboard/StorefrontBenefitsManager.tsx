@@ -108,13 +108,6 @@ export function StorefrontBenefitsManager() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Barra de benefícios</h2>
-        <p className="text-sm text-muted-foreground">
-          Os ícones com texto exibidos logo abaixo do cabeçalho (parcelamento, envios, atendimento...).
-        </p>
-      </div>
-
       <div className="flex items-center gap-2">
         <Switch checked={appearance.benefits_bar_enabled} onCheckedChange={handleToggleEnabled} />
         <span className="text-sm">{appearance.benefits_bar_enabled ? 'Seção visível na loja' : 'Seção oculta na loja'}</span>

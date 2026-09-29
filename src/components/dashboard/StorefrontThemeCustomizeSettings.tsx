@@ -1,14 +1,19 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, MousePointerClick, GalleryHorizontal, BadgePercent, LayoutGrid, Images, Sparkles, PanelBottom } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
+import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearanceDefaults';
 import { StorefrontVisualIdentity } from '@/components/dashboard/StorefrontVisualIdentity';
+import { StorefrontTopBarManager } from '@/components/dashboard/StorefrontTopBarManager';
+import { StorefrontFooterContentManager } from '@/components/dashboard/StorefrontFooterContentManager';
 import { StorefrontBannerManager } from '@/components/dashboard/StorefrontBannerManager';
 import { StorefrontBenefitsManager } from '@/components/dashboard/StorefrontBenefitsManager';
 import { StorefrontCategoryShowcaseManager } from '@/components/dashboard/StorefrontCategoryShowcaseManager';
 import { StorefrontMiniBannerManager } from '@/components/dashboard/StorefrontMiniBannerManager';
 import { StorefrontNewArrivalsManager } from '@/components/dashboard/StorefrontNewArrivalsManager';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
+import { ThemeSection, SectionColorSwatches, ColorOnlyRow } from '@/components/dashboard/ThemeSection';
 
 interface StorefrontThemeCustomizeSettingsProps {
   themeId: StorefrontThemeId;
@@ -17,6 +22,10 @@ interface StorefrontThemeCustomizeSettingsProps {
 
 export function StorefrontThemeCustomizeSettings({ themeId, onBack }: StorefrontThemeCustomizeSettingsProps) {
   const themeLabel = STOREFRONT_THEME_OPTIONS.find((t) => t.value === themeId)?.label || themeId;
+  const { user } = useAuth();
+  // Drives the discreet bg/text swatches in each content section's header below —
+  // independent from whatever each manager's own hook instance fetches internally.
+  const { appearance, loading: appearanceLoading, save } = useStorefrontAppearance(user?.id, 'eletronicos');
 
   return (
     <div className="space-y-6">
@@ -31,38 +40,171 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
         </p>
       </div>
 
-      {/* Eletrônicos: seções na mesma ordem em que os elementos aparecem na página —
-          logo/cabeçalho no topo, depois banners, depois a barra de benefícios.
-          (O rodapé usa as mesmas cores do cabeçalho, então fica junto dessa seção.) */}
+      {/* Eletrônicos: seções na mesma ordem em que os elementos aparecem na página,
+          de cima para baixo — frase do topo, cabeçalho, menu, banners, benefícios,
+          categorias, mini banners, novidades e por último o rodapé. Cada bloco é
+          colapsável (só o primeiro abre por padrão) para não empilhar todos os
+          controles na tela ao mesmo tempo. */}
       {themeId === 'eletronicos' && (
-        <>
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Identidade visual</h2>
-            <p className="text-sm text-muted-foreground mb-4">Foto de perfil exibida no cabeçalho.</p>
+        <div className="space-y-3">
+          <ThemeSection icon={<ImageIcon size={16} />} title="Logo" defaultOpen>
             <StorefrontVisualIdentity themeId={themeId} />
-          </div>
+          </ThemeSection>
 
-          <Separator />
+          <ThemeSection
+            icon={<Megaphone size={16} />}
+            title="Frases do topo"
+            description="A faixa de aviso que roda no topo da página, acima do cabeçalho."
+            headerExtra={
+              <SectionColorSwatches
+                bgColor={appearance.topbar_bg_color}
+                textColor={appearance.topbar_text_color}
+                onBgChange={(v) => save({ topbar_bg_color: v })}
+                onTextChange={(v) => save({ topbar_text_color: v })}
+                disabled={appearanceLoading}
+              />
+            }
+          >
+            <StorefrontTopBarManager />
+          </ThemeSection>
 
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Cores e tipografia</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Cabeçalho, menu e frase do topo — essas cores também valem para o rodapé, no fim da página.
-            </p>
-            <AppearanceSettings themeId={themeId} />
-          </div>
+          {/* Pure color choices — no other setting to hide/show — so they're plain
+              rows, not accordions. */}
+          <ColorOnlyRow
+            icon={<PanelTop size={16} />}
+            title="Cabeçalho"
+            description="Barra com a logo e a busca."
+            bgColor={appearance.header_bg_color}
+            textColor={appearance.header_text_color}
+            onBgChange={(v) => save({ header_bg_color: v })}
+            onTextChange={(v) => save({ header_text_color: v })}
+            disabled={appearanceLoading}
+          />
 
-          <Separator />
-          <StorefrontBannerManager />
-          <Separator />
-          <StorefrontBenefitsManager />
-          <Separator />
-          <StorefrontCategoryShowcaseManager />
-          <Separator />
-          <StorefrontMiniBannerManager />
-          <Separator />
-          <StorefrontNewArrivalsManager />
-        </>
+          <ColorOnlyRow
+            icon={<MousePointerClick size={16} />}
+            title="Botões"
+            description='Botão de busca e o botão "Ofertas Especiais" no cabeçalho.'
+            bgColor={appearance.button_bg_color}
+            textColor={appearance.button_text_color}
+            onBgChange={(v) => save({ button_bg_color: v })}
+            onTextChange={(v) => save({ button_text_color: v })}
+            disabled={appearanceLoading}
+          />
+
+          <ColorOnlyRow
+            icon={<MenuIcon size={16} />}
+            title="Menu"
+            description="Barra de categorias logo abaixo do cabeçalho."
+            bgColor={appearance.nav_bg_color}
+            textColor={appearance.nav_text_color}
+            onBgChange={(v) => save({ nav_bg_color: v })}
+            onTextChange={(v) => save({ nav_text_color: v })}
+            disabled={appearanceLoading}
+          />
+
+          <ThemeSection
+            icon={<GalleryHorizontal size={16} />}
+            title="Banners"
+            description="Vários banners em carrossel na home do catálogo. Cada banner precisa de uma imagem desktop e uma mobile."
+            headerExtra={
+              <SectionColorSwatches
+                bgColor={appearance.banners_bg_color}
+                textColor={appearance.banners_text_color}
+                onBgChange={(v) => save({ banners_bg_color: v })}
+                onTextChange={(v) => save({ banners_text_color: v })}
+                disabled={appearanceLoading}
+              />
+            }
+          >
+            <StorefrontBannerManager />
+          </ThemeSection>
+
+          <ThemeSection
+            icon={<BadgePercent size={16} />}
+            title="Barra de benefícios"
+            description="Os ícones com texto exibidos logo abaixo do cabeçalho (parcelamento, envios, atendimento...)."
+            headerExtra={
+              <SectionColorSwatches
+                bgColor={appearance.benefits_bg_color}
+                textColor={appearance.benefits_text_color}
+                onBgChange={(v) => save({ benefits_bg_color: v })}
+                onTextChange={(v) => save({ benefits_text_color: v })}
+                disabled={appearanceLoading}
+              />
+            }
+          >
+            <StorefrontBenefitsManager />
+          </ThemeSection>
+
+          <ThemeSection
+            icon={<LayoutGrid size={16} />}
+            title="Navegue por Categorias"
+            description="A fileira de categorias em círculo, logo abaixo da barra de benefícios."
+            headerExtra={
+              <SectionColorSwatches
+                bgColor={appearance.category_showcase_bg_color}
+                textColor={appearance.category_showcase_text_color}
+                onBgChange={(v) => save({ category_showcase_bg_color: v })}
+                onTextChange={(v) => save({ category_showcase_text_color: v })}
+                disabled={appearanceLoading}
+              />
+            }
+          >
+            <StorefrontCategoryShowcaseManager />
+          </ThemeSection>
+
+          <ThemeSection
+            icon={<Images size={16} />}
+            title="Mini banners"
+            description="Grade de 3 banners menores, logo abaixo da lista de produtos."
+            headerExtra={
+              <SectionColorSwatches
+                bgColor={appearance.mini_banners_bg_color}
+                textColor={appearance.mini_banners_text_color}
+                onBgChange={(v) => save({ mini_banners_bg_color: v })}
+                onTextChange={(v) => save({ mini_banners_text_color: v })}
+                disabled={appearanceLoading}
+              />
+            }
+          >
+            <StorefrontMiniBannerManager />
+          </ThemeSection>
+
+          <ThemeSection
+            icon={<Sparkles size={16} />}
+            title="Novidades"
+            description="Carrossel de produtos em destaque, logo abaixo dos mini banners."
+            headerExtra={
+              <SectionColorSwatches
+                bgColor={appearance.new_arrivals_bg_color}
+                textColor={appearance.new_arrivals_text_color}
+                onBgChange={(v) => save({ new_arrivals_bg_color: v })}
+                onTextChange={(v) => save({ new_arrivals_text_color: v })}
+                disabled={appearanceLoading}
+              />
+            }
+          >
+            <StorefrontNewArrivalsManager />
+          </ThemeSection>
+
+          <ThemeSection
+            icon={<PanelBottom size={16} />}
+            title="Rodapé"
+            description="O rodapé, no fim da página."
+            headerExtra={
+              <SectionColorSwatches
+                bgColor={appearance.footer_bg_color}
+                textColor={appearance.footer_text_color}
+                onBgChange={(v) => save({ footer_bg_color: v })}
+                onTextChange={(v) => save({ footer_text_color: v })}
+                disabled={appearanceLoading}
+              />
+            }
+          >
+            <StorefrontFooterContentManager />
+          </ThemeSection>
+        </div>
       )}
 
       {/* Padrão: ordem original — identidade visual (capa/banner) e depois cores. */}

@@ -44,6 +44,12 @@ export interface User {
   whatsapp_mode?: 'phone' | 'link';
   whatsapp_link?: string;
   instagram?: string;
+  facebook_url?: string;
+  x_url?: string;
+  youtube_url?: string;
+  pinterest_url?: string;
+  linkedin_url?: string;
+  tiktok_url?: string;
   location_url?: string;
   city?: string;
   state?: string;

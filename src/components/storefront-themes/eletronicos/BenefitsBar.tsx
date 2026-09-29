@@ -22,7 +22,7 @@ export default function BenefitsBar({ userId }: BenefitsBarProps) {
   if (items.length === 0) return null;
 
   return (
-    <div className="border-b bg-background">
+    <div className="border-b" style={{ backgroundColor: appearance.benefits_bg_color, color: appearance.benefits_text_color }}>
       <div className="container mx-auto px-4 py-6">
         {/* Mobile/tablet: grid so items wrap into rows. Desktop: flex + centered,
             so a store with fewer than 5 items sits centered instead of packed left. */}
@@ -31,10 +31,10 @@ export default function BenefitsBar({ userId }: BenefitsBarProps) {
             const Icon = getBenefitIcon(item.icon);
             return (
               <div key={'id' in item ? item.id : index} className="flex flex-col items-center text-center gap-2 lg:w-28">
-                <Icon className="h-6 w-6 text-foreground" strokeWidth={1.5} />
+                <Icon className="h-6 w-6" strokeWidth={1.5} />
                 <div>
                   <p className="text-sm font-semibold">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">{item.subtitle}</p>
+                  <p className="text-xs opacity-70">{item.subtitle}</p>
                 </div>
               </div>
             );

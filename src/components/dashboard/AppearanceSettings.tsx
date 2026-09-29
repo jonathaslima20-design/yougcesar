@@ -1,20 +1,16 @@
 import { useState, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { Save, RotateCcw, ChevronDown, Lock, Palette, Type, Image, Upload, Trash2, PanelTop, PanelBottom, Loader2, X, Plus } from 'lucide-react';
+import { Save, RotateCcw, ChevronDown, Lock, Palette, Type, Image, Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 import { useMockupData } from '@/hooks/useMockupData';
 import { PhoneMockup } from '@/components/dashboard/PhoneMockup';
-import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
-import { uploadImage } from '@/lib/image';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLogger';
 import { cn } from '@/lib/utils';
@@ -40,9 +36,6 @@ export function AppearanceSettings({ themeId = 'padrao' }: AppearanceSettingsPro
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showPremiumBlock, setShowPremiumBlock] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [logoCropperOpen, setLogoCropperOpen] = useState(false);
-  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
 
   const isFreePlan = user?.plan_status === 'free' || user?.plan_status === 'expired';
 
@@ -98,47 +91,6 @@ export function AppearanceSettings({ themeId = 'padrao' }: AppearanceSettingsPro
   const handleFontChange = (field: 'font_family' | 'heading_font_family', value: string) => {
     loadGoogleFont(value);
     updateField(field, value);
-  };
-
-  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 5MB');
-      return;
-    }
-    setSelectedLogoFile(file);
-    setLogoCropperOpen(true);
-  };
-
-  const handleLogoCropComplete = async (croppedBlob: Blob) => {
-    if (!user?.id) return;
-    try {
-      setUploadingLogo(true);
-      setLogoCropperOpen(false);
-      const file = new File([croppedBlob], selectedLogoFile?.name || 'header-logo.jpg', { type: 'image/jpeg' });
-      const url = await uploadImage(file, user.id, 'theme-header-logo');
-      updateField('header_logo_url', url);
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao enviar imagem');
-    } finally {
-      setUploadingLogo(false);
-      setSelectedLogoFile(null);
-    }
-  };
-
-  const updateTopBarPhrase = (index: number, value: string) => {
-    const next = [...localAppearance.top_bar_phrases];
-    next[index] = value;
-    updateField('top_bar_phrases', next);
-  };
-
-  const removeTopBarPhrase = (index: number) => {
-    updateField('top_bar_phrases', localAppearance.top_bar_phrases.filter((_, i) => i !== index));
-  };
-
-  const addTopBarPhrase = () => {
-    updateField('top_bar_phrases', [...localAppearance.top_bar_phrases, '']);
   };
 
   if (loading) {
@@ -208,191 +160,6 @@ export function AppearanceSettings({ themeId = 'padrao' }: AppearanceSettingsPro
                 <ColorPicker label="Cor dos ícones" value={localAppearance.icon_color} onChange={(v) => updateField('icon_color', v)} disabled={false} />
                 <ColorPicker label="Cor de destaque" value={localAppearance.accent_color} onChange={(v) => updateField('accent_color', v)} disabled={false} />
                 <ColorPicker label="Cor das bordas" value={localAppearance.border_color} onChange={(v) => updateField('border_color', v)} disabled={false} />
-              </div>
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* Eletrônicos-only chrome: every field here maps to an element this theme
-            actually renders — dark header/topbar/nav/footer, the announcement
-            phrase, and the search/"Ofertas Especiais" buttons in the header. */}
-        {themeId === 'eletronicos' && (
-          <CollapsibleSection
-            icon={<PanelTop size={16} />}
-            title="Cabeçalho, menu e rodapé"
-            defaultOpen
-          >
-            <div className="space-y-5">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs text-muted-foreground">Frases do topo</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Switch
-                      checked={localAppearance.top_bar_enabled}
-                      onCheckedChange={(v) => updateField('top_bar_enabled', v)}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {localAppearance.top_bar_enabled ? 'Visível' : 'Oculta'}
-                    </span>
-                  </div>
-                </div>
-                {localAppearance.top_bar_enabled && (
-                  <div className="space-y-2">
-                    {localAppearance.top_bar_phrases.length === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Sem frases cadastradas — mostra "Fale com a gente pelo WhatsApp" por padrão.
-                      </p>
-                    )}
-                    {localAppearance.top_bar_phrases.map((phrase, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Input
-                          value={phrase}
-                          onChange={(e) => updateTopBarPhrase(index, e.target.value)}
-                          placeholder="Ex: Frete grátis acima de R$ 200"
-                          maxLength={120}
-                        />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeTopBarPhrase(index)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button type="button" variant="outline" size="sm" onClick={addTopBarPhrase}>
-                      <Plus className="mr-1.5 h-3.5 w-3.5" /> Adicionar frase
-                    </Button>
-                    {localAppearance.top_bar_phrases.length > 1 && (
-                      <p className="text-xs text-muted-foreground">
-                        Com mais de uma frase, elas alternam automaticamente no topo da loja.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5 block">Logo retangular (opcional)</Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Substitui a foto de perfil (circular) no cabeçalho por uma logo retangular.
-                </p>
-                {localAppearance.header_logo_url && (
-                  <div className="bg-neutral-900 rounded p-2 mb-2 inline-block">
-                    <img src={localAppearance.header_logo_url} alt="" className="h-10 w-auto object-contain" />
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id="header-logo-upload"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploadingLogo}
-                    onChange={handleLogoFileChange}
-                  />
-                  <label htmlFor="header-logo-upload">
-                    <Button type="button" variant="outline" size="sm" disabled={uploadingLogo} asChild>
-                      <span>
-                        {uploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                        {localAppearance.header_logo_url ? 'Trocar' : 'Enviar logo'}
-                      </span>
-                    </Button>
-                  </label>
-                  {localAppearance.header_logo_url && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => updateField('header_logo_url', null)}>
-                      <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remover
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs text-muted-foreground">Tamanho da logo</Label>
-                  <span className="text-xs text-muted-foreground">{localAppearance.header_logo_scale ?? 100}%</span>
-                </div>
-                <Slider
-                  value={[localAppearance.header_logo_scale ?? 100]}
-                  onValueChange={([v]) => updateField('header_logo_scale', v)}
-                  min={50}
-                  max={200}
-                  step={5}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ColorPicker
-                  label="Cor da seção (cabeçalho/rodapé)"
-                  value={localAppearance.header_bg_color}
-                  onChange={(v) => updateField('header_bg_color', v)}
-                  disabled={false}
-                />
-                <ColorPicker
-                  label="Cor do texto"
-                  value={localAppearance.header_text_color}
-                  onChange={(v) => updateField('header_text_color', v)}
-                  disabled={false}
-                />
-                <ColorPicker
-                  label="Cor do botão (busca / Ofertas Especiais)"
-                  value={localAppearance.button_bg_color}
-                  onChange={(v) => updateField('button_bg_color', v)}
-                  disabled={false}
-                />
-                <ColorPicker
-                  label="Cor do texto/ícone do botão"
-                  value={localAppearance.button_text_color}
-                  onChange={(v) => updateField('button_text_color', v)}
-                  disabled={false}
-                />
-              </div>
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* Eletrônicos-only footer controls: which columns show, the credit line,
-            and a footer-specific tagline (falls back to the profile bio). */}
-        {themeId === 'eletronicos' && (
-          <CollapsibleSection
-            icon={<PanelBottom size={16} />}
-            title="Rodapé"
-          >
-            <div className="space-y-5">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5 block">Frase abaixo do nome da loja</Label>
-                <Input
-                  value={localAppearance.footer_tagline ?? ''}
-                  onChange={(e) => updateField('footer_tagline', e.target.value || null)}
-                  placeholder={user?.bio || 'Usa a bio do perfil por padrão'}
-                  maxLength={160}
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Coluna "Categorias"</span>
-                  <Switch
-                    checked={localAppearance.footer_categories_enabled}
-                    onCheckedChange={(v) => updateField('footer_categories_enabled', v)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Coluna "Atendimento"</span>
-                  <Switch
-                    checked={localAppearance.footer_contact_enabled}
-                    onCheckedChange={(v) => updateField('footer_contact_enabled', v)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Coluna "Formas de pagamento" / Selos</span>
-                  <Switch
-                    checked={localAppearance.footer_payment_enabled}
-                    onCheckedChange={(v) => updateField('footer_payment_enabled', v)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Linha "Catálogo online por VitrineTurbo"</span>
-                  <Switch
-                    checked={localAppearance.footer_credit_enabled}
-                    onCheckedChange={(v) => updateField('footer_credit_enabled', v)}
-                  />
-                </div>
               </div>
             </div>
           </CollapsibleSection>
@@ -530,19 +297,6 @@ export function AppearanceSettings({ themeId = 'padrao' }: AppearanceSettingsPro
           </div>
         </div>
       )}
-
-      {logoCropperOpen && selectedLogoFile && (
-        <ImageCropperBanner
-          image={URL.createObjectURL(selectedLogoFile)}
-          onCrop={handleLogoCropComplete}
-          onCancel={() => {
-            setLogoCropperOpen(false);
-            setSelectedLogoFile(null);
-          }}
-          open={logoCropperOpen}
-          aspectRatio={3}
-        />
-      )}
     </div>
   );
 }
@@ -563,9 +317,9 @@ function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="rounded-lg border overflow-hidden">
       <CollapsibleTrigger asChild>
-        <button className="flex items-center justify-between w-full p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+        <button className={cn('flex items-center justify-between w-full p-3 transition-colors', isOpen ? 'bg-muted/30' : 'hover:bg-muted/50')}>
           <div className="flex items-center gap-2 text-sm font-medium">
             {icon}
             {title}
@@ -576,7 +330,7 @@ function CollapsibleSection({
           />
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pt-4 pb-2">
+      <CollapsibleContent className="px-3 pt-4 pb-4 border-t">
         {children}
       </CollapsibleContent>
     </Collapsible>

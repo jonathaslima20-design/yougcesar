@@ -40,12 +40,15 @@ export default function CategoryShowcase({ corretor, allProducts, filterMetadata
   };
 
   return (
-    <section className="py-10">
+    <section
+      className="py-10"
+      style={{ backgroundColor: appearance.category_showcase_bg_color, color: appearance.category_showcase_text_color }}
+    >
       <div className="container mx-auto px-4">
         <div className="text-center mb-6">
           <h2 className="text-xl md:text-2xl font-bold inline-block relative pb-2">
             {appearance.category_showcase_title || 'Navegue por Categorias'}
-            <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-16 bg-foreground" />
+            <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-16" style={{ backgroundColor: appearance.category_showcase_text_color }} />
           </h2>
         </div>
 

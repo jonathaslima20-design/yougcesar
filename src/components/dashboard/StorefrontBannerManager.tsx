@@ -1,27 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Upload, X, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { uploadImage, deleteImage } from '@/lib/image';
+import { uploadImage, deleteImage, getExtensionForBlob } from '@/lib/image';
 import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
 import { useStorefrontBanners, type StorefrontBanner } from '@/hooks/useStorefrontBanners';
+import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 
 type DraftSlot = 'desktop' | 'mobile';
 
 export function StorefrontBannerManager() {
   const { user } = useAuth();
   const { banners, loading, create, update, remove, move } = useStorefrontBanners(user?.id);
+  const { appearance, loading: appearanceLoading, save: saveAppearance } = useStorefrontAppearance(user?.id, 'eletronicos');
 
   const [draft, setDraft] = useState<{ desktop: string | null; mobile: string | null }>({ desktop: null, mobile: null });
   const [draftLink, setDraftLink] = useState('');
   const [uploadingSlot, setUploadingSlot] = useState<DraftSlot | null>(null);
   const [cropperSlot, setCropperSlot] = useState<DraftSlot | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [autoplaySeconds, setAutoplaySeconds] = useState(5);
+
+  useEffect(() => {
+    if (!appearanceLoading) setAutoplaySeconds(appearance.banners_autoplay_seconds ?? 5);
+  }, [appearanceLoading, appearance.banners_autoplay_seconds]);
   const [saving, setSaving] = useState(false);
   const [busyBannerId, setBusyBannerId] = useState<string | null>(null);
 
@@ -41,7 +49,7 @@ export function StorefrontBannerManager() {
     try {
       setUploadingSlot(slot);
       setCropperSlot(null);
-      const file = new File([croppedBlob], selectedFile?.name || `banner-${slot}.jpg`, { type: 'image/jpeg' });
+      const file = new File([croppedBlob], selectedFile?.name || `banner-${slot}.${getExtensionForBlob(croppedBlob)}`, { type: croppedBlob.type });
       const url = await uploadImage(file, user.id, slot === 'desktop' ? 'theme-banners-desktop' : 'theme-banners-mobile');
       setDraft((prev) => ({ ...prev, [slot]: url }));
     } catch (error: any) {
@@ -93,7 +101,7 @@ export function StorefrontBannerManager() {
     await update(banner.id, { link_url: normalized });
   };
 
-  if (loading) {
+  if (loading || appearanceLoading) {
     return (
       <div className="flex items-center justify-center py-10">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -104,11 +112,18 @@ export function StorefrontBannerManager() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-1">Banners</h2>
-        <p className="text-sm text-muted-foreground">
-          Vários banners em carrossel na home do catálogo. Cada banner precisa de uma imagem
-          desktop e uma mobile.
-        </p>
+        <div className="flex items-center justify-between mb-1.5">
+          <Label className="text-xs text-muted-foreground">Tempo entre banners</Label>
+          <span className="text-xs text-muted-foreground">{autoplaySeconds}s</span>
+        </div>
+        <Slider
+          value={[autoplaySeconds]}
+          onValueChange={([v]) => setAutoplaySeconds(v)}
+          onValueCommit={([v]) => saveAppearance({ banners_autoplay_seconds: v })}
+          min={2}
+          max={10}
+          step={1}
+        />
       </div>
 
       <div className="space-y-3">
@@ -118,7 +133,7 @@ export function StorefrontBannerManager() {
               <img
                 src={banner.image_url_desktop}
                 alt=""
-                className="w-full sm:w-40 aspect-[1920/450] object-cover rounded border shrink-0"
+                className="w-full sm:w-40 aspect-[1920/650] object-cover rounded border shrink-0"
               />
               <div className="flex-1 space-y-2">
                 <Label className="text-xs text-muted-foreground">Link ao clicar (opcional)</Label>
@@ -159,9 +174,9 @@ export function StorefrontBannerManager() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem desktop (1920x450)</Label>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem desktop (1920x650)</Label>
               {draft.desktop && (
-                <img src={draft.desktop} alt="" className="w-full aspect-[1920/450] object-cover rounded border mb-2" />
+                <img src={draft.desktop} alt="" className="w-full aspect-[1920/650] object-cover rounded border mb-2" />
               )}
               <input
                 type="file"
@@ -182,9 +197,9 @@ export function StorefrontBannerManager() {
             </div>
 
             <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem mobile (960x225)</Label>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem mobile (960x425)</Label>
               {draft.mobile && (
-                <img src={draft.mobile} alt="" className="w-full aspect-[960/225] object-cover rounded border mb-2" />
+                <img src={draft.mobile} alt="" className="w-full aspect-[960/425] object-cover rounded border mb-2" />
               )}
               <input
                 type="file"
@@ -238,7 +253,7 @@ export function StorefrontBannerManager() {
             setSelectedFile(null);
           }}
           open={!!cropperSlot}
-          aspectRatio={cropperSlot === 'desktop' ? 1920 / 450 : 960 / 225}
+          aspectRatio={cropperSlot === 'desktop' ? 1920 / 650 : 960 / 425}
         />
       )}
     </div>

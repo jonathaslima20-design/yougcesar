@@ -74,13 +74,10 @@ export function StorefrontNewArrivalsManager() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Novidades</h2>
-        <p className="text-sm text-muted-foreground">
-          Carrossel de produtos em destaque, logo abaixo dos mini banners. Escolha quais produtos aparecem
-          {featuredCount > 0 ? ` (${featuredCount} selecionado${featuredCount > 1 ? 's' : ''}).` : '.'}
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Escolha quais produtos aparecem
+        {featuredCount > 0 ? ` (${featuredCount} selecionado${featuredCount > 1 ? 's' : ''}).` : '.'}
+      </p>
 
       {products.length === 0 ? (
         <p className="text-sm text-muted-foreground">Você ainda não tem produtos cadastrados.</p>

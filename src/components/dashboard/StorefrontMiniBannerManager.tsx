@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { uploadImage, deleteImage } from '@/lib/image';
+import { uploadImage, deleteImage, getExtensionForBlob } from '@/lib/image';
 import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
 import { useStorefrontMiniBanners, type StorefrontMiniBanner } from '@/hooks/useStorefrontMiniBanners';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
@@ -41,7 +41,7 @@ export function StorefrontMiniBannerManager() {
     try {
       setUploading(true);
       setCropperOpen(false);
-      const file = new File([croppedBlob], selectedFile?.name || 'mini-banner.jpg', { type: 'image/jpeg' });
+      const file = new File([croppedBlob], selectedFile?.name || `mini-banner.${getExtensionForBlob(croppedBlob)}`, { type: croppedBlob.type });
       const url = await uploadImage(file, user.id, 'theme-mini-banners');
       setDraftImage(url);
     } catch (error: any) {
@@ -105,13 +105,6 @@ export function StorefrontMiniBannerManager() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Mini banners</h2>
-        <p className="text-sm text-muted-foreground">
-          Grade de 3 banners menores, logo abaixo da lista de produtos.
-        </p>
-      </div>
-
       <div className="flex items-center gap-2">
         <Switch checked={appearance.mini_banners_enabled} onCheckedChange={handleToggleEnabled} />
         <span className="text-sm">{appearance.mini_banners_enabled ? 'Seção visível na loja' : 'Seção oculta na loja'}</span>

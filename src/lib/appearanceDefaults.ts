@@ -40,6 +40,12 @@ export interface StorefrontAppearance {
   // and the announcement-bar phrase). Ignored by the "padrao" theme's components.
   header_bg_color: string;
   header_text_color: string;
+  nav_bg_color: string;
+  nav_text_color: string;
+  topbar_bg_color: string;
+  topbar_text_color: string;
+  footer_bg_color: string;
+  footer_text_color: string;
   top_bar_text: string | null;
   header_logo_scale: number;
   category_showcase_enabled: boolean;
@@ -54,6 +60,20 @@ export interface StorefrontAppearance {
   footer_payment_enabled: boolean;
   footer_credit_enabled: boolean;
   footer_tagline: string | null;
+  footer_logo_url: string | null;
+  footer_institutional_links: { label: string; url: string }[];
+  // Per-section background/text color, independent from header/footer.
+  banners_bg_color: string;
+  banners_text_color: string;
+  banners_autoplay_seconds: number;
+  benefits_bg_color: string;
+  benefits_text_color: string;
+  category_showcase_bg_color: string;
+  category_showcase_text_color: string;
+  mini_banners_bg_color: string;
+  mini_banners_text_color: string;
+  new_arrivals_bg_color: string;
+  new_arrivals_text_color: string;
 }
 
 export const DEFAULT_APPEARANCE: StorefrontAppearance = {
@@ -92,6 +112,12 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   is_active: true,
   header_bg_color: '#171717',
   header_text_color: '#ffffff',
+  nav_bg_color: '#171717',
+  nav_text_color: '#ffffff',
+  topbar_bg_color: '#171717',
+  topbar_text_color: '#ffffff',
+  footer_bg_color: '#171717',
+  footer_text_color: '#ffffff',
   top_bar_text: null,
   header_logo_scale: 100,
   category_showcase_enabled: true,
@@ -106,6 +132,19 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   footer_payment_enabled: true,
   footer_credit_enabled: true,
   footer_tagline: null,
+  footer_logo_url: null,
+  footer_institutional_links: [],
+  banners_bg_color: '#ffffff',
+  banners_text_color: '#0a0a0a',
+  banners_autoplay_seconds: 5,
+  benefits_bg_color: '#ffffff',
+  benefits_text_color: '#0a0a0a',
+  category_showcase_bg_color: '#ffffff',
+  category_showcase_text_color: '#0a0a0a',
+  mini_banners_bg_color: '#ffffff',
+  mini_banners_text_color: '#0a0a0a',
+  new_arrivals_bg_color: '#ffffff',
+  new_arrivals_text_color: '#0a0a0a',
 };
 
 export const FONT_OPTIONS = [

@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { formatCurrencyI18n } from '@/lib/i18n';
 import { formatSizeLabel, getSizeTypeWithFallback } from '@/lib/sizeTypeUtils';
@@ -131,18 +130,10 @@ export default function EletronicosFiltersPanel({
         </SheetHeader>
 
         <div className="py-6 space-y-6">
-          <Tabs
-            value={localFilters?.status || 'todos'}
-            onValueChange={(value) => setLocalFilters((prev: any) => ({ ...prev, status: value }))}
-            className="w-full"
-          >
-            <TabsList className="w-full">
-              <TabsTrigger value="todos" className="flex-1">Todos</TabsTrigger>
-              <TabsTrigger value="disponivel" className="flex-1">Disponível</TabsTrigger>
-              <TabsTrigger value="vendido" className="flex-1">Vendido</TabsTrigger>
-              <TabsTrigger value="reservado" className="flex-1">Reservado</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* No "Vendido"/"Reservado" status filter here on purpose — those are
+              leftovers from the real-estate ("corretor") origin of this platform
+              and don't make sense for a shopper browsing a store. `status` still
+              defaults to 'todos' under the hood for the shared filter/search logic. */}
 
           {genders.length > 0 && (
             <div className="space-y-2">

@@ -12,8 +12,9 @@ export default function MiniBannerGrid({ userId }: MiniBannerGridProps) {
   if (loading || !appearance.mini_banners_enabled || banners.length === 0) return null;
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div style={{ backgroundColor: appearance.mini_banners_bg_color }}>
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {banners.map((banner) => {
           const content = (
             <img
@@ -31,6 +32,7 @@ export default function MiniBannerGrid({ userId }: MiniBannerGridProps) {
             <div key={banner.id}>{content}</div>
           );
         })}
+        </div>
       </div>
     </div>
   );

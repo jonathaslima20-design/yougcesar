@@ -37,7 +37,7 @@ import type { StorefrontPageBodyProps } from '@/components/storefront-themes/typ
 
 type CategoryNavProps = Pick<StorefrontPageBodyProps, 'filterMetadata' | 'filters' | 'onFiltersChange'> & {
   onOpenAllFilters: () => void;
-  chromeStyle: { backgroundColor: string; color: string };
+  navStyle: { backgroundColor: string; color: string };
   buttonStyle: { backgroundColor: string; color: string };
 };
 
@@ -52,12 +52,12 @@ function useCategoryNav({ filterMetadata, filters, onFiltersChange }: Pick<Store
 // brand/sizes/condition/price — same one ProductSearch already builds elsewhere in
 // the app) instead of just resetting the category — there's only one filter entry
 // point in this theme, not a category shortcut plus a separate duplicate filter bar.
-function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllFilters, chromeStyle, buttonStyle }: CategoryNavProps) {
+function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllFilters, navStyle, buttonStyle }: CategoryNavProps) {
   const { categories, activeCategory, selectCategory } = useCategoryNav({ filterMetadata, filters, onFiltersChange });
   const offersCategory = categories.find((c) => c.toLowerCase().includes('oferta'));
 
   return (
-    <nav className="hidden md:block" style={chromeStyle}>
+    <nav className="hidden md:block" style={navStyle}>
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-8 overflow-x-auto py-2 text-sm">
           <button
@@ -118,6 +118,8 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
   const { customer } = useBuyerAuth();
   const { appearance } = useStorefrontTheme();
   const chromeStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
+  const topBarStyle = { backgroundColor: appearance.topbar_bg_color, color: appearance.topbar_text_color };
+  const navStyle = { backgroundColor: appearance.nav_bg_color, color: appearance.nav_text_color };
   const buttonStyle = { backgroundColor: appearance.button_bg_color, color: appearance.button_text_color };
   const logoScale = appearance.header_logo_scale / 100;
   const mobileLogoPx = `${44 * logoScale}px`;
@@ -237,12 +239,12 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
             rel="noopener noreferrer"
             onClick={handleWhatsAppClick}
             className="block text-center text-xs py-1.5 hover:underline"
-            style={chromeStyle}
+            style={topBarStyle}
           >
             {topBarPhrases[topBarIndex % topBarPhrases.length]}
           </a>
         ) : (
-          <div className="block text-center text-xs py-1.5" style={chromeStyle}>
+          <div className="block text-center text-xs py-1.5" style={topBarStyle}>
             {topBarPhrases[topBarIndex % topBarPhrases.length]}
           </div>
         )
@@ -401,7 +403,7 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
         filters={filters}
         onFiltersChange={onFiltersChange}
         onOpenAllFilters={() => setDrawerOpen(true)}
-        chromeStyle={chromeStyle}
+        navStyle={navStyle}
         buttonStyle={buttonStyle}
       />
 

@@ -1,5 +1,6 @@
 import { ProductCard } from '@/components/product/ProductCard';
 import { useStorefrontFeaturedProducts } from '@/hooks/useStorefrontFeaturedProducts';
+import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import {
   Carousel,
   CarouselContent,
@@ -28,17 +29,21 @@ export default function NewArrivalsCarousel({
   blockZeroStock,
   cartEnabled,
 }: NewArrivalsCarouselProps) {
+  const { appearance } = useStorefrontTheme();
   const { products, loading } = useStorefrontFeaturedProducts(corretor.id);
 
   if (loading || products.length === 0) return null;
 
   return (
-    <section className="py-10">
+    <section
+      className="py-10"
+      style={{ backgroundColor: appearance.new_arrivals_bg_color, color: appearance.new_arrivals_text_color }}
+    >
       <div className="container mx-auto px-4">
         <div className="text-center mb-6">
           <h2 className="text-xl md:text-2xl font-bold inline-block relative pb-2">
             Novidades
-            <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-16 bg-foreground" />
+            <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-16" style={{ backgroundColor: appearance.new_arrivals_text_color }} />
           </h2>
         </div>
 
