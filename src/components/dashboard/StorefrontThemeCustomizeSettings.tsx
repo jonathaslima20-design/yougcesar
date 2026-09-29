@@ -1,4 +1,4 @@
-import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, MousePointerClick, PanelBottom } from 'lucide-react';
+import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, MousePointerClick, LayoutGrid, PanelBottom } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +7,7 @@ import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearan
 import { StorefrontVisualIdentity } from '@/components/dashboard/StorefrontVisualIdentity';
 import { StorefrontTopBarManager } from '@/components/dashboard/StorefrontTopBarManager';
 import { StorefrontFooterContentManager } from '@/components/dashboard/StorefrontFooterContentManager';
+import { StorefrontGridColorsManager } from '@/components/dashboard/StorefrontGridColorsManager';
 import { StorefrontMovableSections } from '@/components/dashboard/StorefrontMovableSections';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import { ThemeSection, SectionColorSwatches, ColorOnlyRow } from '@/components/dashboard/ThemeSection';
@@ -101,6 +102,14 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
 
           {/* Reorderable home sections (each has its own up/down), in page order. */}
           <StorefrontMovableSections />
+
+          <ThemeSection
+            icon={<LayoutGrid size={16} />}
+            title="Grade de produtos"
+            description="Cores dos cards de produto (Ofertas, Novidades e a lista ao filtrar por categoria)."
+          >
+            <StorefrontGridColorsManager />
+          </ThemeSection>
 
 
           <ThemeSection

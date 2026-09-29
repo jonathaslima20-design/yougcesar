@@ -3,6 +3,7 @@ import { useStorefrontBanners } from '@/hooks/useStorefrontBanners';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { cn } from '@/lib/utils';
 import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
+import BannerLinkWrapper, { hasBannerLink, type BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
 import {
   Carousel,
   CarouselContent,
@@ -12,12 +13,14 @@ import {
 
 interface BannerCarouselProps {
   userId: string;
+  linkContext: BannerLinkContext;
 }
 
-export default function BannerCarousel({ userId }: BannerCarouselProps) {
+export default function BannerCarousel({ userId, linkContext }: BannerCarouselProps) {
   const { appearance } = useStorefrontTheme();
   const { banners, loading } = useStorefrontBanners(userId, { activeOnly: true });
   const apiRef = useRef<CarouselApi | null>(null);
+  const hoveredRef = useRef(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
@@ -39,6 +42,8 @@ export default function BannerCarousel({ userId }: BannerCarouselProps) {
     if (!api || banners.length <= 1 || intervalMs <= 0) return;
 
     const interval = setInterval(() => {
+      // Don't yank the banner away while the shopper is looking at it.
+      if (hoveredRef.current) return;
       if (api.canScrollNext()) {
         api.scrollNext();
       } else {
@@ -52,11 +57,17 @@ export default function BannerCarousel({ userId }: BannerCarouselProps) {
   if (loading || banners.length === 0) return null;
 
   return (
-    <div className="relative" style={{ backgroundColor: appearance.banners_bg_color }}>
+    <div
+      className="relative"
+      style={{ backgroundColor: appearance.banners_bg_color }}
+      onMouseEnter={() => { hoveredRef.current = true; }}
+      onMouseLeave={() => { hoveredRef.current = false; }}
+    >
       <Carousel setApi={(api) => { apiRef.current = api; }} opts={{ loop: true }}>
         <CarouselContent>
           {banners.map((banner, index) => {
             const desktopUrl = banner.image_url_desktop || banner.image_url_mobile;
+            const clickable = hasBannerLink(banner.link_url);
             const content = (
               <picture>
                 <source
@@ -74,17 +85,28 @@ export default function BannerCarousel({ userId }: BannerCarouselProps) {
                   loading={index === 0 ? 'eager' : 'lazy'}
                   fetchPriority={index === 0 ? 'high' : undefined}
                   decoding="async"
-                  className="w-full aspect-[1920/650] object-cover"
+                  // Phones show the 960x425 image, desktops the 1920x650 one — each in a box
+                  // with its own ratio so neither gets cropped by `object-cover`.
+                  className={cn(
+                    'w-full object-cover aspect-[960/425] md:aspect-[1920/650]',
+                    'transition-transform duration-700 ease-out motion-reduce:transition-none',
+                    'group-hover:scale-[1.03] motion-reduce:group-hover:scale-100'
+                  )}
                 />
               </picture>
             );
             return (
               <CarouselItem key={banner.id}>
-                {banner.link_url ? (
-                  <a href={banner.link_url} target="_blank" rel="noopener noreferrer" className="block">
-                    {content}
-                  </a>
-                ) : content}
+                <BannerLinkWrapper
+                  link={banner.link_url}
+                  context={linkContext}
+                  className={cn(
+                    'group block overflow-hidden',
+                    clickable && 'cursor-pointer active:brightness-95 transition-[filter] duration-150'
+                  )}
+                >
+                  {content}
+                </BannerLinkWrapper>
               </CarouselItem>
             );
           })}

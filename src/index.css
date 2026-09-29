@@ -1329,3 +1329,29 @@ html { scroll-behavior: smooth; }
   color: #ffffff;
 }
 
+
+/* Eletronicos: merchant-chosen product grid colors ("Grade de produtos" in Personalizar
+   Eletronicos). The page sets --sfe-* on its root only for the colors the merchant
+   picked; every rule falls back to the value the card already had, so an unset color
+   changes nothing. Scoped to .theme-eletronicos so the "padrao" theme never sees this. */
+.theme-eletronicos [data-product-card] {
+  background-color: var(--sfe-card-bg, hsl(var(--card)));
+  border-color: var(--sfe-card-border, hsl(var(--border)));
+}
+.theme-eletronicos [data-product-card] h3 {
+  color: var(--sfe-title, inherit);
+}
+.theme-eletronicos [data-product-card] .text-primary {
+  color: var(--sfe-price, hsl(var(--primary)));
+}
+.theme-eletronicos [data-product-card] [data-card-cta] {
+  background-color: var(--sfe-btn-bg, hsl(var(--primary)));
+  color: var(--sfe-btn-text, hsl(var(--primary-foreground)));
+}
+.theme-eletronicos [data-product-card] [data-card-cta]:hover {
+  background-color: var(--sfe-btn-bg, hsl(var(--primary)));
+  opacity: 0.9;
+}
+.theme-eletronicos [data-product-card] [data-card-badge] {
+  background-color: var(--sfe-badge-bg, #16a34a);
+}

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { useStorefrontCategoryImages } from '@/hooks/useStorefrontCategoryImages';
 import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
@@ -5,6 +6,7 @@ import {
   Carousel,
   CarouselContent,
   CarouselItem,
+  type CarouselApi,
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
@@ -29,6 +31,24 @@ export default function CategoryShowcase({ corretor, covers, filterMetadata, fil
   const { appearance } = useStorefrontTheme();
   const { getImage } = useStorefrontCategoryImages(corretor.id);
   const categories: string[] = filterMetadata?.categories || [];
+
+  // The circles drift along on their own (one step every few seconds, wrapping back to
+  // the start), pausing while the shopper hovers/touches the row and skipped entirely
+  // for people who asked their device to reduce motion. Does nothing if everything fits.
+  const apiRef = useRef<CarouselApi | null>(null);
+  const pausedRef = useRef(false);
+  useEffect(() => {
+    if (categories.length === 0) return;
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const interval = setInterval(() => {
+      const api = apiRef.current;
+      if (!api || pausedRef.current || document.hidden) return;
+      if (!api.canScrollNext() && !api.canScrollPrev()) return;
+      if (api.canScrollNext()) api.scrollNext();
+      else api.scrollTo(0);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [categories.length]);
 
   if (!appearance.category_showcase_enabled || categories.length === 0) return null;
 
@@ -55,7 +75,17 @@ export default function CategoryShowcase({ corretor, covers, filterMetadata, fil
           </h2>
         </div>
 
-        <Carousel opts={{ align: 'start', dragFree: true }} className="relative">
+        <Carousel
+          opts={{ align: 'start', dragFree: true }}
+          setApi={(api) => { apiRef.current = api; }}
+          className="relative"
+          onMouseEnter={() => { pausedRef.current = true; }}
+          onMouseLeave={() => { pausedRef.current = false; }}
+          onTouchStart={() => { pausedRef.current = true; }}
+          onTouchEnd={() => { setTimeout(() => { pausedRef.current = false; }, 4000); }}
+          onFocus={() => { pausedRef.current = true; }}
+          onBlur={() => { pausedRef.current = false; }}
+        >
           <CarouselContent className="-ml-6 py-1">
             {categories.map((category, index) => {
               const image = categoryImage(category);

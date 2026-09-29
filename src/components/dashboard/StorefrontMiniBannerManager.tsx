@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Upload, X, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadImage, deleteImage, getExtensionForBlob } from '@/lib/image';
 import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
+import { BannerLinkField } from '@/components/dashboard/BannerLinkField';
 import { useStorefrontMiniBanners, type StorefrontMiniBanner } from '@/hooks/useStorefrontMiniBanners';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 
@@ -85,12 +85,6 @@ export function StorefrontMiniBannerManager() {
     setBusyBannerId(null);
   };
 
-  const handleLinkBlur = async (banner: StorefrontMiniBanner, value: string) => {
-    const normalized = value.trim() || null;
-    if (normalized === banner.link_url) return;
-    await update(banner.id, { link_url: normalized });
-  };
-
   const handleToggleEnabled = async () => {
     await saveAppearance({ mini_banners_enabled: !appearance.mini_banners_enabled });
   };
@@ -122,11 +116,9 @@ export function StorefrontMiniBannerManager() {
                 className="w-full sm:w-28 aspect-[416/480] object-cover rounded border shrink-0"
               />
               <div className="flex-1 space-y-2">
-                <Label className="text-xs text-muted-foreground">Link ao clicar (opcional)</Label>
-                <Input
-                  defaultValue={banner.link_url || ''}
-                  placeholder="https://..."
-                  onBlur={(e) => handleLinkBlur(banner, e.target.value)}
+                <BannerLinkField
+                  value={banner.link_url}
+                  onChange={(v) => update(banner.id, { link_url: v })}
                   disabled={busyBannerId === banner.id}
                 />
               </div>
@@ -182,8 +174,7 @@ export function StorefrontMiniBannerManager() {
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground mb-1.5 block">Link ao clicar (opcional)</Label>
-            <Input value={draftLink} onChange={(e) => setDraftLink(e.target.value)} placeholder="https://..." />
+            <BannerLinkField value={draftLink || null} onChange={(v) => setDraftLink(v || '')} />
           </div>
 
           <div className="flex items-center gap-3">

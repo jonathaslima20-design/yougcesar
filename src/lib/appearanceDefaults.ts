@@ -62,6 +62,15 @@ export interface StorefrontAppearance {
   feature_banner_link_url: string | null;
   // Order of the movable home sections (see HOME_SECTIONS); null = default order.
   home_section_order: string[] | null;
+  // Product grid colors (Eletrônicos). null = keep the theme's current look.
+  grid_card_bg_color: string | null;
+  grid_card_border_color: string | null;
+  grid_title_color: string | null;
+  grid_price_color: string | null;
+  grid_button_bg_color: string | null;
+  grid_button_text_color: string | null;
+  grid_badge_bg_color: string | null;
+  grid_section_bg_color: string | null;
   footer_categories_enabled: boolean;
   footer_contact_enabled: boolean;
   footer_payment_enabled: boolean;
@@ -139,6 +148,14 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   feature_banner_mobile_url: null,
   feature_banner_link_url: null,
   home_section_order: null,
+  grid_card_bg_color: null,
+  grid_card_border_color: null,
+  grid_title_color: null,
+  grid_price_color: null,
+  grid_button_bg_color: null,
+  grid_button_text_color: null,
+  grid_badge_bg_color: null,
+  grid_section_bg_color: null,
   footer_categories_enabled: true,
   footer_contact_enabled: true,
   footer_payment_enabled: true,

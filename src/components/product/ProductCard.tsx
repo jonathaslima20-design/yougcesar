@@ -199,7 +199,7 @@ function ProductCardComponent({
         onClick={handleProductClick}
         className="block h-full"
       >
-        <div className="rounded-xl border bg-card text-card-foreground shadow overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-300 cursor-pointer">
+        <div data-product-card className="rounded-xl border bg-card text-card-foreground shadow overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-300 cursor-pointer">
           {/* Image Container */}
           <div className="relative aspect-square overflow-hidden p-2 md:p-3">
             <div className="w-full h-full bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
@@ -249,7 +249,7 @@ function ProductCardComponent({
             {/* Badges - Top Right */}
             <div className="absolute top-3 right-3 md:top-5 md:right-5 flex flex-col gap-1.5">
               {(hasDiscount && discountPercentage || (isTieredPricing && firstTierPrices?.discountPercentage)) && (
-                <Badge className="bg-green-600 hover:bg-green-700 text-white border-transparent text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1">
+                <Badge data-card-badge className="bg-green-600 hover:bg-green-700 text-white border-transparent text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1">
                   -{firstTierPrices?.discountPercentage || discountPercentage}%
                 </Badge>
               )}
@@ -343,6 +343,7 @@ function ProductCardComponent({
                 <div className="mt-2 md:mt-3 pt-1.5 md:pt-2 border-t">
                   {cartEnabled ? (
                     <Button
+                      data-card-cta
                       size="sm"
                       className="w-full text-[10px] md:text-xs h-7 md:h-8"
                       onClick={handleAddToCart}
@@ -352,6 +353,7 @@ function ProductCardComponent({
                     </Button>
                   ) : (
                     <Button
+                      data-card-cta
                       size="sm"
                       className="w-full text-[10px] md:text-xs h-7 md:h-8"
                     >

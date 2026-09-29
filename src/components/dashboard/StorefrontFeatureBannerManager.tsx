@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadImage, deleteImage, getExtensionForBlob } from '@/lib/image';
 import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
+import { BannerLinkField } from '@/components/dashboard/BannerLinkField';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 
 type Slot = 'desktop' | 'mobile';
@@ -87,13 +87,6 @@ export function StorefrontFeatureBannerManager() {
     await deleteImage(url).catch(() => {});
   };
 
-  const handleLinkBlur = async (value: string) => {
-    const normalized = value.trim() || null;
-    if (normalized === appearance.feature_banner_link_url) return;
-    const ok = await save({ feature_banner_link_url: normalized });
-    if (!ok) toast.error('Erro ao salvar link');
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -158,14 +151,7 @@ export function StorefrontFeatureBannerManager() {
             })}
           </div>
 
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1.5 block">Link ao clicar (opcional)</Label>
-            <Input
-              defaultValue={appearance.feature_banner_link_url || ''}
-              placeholder="https://..."
-              onBlur={(e) => handleLinkBlur(e.target.value)}
-            />
-          </div>
+          <BannerLinkField value={appearance.feature_banner_link_url} onChange={(v) => save({ feature_banner_link_url: v })} />
 
           {!appearance.feature_banner_desktop_url && !appearance.feature_banner_mobile_url && (
             <p className="text-xs text-muted-foreground">

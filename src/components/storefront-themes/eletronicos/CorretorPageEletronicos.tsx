@@ -13,6 +13,7 @@ import NewArrivalsCarousel from '@/components/storefront-themes/eletronicos/NewA
 import EletronicosBreadcrumb from '@/components/storefront-themes/eletronicos/EletronicosBreadcrumb';
 import CorretorFooterEletronicos from '@/components/storefront-themes/eletronicos/CorretorFooterEletronicos';
 import StorefrontProductCatalogSectionEletronicos from '@/components/storefront-themes/eletronicos/StorefrontProductCatalogSectionEletronicos';
+import type { BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
 import EletronicosFiltersSidebar from '@/components/storefront-themes/eletronicos/EletronicosFiltersSidebar';
 import { useEletronicosCatalogSummary } from '@/components/storefront-themes/eletronicos/eletronicosCatalog';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
@@ -30,15 +31,29 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
   // suggestions). The full catalog is no longer downloaded for this theme's home.
   const summary = useEletronicosCatalogSummary(props.corretor.id);
 
+  // Merchant-picked product grid colors, applied only when set (see index.css,
+  // ".theme-eletronicos [data-product-card]"). Unset ones keep the card's own look.
+  const gridColorVars: Record<string, string> = {};
+  if (appearance.grid_card_bg_color) gridColorVars['--sfe-card-bg'] = appearance.grid_card_bg_color;
+  if (appearance.grid_card_border_color) gridColorVars['--sfe-card-border'] = appearance.grid_card_border_color;
+  if (appearance.grid_title_color) gridColorVars['--sfe-title'] = appearance.grid_title_color;
+  if (appearance.grid_price_color) gridColorVars['--sfe-price'] = appearance.grid_price_color;
+  if (appearance.grid_button_bg_color) gridColorVars['--sfe-btn-bg'] = appearance.grid_button_bg_color;
+  if (appearance.grid_button_text_color) gridColorVars['--sfe-btn-text'] = appearance.grid_button_text_color;
+  if (appearance.grid_badge_bg_color) gridColorVars['--sfe-badge-bg'] = appearance.grid_badge_bg_color;
+
+  // Lets banners send the shopper to a category (filters) or a product page.
+  const linkContext: BannerLinkContext = { slug: props.corretor.slug || '', filters, onFiltersChange };
+
   // The movable home sections; order comes from the merchant's saved layout
   // (Personalizar Eletrônicos → Ordem das seções), defaulting to the original one.
   const homeSections: Record<HomeSectionId, JSX.Element> = {
-    banners: <BannerCarousel userId={props.corretor.id} />,
+    banners: <BannerCarousel userId={props.corretor.id} linkContext={linkContext} />,
     benefits: <BenefitsBar userId={props.corretor.id} />,
     categories: <CategoryShowcase {...props} covers={summary.covers} />,
     offers: <OffersCarousel {...props} />,
-    feature_banner: <FeatureBanner />,
-    mini_banners: <MiniBannerGrid userId={props.corretor.id} />,
+    feature_banner: <FeatureBanner linkContext={linkContext} />,
+    mini_banners: <MiniBannerGrid userId={props.corretor.id} linkContext={linkContext} />,
     new_arrivals: <NewArrivalsCarousel {...props} />,
   };
   const activeCategory = filters?.category && filters.category !== 'todos' ? filters.category : null;
@@ -76,7 +91,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen">
+    <div className="flex-1 flex flex-col min-h-screen" style={gridColorVars as React.CSSProperties}>
       <CorretorHeaderEletronicos {...props} onOpenFilters={() => setFiltersOpen(true)} catalogRows={summary.rows} />
 
       <EletronicosFiltersPanel
@@ -122,7 +137,11 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
       {/* The product grid only appears once a category/search/filter is active —
           the home itself stays light, driven by the Ofertas/Novidades carousels. */}
       {isBrowsing ? (
-        <div className="flex-1 container mx-auto px-4 flex gap-8 items-start">
+        <div
+          className="flex-1 flex flex-col"
+          style={appearance.grid_section_bg_color ? { backgroundColor: appearance.grid_section_bg_color } : undefined}
+        >
+        <div className="container mx-auto px-4 flex gap-8 items-start">
           <EletronicosFiltersSidebar
             filters={filters}
             onFiltersChange={onFiltersChange}
@@ -136,6 +155,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
           <div className="flex-1 min-w-0">
             <StorefrontProductCatalogSectionEletronicos {...props} sortBy={sortBy} withSidebar />
           </div>
+        </div>
         </div>
       ) : (
         <div className="flex-1" />
