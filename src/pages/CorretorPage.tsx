@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useSearchParams, useLocation } from 'react-router-dom';
+import { useParams, useSearchParams, useLocation, useNavigationType } from 'react-router-dom';
 import { Loader, CircleAlert as AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCorretorData } from '@/hooks/useCorretorData';
@@ -33,6 +33,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   const slug = customDomainSlug || paramSlug;
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigationType = useNavigationType();
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -288,8 +289,18 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   // Phase 5 — DONE
 
   // Phase 1: detect return from product page
+  //
+  // Two ways a shopper can land back here after viewing a product:
+  //   1. An in-app "voltar"/breadcrumb/logo link — it stamps `state.from` on this
+  //      navigation (a forward push disguised as "back").
+  //   2. The browser's OWN back/forward button or gesture — no such state exists on
+  //      that history entry, but React Router reports the navigation type as "POP"
+  //      for it (true history back/forward), unlike "PUSH"/"REPLACE" for normal
+  //      clicks. Restoration is still gated by having a matching, recent saved state
+  //      below, so a first-ever visit (also reported as "POP") safely no-ops.
   useEffect(() => {
-    if (location.state?.from === 'product-detail' && restorationPhase === 'idle') {
+    const cameFromProductPage = location.state?.from === 'product-detail' || navigationType === 'POP';
+    if (cameFromProductPage && restorationPhase === 'idle') {
       const savedState = pageStateHook.restoreCurrentState();
       if (savedState && savedState.slug === slug) {
         savedStateRef.current = savedState;
@@ -298,7 +309,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
         scrollCoordinator.startScrollRestoration();
       }
     }
-  }, [location.state?.from, slug]);
+  }, [location.state?.from, navigationType, slug]);
 
   // Phase 2: apply saved state (filters, page) — wait until data is loaded
   useEffect(() => {
