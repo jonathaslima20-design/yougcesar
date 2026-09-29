@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Loader2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
-import { uploadImage, deleteImage } from '@/lib/image';
+import { uploadImage, deleteImage, getExtensionForBlob } from '@/lib/image';
 import { ImageCropperCover } from '@/components/ui/image-cropper-cover';
 import { useResponsiveAspectRatio } from '@/hooks/useResponsiveAspectRatio';
 
@@ -48,8 +48,8 @@ export function CoverImageSection({ user, previewCover, setPreviewCover }: Cover
       setUploadingCover(type);
       setShowCoverCropper(null);
 
-      const file = new File([croppedBlob], selectedCoverFile?.name || `cover-${type}.jpg`, {
-        type: 'image/jpeg',
+      const file = new File([croppedBlob], selectedCoverFile?.name || `cover-${type}.${getExtensionForBlob(croppedBlob)}`, {
+        type: croppedBlob.type,
       });
 
       const url = await uploadImage(file, user!.id, type === 'desktop' ? 'covers-desktop' : 'covers-mobile');

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, MessageCircle } from 'lucide-react';
+import { ShoppingCart, MessageCircle, ImageOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -178,12 +178,8 @@ function ProductCardComponent({
     }
   };
 
-  const handleProductClick = (e: React.MouseEvent) => {
-    const currentScrollPosition = window.scrollY || document.documentElement.scrollTop;
-    console.log('📌 ProductCard clicked - saving scroll position:', currentScrollPosition);
-    if (onNavigate) {
-      onNavigate();
-    }
+  const handleProductClick = () => {
+    onNavigate?.();
   };
 
   return (
@@ -204,33 +200,40 @@ function ProductCardComponent({
           <div className="relative aspect-square overflow-hidden p-2 md:p-3">
             <div className="w-full h-full bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
               <div className="relative w-full h-full">
-                <img
-                  src={displayImageUrl || 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg'}
-                  alt={product.title}
-                  className={`w-full h-full object-cover transition-opacity duration-500 ${
-                    imageLoaded ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  loading="lazy"
-                  onLoad={() => setImageLoaded(true)}
-                  onError={() => {
-                    setImageError(true);
-                    setImageLoaded(true);
-                  }}
-                  decoding="async"
-                  srcSet={`
-                    ${displayImageUrl || 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg'} 1x,
-                    ${displayImageUrl || 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg'} 2x
-                  `}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  style={{
-                    backgroundColor: '#ffffff',
-                    backgroundImage: imageLoaded || imageError ? 'none' : 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
-                    backgroundSize: '200% 100%',
-                    animation: imageLoaded || imageError ? 'none' : 'shimmer 2s infinite'
-                  }}
-                />
-                {!imageLoaded && !imageError && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-pulse" />
+                {displayImageUrl && !imageError ? (
+                  <>
+                    <img
+                      src={displayImageUrl}
+                      alt={product.title}
+                      className={`w-full h-full object-cover transition-opacity duration-500 ${
+                        imageLoaded ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      loading="lazy"
+                      onLoad={() => setImageLoaded(true)}
+                      onError={() => {
+                        setImageError(true);
+                        setImageLoaded(true);
+                      }}
+                      decoding="async"
+                      srcSet={`${displayImageUrl} 1x, ${displayImageUrl} 2x`}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        backgroundImage: imageLoaded ? 'none' : 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+                        backgroundSize: '200% 100%',
+                        animation: imageLoaded ? 'none' : 'shimmer 2s infinite'
+                      }}
+                    />
+                    {!imageLoaded && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-pulse" />
+                    )}
+                  </>
+                ) : (
+                  // No real product photo — a neutral placeholder instead of an unrelated
+                  // stock photo, which used to look like a rendering bug to shoppers.
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                    <ImageOff className="h-8 w-8 text-gray-300" strokeWidth={1.5} />
+                  </div>
                 )}
               </div>
             </div>

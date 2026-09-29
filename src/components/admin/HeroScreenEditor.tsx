@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { supabase } from '@/lib/supabase';
 import { uploadHeroMockupImage } from '@/lib/heroMockupUpload';
+import { getExtensionForBlob } from '@/lib/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +57,7 @@ export function HeroScreenEditor({ screen, isNew, onSave, onCancel }: Props) {
     const field = cropField!;
     setCropImage(null);
     setCropField(null);
-    const file = new File([croppedBlob], 'cover.jpg', { type: 'image/jpeg' });
+    const file = new File([croppedBlob], `cover.${getExtensionForBlob(croppedBlob)}`, { type: croppedBlob.type });
     await handleImageUpload(field, file);
   };
 

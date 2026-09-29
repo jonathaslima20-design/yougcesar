@@ -11,6 +11,7 @@ import { SectionTitle } from '@/components/buyer/overview/BuyerOverviewCards';
 import { useBuyerAccountSummary } from '@/hooks/useBuyerAccountSummary';
 import { supabaseBuyer } from '@/lib/supabaseBuyer';
 import { uploadBuyerAvatar } from '@/lib/buyerAvatar';
+import { getExtensionForBlob } from '@/lib/image';
 import { cleanWhatsAppNumber } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -106,7 +107,7 @@ export default function BuyerProfilePage() {
       setUploadingAvatar(true);
       setShowCropper(false);
 
-      const file = new File([croppedBlob], selectedFile?.name || 'avatar.jpg', { type: 'image/jpeg' });
+      const file = new File([croppedBlob], selectedFile?.name || `avatar.${getExtensionForBlob(croppedBlob)}`, { type: croppedBlob.type });
       await uploadBuyerAvatar(file, customer.id);
       await refreshCustomer();
       toast.success('Foto de perfil atualizada!');

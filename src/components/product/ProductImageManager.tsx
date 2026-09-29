@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { validateFilesWithHash, validateFilesWithMultiLayerValidation, formatFileSize } from '@/lib/fileValidation';
 import { revokeBlobUrl, registerBlobUrl, debugBlobUrlRegistry } from '@/lib/blobUrlValidator';
 import { v4 as uuidv4 } from 'uuid';
+import { getExtensionForBlob } from '@/lib/image';
 import {
   Select,
   SelectContent,
@@ -170,8 +171,8 @@ export function ProductImageManager({
 
   const handleCropComplete = async (croppedBlob: Blob) => {
     if (imageToRecrop) {
-      const croppedFile = new File([croppedBlob], `recropped-${uuidv4()}.jpg`, {
-        type: 'image/jpeg',
+      const croppedFile = new File([croppedBlob], `recropped-${uuidv4()}.${getExtensionForBlob(croppedBlob)}`, {
+        type: croppedBlob.type,
       });
 
       const updatedImages = images.map(img => {

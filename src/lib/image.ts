@@ -5,6 +5,16 @@ interface Area {
   height: number;
 }
 
+/**
+ * File extension matching a blob returned by getCroppedImg — it comes back as
+ * lossless PNG when that already fit the size budget, WebP otherwise. Callers
+ * building a File() from that blob should use this instead of hardcoding an
+ * extension, or the declared type/extension won't match the actual bytes.
+ */
+export function getExtensionForBlob(blob: Blob): string {
+  return blob.type === 'image/png' ? 'png' : 'webp';
+}
+
 export async function getCroppedImg(
   imageSrc: string,
   pixelCrop: Area,
@@ -51,28 +61,45 @@ export async function getCroppedImg(
     Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
   );
 
-  // Convert canvas to optimized blob with size limit of 400KB
-  return optimizeImageSize(canvas, 300 * 1024); // 400KB limit
+  // Convert canvas to optimized blob with a size limit generous enough that
+  // banner-style graphics (flat colors, sharp text) don't need heavy lossy
+  // compression to fit — that's what was making them look blurry/artifacted.
+  return optimizeImageSize(canvas, 1024 * 1024); // 1MB limit
 }
 
 /**
  * Optimizes image size by adjusting quality until it's under the specified size limit
  */
 async function optimizeImageSize(canvas: HTMLCanvasElement, maxSizeBytes: number): Promise<Blob> {
+  // Try lossless first. Any lossy re-encode — even WebP at 95% — visibly softens
+  // flat-color/sharp-text graphics (banners, logos), and most of those source
+  // files are small to begin with, so there's usually no reason to touch quality
+  // at all. Only fall through to lossy compression when the lossless PNG itself
+  // doesn't fit the budget (e.g. a large photo).
+  const pngBlob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((result) => resolve(result), 'image/png');
+  });
+  if (pngBlob && pngBlob.size <= maxSizeBytes) {
+    console.log('✅ Image kept lossless (PNG):', { size: (pngBlob.size / 1024).toFixed(1) + 'KB' });
+    return pngBlob;
+  }
+
   const MAX_QUALITY = 0.95;
-  const MIN_QUALITY = 0.1;
+  // Never drop below "clearly fine" — the old floor of 0.1 is what produced
+  // the visible blur/artifacts around text and logos on banner-style images.
+  const MIN_QUALITY = 0.7;
   const QUALITY_STEP = 0.05;
-  
+
   let quality = MAX_QUALITY;
   let blob: Blob | null = null;
-  
-  console.log('🖼️ Starting image optimization with max size:', maxSizeBytes / 1024, 'KB');
-  
+
+  console.log('🖼️ PNG too large for lossless, falling back to WebP. Max size:', maxSizeBytes / 1024, 'KB');
+
   while (quality >= MIN_QUALITY) {
     blob = await new Promise<Blob | null>((resolve) => {
       canvas.toBlob(
         (result) => resolve(result),
-        'image/jpeg',
+        'image/webp',
         quality
       );
     });
@@ -157,7 +184,7 @@ async function optimizeImageDimensions(originalCanvas: HTMLCanvasElement, maxSiz
     const blob = await new Promise<Blob | null>((resolve) => {
       resizedCanvas.toBlob(
         (result) => resolve(result),
-        'image/jpeg',
+        'image/webp',
         0.85 // Good quality for resized image
       );
     });
@@ -192,7 +219,7 @@ async function optimizeImageDimensions(originalCanvas: HTMLCanvasElement, maxSiz
     const fallbackBlob = await new Promise<Blob | null>((resolve) => {
       fallbackCanvas.toBlob(
         (result) => resolve(result),
-        'image/jpeg',
+        'image/webp',
         0.7
       );
     });

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { logActivity } from '@/lib/activityLogger';
-import { uploadImage } from '@/lib/image';
+import { uploadImage, getExtensionForBlob } from '@/lib/image';
 import { ImageCropper } from '@/components/ui/image-cropper';
 
 interface User {
@@ -42,8 +42,8 @@ export function AvatarSection({ user, previewImage, setPreviewImage }: AvatarSec
       setUploading(true);
       setShowCropper(false);
 
-      const file = new File([croppedBlob], selectedFile?.name || 'avatar.jpg', {
-        type: 'image/jpeg',
+      const file = new File([croppedBlob], selectedFile?.name || `avatar.${getExtensionForBlob(croppedBlob)}`, {
+        type: croppedBlob.type,
       });
 
       const url = await uploadImage(file, user!.id, 'avatars');

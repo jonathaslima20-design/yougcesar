@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Loader2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
-import { uploadImage, deleteImage } from '@/lib/image';
+import { uploadImage, deleteImage, getExtensionForBlob } from '@/lib/image';
 import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
 
 interface User {
@@ -40,8 +40,8 @@ export function PromotionalBannerSection({ user, previewBanner, setPreviewBanner
       setUploadingBanner(type);
       setShowBannerCropper(null);
 
-      const file = new File([croppedBlob], selectedBannerFile?.name || `banner-${type}.jpg`, {
-        type: 'image/jpeg',
+      const file = new File([croppedBlob], selectedBannerFile?.name || `banner-${type}.${getExtensionForBlob(croppedBlob)}`, {
+        type: croppedBlob.type,
       });
 
       const url = await uploadImage(file, user!.id, type === 'desktop' ? 'banners-desktop' : 'banners-mobile');
