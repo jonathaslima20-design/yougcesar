@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import 'photoswipe/dist/photoswipe.css';
 import { Gallery, Item } from 'react-photoswipe-gallery';
 import { getYouTubeThumbnailUrl, extractYouTubeVideoId } from '@/utils/youtubeUtils';
+import { getResizedImageUrl, getImageSrcSet } from '@/lib/imageUrl';
 import type { ProductImage } from '@/types';
 
 interface ImageGalleryProps {
@@ -27,19 +28,6 @@ export default function ImageGallery({ media, title, selectedColor, onColorSelec
 
   const imageItems = media.filter(item => item.media_type !== 'video');
   const videoItems = media.filter(item => item.media_type === 'video');
-
-  useEffect(() => {
-    console.log('🎬 ImageGallery Debug:', {
-      totalMedia: media.length,
-      imageCount: imageItems.length,
-      videoCount: videoItems.length,
-      videos: videoItems.map(v => ({
-        id: v.id,
-        url: v.url,
-        extractedId: extractYouTubeVideoId(v.url)
-      }))
-    });
-  }, [media]);
 
   useEffect(() => {
     const loadImageDimensions = async () => {
@@ -81,20 +69,11 @@ export default function ImageGallery({ media, title, selectedColor, onColorSelec
 
   const handleMainClick = () => {
     const currentItem = media[currentMainIndex];
-    console.log('🖱️ Main click:', {
-      mediaType: currentItem.media_type,
-      url: currentItem.url,
-      videoId: currentItem.media_type === 'video' ? extractYouTubeVideoId(currentItem.url) : null
-    });
 
     if (currentItem.media_type === 'video') {
       const videoId = extractYouTubeVideoId(currentItem.url);
       if (videoId) {
-        const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        console.log('▶️ Opening video:', embedUrl);
-        setSelectedVideoUrl(embedUrl);
-      } else {
-        console.error('❌ Failed to extract video ID from:', currentItem.url);
+        setSelectedVideoUrl(`https://www.youtube.com/embed/${videoId}`);
       }
     } else {
       const imageIndex = imageItems.findIndex(img => img.id === currentItem.id);
@@ -135,10 +114,14 @@ export default function ImageGallery({ media, title, selectedColor, onColorSelec
                   </>
                 ) : (
                   <img
-                    src={currentMainItem.url}
+                    src={getResizedImageUrl(currentMainItem.url, 1000)}
+                    srcSet={getImageSrcSet(currentMainItem.url, [480, 800, 1200, 1600])}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 600px, 1200px"
                     alt={`${title} - Imagem principal`}
                     className="w-full h-full object-cover"
                     loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
                   />
                 )}
               </motion.div>
@@ -177,10 +160,13 @@ export default function ImageGallery({ media, title, selectedColor, onColorSelec
                           transition={{ duration: 0.2 }}
                         >
                           <img
-                            src={image.url}
+                            src={getResizedImageUrl(image.url, 200)}
+                            srcSet={getImageSrcSet(image.url, [150, 200, 300])}
+                            sizes="150px"
                             alt={`${title} - Imagem ${index + 1}`}
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            decoding="async"
                           />
                         </motion.div>
                       );
