@@ -105,6 +105,7 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
             whatsapp_link,
             country_code,
             avatar_url,
+            social_icon_url,
             cover_url_desktop,
             cover_url_mobile,
             promotional_banner_url_desktop,
@@ -193,9 +194,9 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
       const metaConfig = getCorretorMetaTags(corretorData, currentLanguage);
       updateMetaTags(metaConfig);
       
-      // Update favicon to user's avatar if available
-      if (corretorData.avatar_url) {
-        updateFavicon(corretorData.avatar_url);
+      // Update favicon to the store's social icon (or avatar) if available
+      if (corretorData.social_icon_url || corretorData.avatar_url) {
+        updateFavicon(corretorData.social_icon_url || corretorData.avatar_url);
       }
       
       document.title = metaConfig.title;

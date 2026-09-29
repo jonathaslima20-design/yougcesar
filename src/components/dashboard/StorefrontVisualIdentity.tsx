@@ -27,7 +27,7 @@ interface StorefrontVisualIdentityProps {
  * Same components, same upload logic, just a new home.
  */
 export function StorefrontVisualIdentity({ themeId = 'padrao' }: StorefrontVisualIdentityProps) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { appearance, loading: appearanceLoading, save } = useStorefrontAppearance(
     themeId === 'eletronicos' ? user?.id : undefined,
     'eletronicos'
@@ -47,6 +47,10 @@ export function StorefrontVisualIdentity({ themeId = 'padrao' }: StorefrontVisua
   const [logoCropperOpen, setLogoCropperOpen] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
   const [logoScale, setLogoScale] = useState(100);
+  const [previewSocialIcon, setPreviewSocialIcon] = useState<string | null>(null);
+  const [uploadingSocialIcon, setUploadingSocialIcon] = useState(false);
+  const [socialIconCropperOpen, setSocialIconCropperOpen] = useState(false);
+  const [selectedSocialIconFile, setSelectedSocialIconFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!appearanceLoading) setLogoScale(appearance.header_logo_scale ?? 100);
@@ -79,9 +83,49 @@ export function StorefrontVisualIdentity({ themeId = 'padrao' }: StorefrontVisua
     }
   };
 
+  const handleSocialIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 5MB');
+      return;
+    }
+    setSelectedSocialIconFile(file);
+    setSocialIconCropperOpen(true);
+  };
+
+  const handleSocialIconCropComplete = async (croppedBlob: Blob) => {
+    if (!user?.id) return;
+    try {
+      setUploadingSocialIcon(true);
+      setSocialIconCropperOpen(false);
+      const file = new File([croppedBlob], selectedSocialIconFile?.name || `social-icon.${getExtensionForBlob(croppedBlob)}`, { type: croppedBlob.type });
+      const url = await uploadImage(file, user.id, 'social-icon');
+      const { error } = await updateUser({ social_icon_url: url });
+      if (error) throw new Error(error);
+      setPreviewSocialIcon(url);
+      toast.success('Ícone da loja atualizado');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao enviar imagem');
+    } finally {
+      setUploadingSocialIcon(false);
+      setSelectedSocialIconFile(null);
+    }
+  };
+
+  const handleRemoveSocialIcon = async () => {
+    const { error } = await updateUser({ social_icon_url: null });
+    if (error) {
+      toast.error('Erro ao remover ícone');
+      return;
+    }
+    setPreviewSocialIcon(null);
+  };
+
   useEffect(() => {
     if (!user) return;
     setPreviewImage(user.avatar_url || null);
+    setPreviewSocialIcon(user.social_icon_url || null);
     setPreviewCover({
       desktop: user.cover_url_desktop || null,
       mobile: user.cover_url_mobile || null,
@@ -172,6 +216,65 @@ export function StorefrontVisualIdentity({ themeId = 'padrao' }: StorefrontVisua
           }}
           open={logoCropperOpen}
           aspectRatio={3}
+        />
+      )}
+
+      {/* Shown for both themes: the wide/circular logo above is for the storefront
+          header, but a browser tab and a WhatsApp/social share card need a compact
+          square image instead — this is that dedicated slot. Falls back to the
+          profile photo when unset, so nothing changes until a merchant uploads one. */}
+      <div className="space-y-2 pt-2 border-t">
+        <div className="pt-4">
+          <Label className="text-sm font-medium block mb-1">Ícone da loja</Label>
+          <p className="text-xs text-muted-foreground mb-3">
+            Usado no ícone da aba do navegador e no card ao compartilhar sua loja no WhatsApp/redes sociais.
+            Enquanto não for enviado, usa sua foto de perfil.
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="h-14 w-14 rounded-lg border bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+              {previewSocialIcon || user?.avatar_url ? (
+                <img src={previewSocialIcon || user?.avatar_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <ImageIcon className="h-5 w-5 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                id="social-icon-upload"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingSocialIcon}
+                onChange={handleSocialIconFileChange}
+              />
+              <label htmlFor="social-icon-upload">
+                <Button type="button" variant="outline" size="sm" disabled={uploadingSocialIcon} asChild>
+                  <span>
+                    {uploadingSocialIcon ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                    {previewSocialIcon ? 'Trocar' : 'Enviar ícone'}
+                  </span>
+                </Button>
+              </label>
+              {previewSocialIcon && (
+                <Button type="button" variant="ghost" size="sm" onClick={handleRemoveSocialIcon}>
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remover
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {socialIconCropperOpen && selectedSocialIconFile && (
+        <ImageCropperBanner
+          image={URL.createObjectURL(selectedSocialIconFile)}
+          onCrop={handleSocialIconCropComplete}
+          onCancel={() => {
+            setSocialIconCropperOpen(false);
+            setSelectedSocialIconFile(null);
+          }}
+          open={socialIconCropperOpen}
+          aspectRatio={1}
         />
       )}
 

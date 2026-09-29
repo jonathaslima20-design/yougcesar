@@ -5,6 +5,7 @@ interface UserProfile {
   slug: string;
   bio?: string;
   avatar_url?: string;
+  social_icon_url?: string;
   cover_url_desktop?: string;
   cover_url_mobile?: string;
 }
@@ -57,8 +58,11 @@ function generateMetaTagsHTML(profile: UserProfile, requestUrl: string, isCustom
   const description = profile.bio || (isCustomDomain ? `Confira os produtos de ${profile.name}` : `Confira os produtos de ${profile.name} na VitrineTurbo`);
   const siteName = isCustomDomain ? profile.name : 'VitrineTurbo';
 
-  // Prioritize avatar (logo) for storefront preview
-  const imageUrl = profile.avatar_url ||
+  // Prioritize the dedicated social icon (fits a WhatsApp/social card and a
+  // favicon far better than the "eletrônicos" theme's wide rectangular header
+  // logo would), then the profile photo, then covers.
+  const imageUrl = profile.social_icon_url ||
+                   profile.avatar_url ||
                    profile.cover_url_desktop ||
                    profile.cover_url_mobile ||
                    'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png';
@@ -241,8 +245,9 @@ function generateProductMetaTagsHTML(product: ProductProfile, profile: UserProfi
     description = `${description} - ${priceText}`;
   }
 
-  // Prioritize product image, fallback to user avatar
+  // Prioritize product image, fallback to the store's social icon/avatar
   const imageUrl = product.featured_image_url ||
+                   profile.social_icon_url ||
                    profile.avatar_url ||
                    profile.cover_url_desktop ||
                    profile.cover_url_mobile ||
@@ -558,7 +563,7 @@ export default async (request: Request, context: Context) => {
 
           // Fetch user profile by user_id
           const profileResponse = await fetch(
-            `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=name,slug,bio,avatar_url,cover_url_desktop,cover_url_mobile&limit=1`,
+            `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=name,slug,bio,avatar_url,social_icon_url,cover_url_desktop,cover_url_mobile&limit=1`,
             {
               headers: {
                 'apikey': supabaseKey,
@@ -821,7 +826,7 @@ export default async (request: Request, context: Context) => {
 
       // Now get the user profile for this product
       const profileResponse = await fetch(
-        `${supabaseUrl}/rest/v1/users?id=eq.${product.user_id}&select=name,slug,bio,avatar_url,cover_url_desktop,cover_url_mobile&limit=1`,
+        `${supabaseUrl}/rest/v1/users?id=eq.${product.user_id}&select=name,slug,bio,avatar_url,social_icon_url,cover_url_desktop,cover_url_mobile&limit=1`,
         {
           headers: {
             'apikey': supabaseKey,
@@ -869,7 +874,7 @@ export default async (request: Request, context: Context) => {
       
       // Fetch user profile from database
       const profileResponse = await fetch(
-        `${supabaseUrl}/rest/v1/users?slug=eq.${slug}&select=name,slug,bio,avatar_url,cover_url_desktop,cover_url_mobile&limit=1`,
+        `${supabaseUrl}/rest/v1/users?slug=eq.${slug}&select=name,slug,bio,avatar_url,social_icon_url,cover_url_desktop,cover_url_mobile&limit=1`,
         {
           headers: {
             'apikey': supabaseKey,

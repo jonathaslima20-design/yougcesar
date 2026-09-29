@@ -27,6 +27,10 @@ export interface User {
   phone?: string;
   country_code?: string;
   avatar_url?: string;
+  // Square icon for the browser tab favicon and the WhatsApp/social share card —
+  // separate from avatar_url (padrão theme's circular header photo) and from the
+  // eletrônicos theme's rectangular header_logo_url. Falls back to avatar_url.
+  social_icon_url?: string | null;
   cover_url_desktop?: string;
   cover_url_mobile?: string;
   promotional_banner_url?: string;

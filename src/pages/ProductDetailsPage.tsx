@@ -140,7 +140,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         // avoid leaking email, referral_code, subscription/billing fields, custom_domain, etc.)
         const { data: corretorData, error: corretorError } = await supabase
           .from('users')
-          .select('id, name, slug, avatar_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, facebook_url, x_url, youtube_url, pinterest_url, linkedin_url, tiktok_url, location_url, theme, active_storefront_theme_id, currency, language, plan_status, affiliate_program_enabled')
+          .select('id, name, slug, avatar_url, social_icon_url, whatsapp, whatsapp_message_enabled, whatsapp_mode, whatsapp_link, country_code, phone, bio, instagram, facebook_url, x_url, youtube_url, pinterest_url, linkedin_url, tiktok_url, location_url, theme, active_storefront_theme_id, currency, language, plan_status, affiliate_program_enabled')
           .eq('id', productData.user_id)
           .single();
 
@@ -153,7 +153,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         updateMetaTags(metaConfig);
         
         // Update favicon to product image or user's avatar
-        const faviconUrl = productData.featured_image_url || corretorData.avatar_url || 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png';
+        const faviconUrl = productData.featured_image_url || corretorData.social_icon_url || corretorData.avatar_url || 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png';
         updateFavicon(faviconUrl);
         
         // Set language and currency from corretor settings
