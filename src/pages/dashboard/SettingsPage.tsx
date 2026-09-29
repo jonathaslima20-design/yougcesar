@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { ProfileSettings } from '@/components/dashboard/ProfileSettings';
 import { StorefrontSettings } from '@/components/dashboard/StorefrontSettings';
-import { useEletronicosThemeEnabled } from '@/hooks/useEletronicosThemeEnabled';
+import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
+import { canUseEletronicosTheme } from '@/lib/platformThemeSettings';
 import { StorefrontThemeSettings } from '@/components/dashboard/StorefrontThemeSettings';
 import { StorefrontThemeCustomizeSettings } from '@/components/dashboard/StorefrontThemeCustomizeSettings';
 import TrackingSettingsContent from '@/components/dashboard/TrackingSettingsContent';
@@ -33,8 +34,8 @@ export default function SettingsPage() {
     themeFromUrl === 'eletronicos' ? 'eletronicos' : 'padrao'
   );
   // A hidden theme can't be opened by URL either, except by admins.
-  const { enabled: eletronicosThemeEnabled } = useEletronicosThemeEnabled();
-  const canCustomizeEletronicos = eletronicosThemeEnabled || user?.role === 'admin';
+  const { settings: platformThemeSettings } = usePlatformThemeSettings();
+  const canCustomizeEletronicos = canUseEletronicosTheme(platformThemeSettings, user?.id) || user?.role === 'admin';
   const effectiveCustomizeThemeId: StorefrontThemeId =
     customizeThemeId === 'eletronicos' && !canCustomizeEletronicos ? 'padrao' : customizeThemeId;
   // "Personalizar <tema>" isn't a persistent tab in the bar — it only shows up,

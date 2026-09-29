@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearanceDefaults';
-import { useEletronicosThemeEnabled } from '@/hooks/useEletronicosThemeEnabled';
+import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
+import { canUseEletronicosTheme } from '@/lib/platformThemeSettings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -16,16 +17,18 @@ interface StorefrontThemeSettingsProps {
 
 export function StorefrontThemeSettings({ onCustomize }: StorefrontThemeSettingsProps) {
   const { user, updateUser } = useAuth();
-  const { enabled: eletronicosEnabled } = useEletronicosThemeEnabled();
+  const { settings: platformThemeSettings } = usePlatformThemeSettings();
   const isAdmin = user?.role === 'admin';
-  // While the platform switch is off, merchants only see "Padrão"; admins still
-  // see "Eletrônicos" (tagged) so they can keep configuring it ahead of launch.
+  // "Eletrônicos" is available when the platform switch is on or this merchant is
+  // on the allowlist. Otherwise merchants only see "Padrão"; admins still see it
+  // (tagged) so they can keep configuring it ahead of launch.
+  const eletronicosAvailable = canUseEletronicosTheme(platformThemeSettings, user?.id);
   const visibleThemes = STOREFRONT_THEME_OPTIONS.filter(
-    (theme) => theme.value !== 'eletronicos' || eletronicosEnabled || isAdmin
+    (theme) => theme.value !== 'eletronicos' || eletronicosAvailable || isAdmin
   );
   const storedThemeId: StorefrontThemeId = user?.active_storefront_theme_id || 'padrao';
   const activeThemeId: StorefrontThemeId =
-    storedThemeId === 'eletronicos' && !eletronicosEnabled && !isAdmin ? 'padrao' : storedThemeId;
+    storedThemeId === 'eletronicos' && !eletronicosAvailable && !isAdmin ? 'padrao' : storedThemeId;
   const [savingTheme, setSavingTheme] = useState<StorefrontThemeId | null>(null);
 
   const handleSelect = async (themeId: StorefrontThemeId) => {
@@ -79,7 +82,7 @@ export function StorefrontThemeSettings({ onCustomize }: StorefrontThemeSettings
               </div>
               <h3 className="font-medium mb-1">
                 {theme.label}
-                {theme.value === 'eletronicos' && !eletronicosEnabled && (
+                {theme.value === 'eletronicos' && !eletronicosAvailable && (
                   <span className="ml-2 text-xs font-normal text-amber-600">Oculto para lojistas</span>
                 )}
               </h3>

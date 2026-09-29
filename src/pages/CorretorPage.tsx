@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { Loader, CircleAlert as AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCorretorData } from '@/hooks/useCorretorData';
-import { useEletronicosThemeEnabled } from '@/hooks/useEletronicosThemeEnabled';
+import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
 import { resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
 import { useProductData } from '@/hooks/useProductData';
 import { useProductSearch } from '@/hooks/useProductSearch';
@@ -63,7 +63,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
 
   // Load corretor data
   const { corretor, loading: corretorLoading, error: corretorError, preloadedAppearance } = useCorretorData({ slug });
-  const { enabled: eletronicosThemeEnabled } = useEletronicosThemeEnabled();
+  const { settings: platformThemeSettings } = usePlatformThemeSettings();
 
   const isPaidPlan = corretor?.plan_status === 'active';
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
@@ -527,7 +527,7 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     <StorefrontThemeProvider
       userId={corretor.id}
       isPaidPlan={isPaidPlan}
-      themeId={resolveStorefrontThemeId(corretor.active_storefront_theme_id, eletronicosThemeEnabled)}
+      themeId={resolveStorefrontThemeId(corretor.active_storefront_theme_id, platformThemeSettings, corretor.id)}
       preloadedAppearance={preloadedAppearance}
     >
       <StorefrontThemedBody

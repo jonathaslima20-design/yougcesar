@@ -28,7 +28,7 @@ import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { captureAffiliateClick } from '@/lib/affiliateUtils';
 import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverride';
 import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
-import { useEletronicosThemeEnabled } from '@/hooks/useEletronicosThemeEnabled';
+import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
 import { resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
 import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
 import ProductDetailsHeaderEletronicos from '@/components/storefront-themes/eletronicos/ProductDetailsHeaderEletronicos';
@@ -63,8 +63,8 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
   // Eletrônicos-only chrome (header/breadcrumb/footer) — everything below this
   // still runs unconditionally for both themes; only the JSX further down branches.
-  const { enabled: eletronicosThemeEnabled } = useEletronicosThemeEnabled();
-  const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, eletronicosThemeEnabled);
+  const { settings: platformThemeSettings } = usePlatformThemeSettings();
+  const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, platformThemeSettings, corretor?.id);
   const isEletronicos = storefrontThemeId === 'eletronicos';
   const homeHref = customDomainSlug ? '/' : `/${slug}`;
   const { metadata: eletronicosFilterMetadata } = useProductFilterMetadata({
