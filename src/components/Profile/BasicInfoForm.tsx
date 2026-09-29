@@ -1,7 +1,7 @@
 import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { PhoneInputWithCountry } from '@/components/ui/phone-input-with-country';
+import { PhoneInputWithCountry, COUNTRIES } from '@/components/ui/phone-input-with-country';
 import {
   Select,
   SelectContent,
@@ -22,6 +22,12 @@ interface BasicInfoFormProps {
 }
 
 export function BasicInfoForm({ form, user, onNameChange }: BasicInfoFormProps) {
+  // Reactive (not getValues, which wouldn't re-render once the profile finishes
+  // loading and form.reset() fires) — needed so the widget below opens already
+  // showing the merchant's real saved country/number instead of a blank Brazil
+  // default, which is what led them to "fix" it by picking a wrong country again.
+  const currentWhatsapp = form.watch('whatsapp');
+
   return (
     <div className="space-y-4">
       <FormField
@@ -100,23 +106,31 @@ export function BasicInfoForm({ form, user, onNameChange }: BasicInfoFormProps) 
       <FormField
         control={form.control}
         name="country_code"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>País, Telefone e WhatsApp</FormLabel>
-            <FormControl>
-              <PhoneInputWithCountry
-                defaultCountry="BR"
-                onChange={(data) => {
-                  form.setValue('country_code', data.ddi.replace('+', ''));
-                  form.setValue('phone', data.phone);
-                  form.setValue('whatsapp', data.phone);
-                }}
-                placeholder="(11) 99999-9999"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+        render={({ field }) => {
+          // This DDI is your OWN phone's country code, not your store's — the picker
+          // used to always reopen showing Brazil with a blank number, regardless of
+          // what was actually saved, which is what led merchants to "correct" it by
+          // picking the wrong country again. Now it reflects the real saved value.
+          const savedCountry = COUNTRIES.find((c) => c.ddi === `+${field.value}`)?.code || 'BR';
+          return (
+            <FormItem>
+              <FormLabel>DDI, Telefone e WhatsApp (o código do país do seu número — não da sua loja)</FormLabel>
+              <FormControl>
+                <PhoneInputWithCountry
+                  defaultCountry={savedCountry}
+                  value={currentWhatsapp}
+                  onChange={(data) => {
+                    form.setValue('country_code', data.ddi.replace('+', ''));
+                    form.setValue('phone', data.phone);
+                    form.setValue('whatsapp', data.phone);
+                  }}
+                  placeholder="(11) 99999-9999"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          );
+        }}
       />
 
       <FormField
