@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useCorretorData } from '@/hooks/useCorretorData';
 import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
 import { resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
+import { rememberStorefrontTheme } from '@/lib/storefrontThemeHint';
 import { useProductData } from '@/hooks/useProductData';
 import { useProductSearch } from '@/hooks/useProductSearch';
 import { useCorretorPageState } from '@/hooks/useCorretorPageState';
@@ -72,6 +73,15 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, platformThemeSettings, corretor?.id);
   const waitingForThemeFlag = corretor?.active_storefront_theme_id === 'eletronicos' && platformThemeLoading;
   const deferCatalog = storefrontThemeId === 'eletronicos';
+
+  // Remember this store's resolved theme (see lib/storefrontThemeHint.ts) so the
+  // platform footer knows what to guess on the very next visit, before this same
+  // fetch resolves again.
+  useEffect(() => {
+    if (corretor && !platformThemeLoading && !customDomainSlug) {
+      rememberStorefrontTheme(slug, storefrontThemeId);
+    }
+  }, [corretor, platformThemeLoading, customDomainSlug, slug, storefrontThemeId]);
 
   const isPaidPlan = corretor?.plan_status === 'active';
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);

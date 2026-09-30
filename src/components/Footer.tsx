@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Logo from '@/components/Logo';
+import { getRememberedStorefrontTheme, slugFromPathname } from '@/lib/storefrontThemeHint';
 
 interface FooterProps {
   hideLogo?: boolean;
@@ -8,12 +9,19 @@ interface FooterProps {
 }
 
 export default function Footer({ hideLogo = false, hideBlogLink = false }: FooterProps) {
+  const location = useLocation();
   const [bgColor, setBgColor] = useState<string | undefined>(undefined);
   const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
   const [footerLogoMode, setFooterLogoMode] = useState<string>('default');
   const [footerLogoFormat, setFooterLogoFormat] = useState<string>('rectangular');
   const [referralLink, setReferralLink] = useState<string | null>(null);
-  const [hidePlatformFooter, setHidePlatformFooter] = useState(false);
+  // Lazy-initialized from a remembered hint (see lib/storefrontThemeHint.ts) so a
+  // RETURNING visit to an eletrônicos store never shows this footer at all, even
+  // for the one frame before StorefrontThemeContext's own effect runs and sets the
+  // authoritative data-hide-platform-footer attribute the effect below reads.
+  const [hidePlatformFooter, setHidePlatformFooter] = useState(
+    () => getRememberedStorefrontTheme(slugFromPathname(location.pathname)) === 'eletronicos'
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -29,7 +37,15 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
       setFooterLogoMode(root.getAttribute('data-footer-logo-mode') || 'default');
       setFooterLogoFormat(root.getAttribute('data-footer-logo-format') || 'rectangular');
       setReferralLink(root.getAttribute('data-referral-link'));
-      setHidePlatformFooter(root.hasAttribute('data-hide-platform-footer'));
+      // Only the presence of `data-theme-resolved` means "the real theme is now
+      // known for sure" (StorefrontThemeProvider only mounts once corretor data has
+      // loaded). Before that — e.g. right after a hard reload, while the page is
+      // still showing its own loading spinner — leave hidePlatformFooter exactly as
+      // the lazy initializer guessed instead of forcing it to false, or the guess
+      // (the whole point of remembering the theme) gets wiped out immediately.
+      if (root.hasAttribute('data-theme-resolved')) {
+        setHidePlatformFooter(root.hasAttribute('data-hide-platform-footer'));
+      }
     };
 
     readState();
@@ -37,7 +53,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
     const observer = new MutationObserver(readState);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format', 'data-referral-link', 'data-hide-platform-footer'],
+      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format', 'data-referral-link', 'data-hide-platform-footer', 'data-theme-resolved'],
     });
 
     return () => observer.disconnect();

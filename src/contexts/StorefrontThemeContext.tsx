@@ -137,8 +137,14 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, themeId, preloaded
       // attribute stuck and hide the Padrão store's own footer.
       root.removeAttribute('data-hide-platform-footer');
     }
+    // This provider only mounts once the store's real theme is known (after
+    // corretor data loads) — so its mere presence is the "we now know for sure"
+    // signal Footer.tsx needs to tell "genuinely padrão" apart from "still
+    // loading, don't overwrite my best guess yet" (see storefrontThemeHint.ts).
+    root.setAttribute('data-theme-resolved', 'true');
     return () => {
       root.removeAttribute('data-hide-platform-footer');
+      root.removeAttribute('data-theme-resolved');
     };
   }, [themeId]);
 

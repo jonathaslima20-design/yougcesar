@@ -30,6 +30,7 @@ import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverri
 import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
 import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
 import { resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
+import { rememberStorefrontTheme } from '@/lib/storefrontThemeHint';
 import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
 import ProductDetailsHeaderEletronicos from '@/components/storefront-themes/eletronicos/ProductDetailsHeaderEletronicos';
 import ProductBreadcrumbEletronicos from '@/components/storefront-themes/eletronicos/ProductBreadcrumbEletronicos';
@@ -63,10 +64,20 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
   // Eletrônicos-only chrome (header/breadcrumb/footer) — everything below this
   // still runs unconditionally for both themes; only the JSX further down branches.
-  const { settings: platformThemeSettings } = usePlatformThemeSettings();
+  const { settings: platformThemeSettings, loading: platformThemeLoading } = usePlatformThemeSettings();
   const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, platformThemeSettings, corretor?.id);
   const isEletronicos = storefrontThemeId === 'eletronicos';
   const homeHref = customDomainSlug ? '/' : `/${slug}`;
+
+  // Remember this store's resolved theme (see lib/storefrontThemeHint.ts) so the
+  // platform footer knows what to guess on the very next visit, before this same
+  // fetch resolves again. Custom domains aren't covered (Footer can't tell those
+  // apart by pathname alone) — they just keep the one-time flash this replaces.
+  useEffect(() => {
+    if (corretor && !platformThemeLoading && !customDomainSlug) {
+      rememberStorefrontTheme(slug, storefrontThemeId);
+    }
+  }, [corretor, platformThemeLoading, customDomainSlug, slug, storefrontThemeId]);
   const { metadata: eletronicosFilterMetadata } = useProductFilterMetadata({
     userId: corretor?.id || '',
     enabled: isEletronicos && !!corretor?.id,
