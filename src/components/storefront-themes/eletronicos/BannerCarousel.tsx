@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
 import { useStorefrontBanners } from '@/hooks/useStorefrontBanners';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { cn } from '@/lib/utils';
 import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import BannerLinkWrapper, { hasBannerLink, type BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
+import { BannerPlaceholder } from '@/components/storefront-themes/eletronicos/BannerPlaceholder';
 import {
   Carousel,
   CarouselContent,
@@ -64,14 +64,7 @@ export default function BannerCarousel({ userId, linkContext }: BannerCarouselPr
   // shows on the live storefront (not just the dashboard) so it's visible
   // from the same place they'll eventually check their actual banners.
   if (banners.length === 0) {
-    return (
-      <div
-        className="flex w-full aspect-[960/425] md:aspect-[1920/650] items-center justify-center"
-        style={{ backgroundColor: appearance.banners_bg_color, color: appearance.banners_text_color }}
-      >
-        <ImageIcon className="h-10 w-10 md:h-14 md:w-14 opacity-20" />
-      </div>
-    );
+    return <BannerPlaceholder className="w-full aspect-[960/425] md:aspect-[1920/650]" />;
   }
 
   return (

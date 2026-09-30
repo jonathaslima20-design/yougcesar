@@ -3,17 +3,37 @@ import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import { cn } from '@/lib/utils';
 import BannerLinkWrapper, { hasBannerLink, type BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
+import { BannerPlaceholder } from '@/components/storefront-themes/eletronicos/BannerPlaceholder';
 
 interface MiniBannerGridProps {
   userId: string;
   linkContext: BannerLinkContext;
 }
 
+const PLACEHOLDER_SLOTS = 3;
+
 export default function MiniBannerGrid({ userId, linkContext }: MiniBannerGridProps) {
   const { appearance } = useStorefrontTheme();
   const { banners, loading } = useStorefrontMiniBanners(userId, { activeOnly: true });
 
-  if (loading || !appearance.mini_banners_enabled || banners.length === 0) return null;
+  // Only when the merchant has left the section on but hasn't uploaded any mini
+  // banner yet — turning the section off (mini_banners_enabled) still hides it,
+  // that's a deliberate choice, not "not filled in yet".
+  if (loading || !appearance.mini_banners_enabled) return null;
+
+  if (banners.length === 0) {
+    return (
+      <div>
+        <div className="container mx-auto px-4 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {Array.from({ length: PLACEHOLDER_SLOTS }).map((_, i) => (
+              <BannerPlaceholder key={i} className="w-full aspect-[832/960]" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: appearance.mini_banners_bg_color }}>

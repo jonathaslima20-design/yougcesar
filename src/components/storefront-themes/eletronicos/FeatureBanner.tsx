@@ -2,18 +2,29 @@ import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import { cn } from '@/lib/utils';
 import BannerLinkWrapper, { hasBannerLink, type BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
+import { BannerPlaceholder } from '@/components/storefront-themes/eletronicos/BannerPlaceholder';
 
 /**
  * "Banner de destaque" — a single wide banner between the product shelves, with a
- * separate image for phones. No rotation. Hidden until the merchant uploads an
- * image (either one is enough — the other falls back to it).
+ * separate image for phones. No rotation. Shows a gray placeholder, not hidden,
+ * until the merchant uploads an image (either one is enough — the other falls
+ * back to it) — turning the section off (feature_banner_enabled) still hides
+ * it, that's a deliberate choice, not "not filled in yet".
  */
 export default function FeatureBanner({ linkContext }: { linkContext: BannerLinkContext }) {
   const { appearance } = useStorefrontTheme();
   const desktop = appearance.feature_banner_desktop_url;
   const mobile = appearance.feature_banner_mobile_url;
 
-  if (!appearance.feature_banner_enabled || (!desktop && !mobile)) return null;
+  if (!appearance.feature_banner_enabled) return null;
+
+  if (!desktop && !mobile) {
+    return (
+      <section className="container mx-auto px-4 py-6">
+        <BannerPlaceholder className="rounded-lg aspect-[4/3] md:aspect-[1290/300]" />
+      </section>
+    );
+  }
 
   const link = appearance.feature_banner_link_url;
   const clickable = hasBannerLink(link);
