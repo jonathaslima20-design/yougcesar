@@ -23,8 +23,16 @@ export function useSystemAppearance(): UseSystemAppearanceResult {
       if (error || !data) {
         setAppearance(DEFAULT_APPEARANCE);
       } else {
+        // Merge over defaults, same reason as useStorefrontAppearance's own fetch:
+        // system_storefront_appearance predates the eletronicos-only columns
+        // (top_bar_phrases, header_bg_color, etc.) and was never migrated to add
+        // them, so `data` is missing those keys entirely — spreading it alone
+        // over an empty object left them `undefined`, crashing any store that
+        // activates the eletronicos theme without customizing it first (no
+        // per-user storefront_appearance row yet, so this system-wide row is
+        // all there is).
         const { id, updated_by, updated_at, created_at, ...rest } = data;
-        setAppearance(rest as StorefrontAppearance);
+        setAppearance({ ...DEFAULT_APPEARANCE, ...rest } as StorefrontAppearance);
       }
       setLoading(false);
     };
@@ -62,8 +70,9 @@ export function useAdminSystemAppearance(): UseAdminSystemAppearanceResult {
         setAppearance(DEFAULT_APPEARANCE);
         setRecordId(null);
       } else {
+        // Same defensive merge as useSystemAppearance above.
         const { id, updated_by, updated_at, created_at, ...rest } = data;
-        setAppearance(rest as StorefrontAppearance);
+        setAppearance({ ...DEFAULT_APPEARANCE, ...rest } as StorefrontAppearance);
         setRecordId(id);
       }
       setLoading(false);
