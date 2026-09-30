@@ -39,7 +39,7 @@ export default function MiniBannerGrid({ userId, linkContext }: MiniBannerGridPr
                   alt=""
                   loading="lazy"
                   decoding="async"
-                  className="w-full aspect-[416/480] object-cover transition-transform duration-500 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                  className="w-full aspect-[832/960] object-cover transition-transform duration-500 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                 />
               </BannerLinkWrapper>
             );

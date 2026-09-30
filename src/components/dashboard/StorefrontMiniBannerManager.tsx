@@ -113,7 +113,7 @@ export function StorefrontMiniBannerManager() {
               <img
                 src={banner.image_url}
                 alt=""
-                className="w-full sm:w-28 aspect-[416/480] object-cover rounded border shrink-0"
+                className="w-full sm:w-28 aspect-[832/960] object-cover rounded border shrink-0"
               />
               <div className="flex-1 space-y-2">
                 <BannerLinkField
@@ -151,9 +151,9 @@ export function StorefrontMiniBannerManager() {
           <h3 className="font-medium">Adicionar banner</h3>
 
           <div className="max-w-[200px]">
-            <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem (416x480)</Label>
+            <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem (832x960)</Label>
             {draftImage && (
-              <img src={draftImage} alt="" className="w-full aspect-[416/480] object-cover rounded border mb-2" />
+              <img src={draftImage} alt="" className="w-full aspect-[832/960] object-cover rounded border mb-2" />
             )}
             <input
               type="file"
@@ -202,7 +202,7 @@ export function StorefrontMiniBannerManager() {
             setSelectedFile(null);
           }}
           open={cropperOpen}
-          aspectRatio={416 / 480}
+          aspectRatio={832 / 960}
         />
       )}
     </div>
