@@ -94,9 +94,9 @@ export default function CategoryShowcase({ corretor, covers, filterMetadata, fil
                   <button
                     type="button"
                     onClick={() => selectCategory(category)}
-                    className="shrink-0 flex flex-col items-center gap-2 w-24"
+                    className="group shrink-0 flex flex-col items-center gap-2 w-24"
                   >
-                    <span className="h-20 w-20 rounded-full overflow-hidden bg-muted border flex items-center justify-center pointer-events-none">
+                    <span className="h-20 w-20 rounded-full overflow-hidden bg-muted border flex items-center justify-center pointer-events-none shadow-sm transition-all duration-200 ease-out group-hover:shadow-md group-hover:scale-105 group-hover:border-primary/50 group-active:scale-95 motion-reduce:transition-none motion-reduce:group-hover:scale-100">
                       {image ? (
                         <img
                           src={getResizedImageUrl(image, 160)}
@@ -109,14 +109,14 @@ export default function CategoryShowcase({ corretor, covers, filterMetadata, fil
                           // the side of the carousel, so they shouldn't compete with the banner.
                           loading={index < 4 ? 'eager' : 'lazy'}
                           decoding="async"
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                           draggable={false}
                         />
                       ) : (
                         <span className="text-xs text-muted-foreground">{category.slice(0, 2)}</span>
                       )}
                     </span>
-                    <span className="text-xs font-medium text-center leading-tight pointer-events-none">{category}</span>
+                    <span className="text-xs font-medium text-center leading-tight pointer-events-none transition-colors group-hover:text-primary">{category}</span>
                   </button>
                 </CarouselItem>
               );

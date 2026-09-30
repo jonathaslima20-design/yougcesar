@@ -90,7 +90,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
   };
 
   return (
-    <footer className="mt-auto py-6 border-t border-border/50">
+    <footer className="platform-footer mt-auto py-6 border-t border-border/50">
       <div className="container mx-auto px-4 flex flex-col items-center">
         {renderLogo()}
         <div className={`flex items-center gap-4 text-xs text-muted-foreground/70 ${hideLogo || footerLogoMode === 'hidden' ? '' : 'mt-2'}`}>

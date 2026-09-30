@@ -15,6 +15,8 @@ import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 
 type DraftSlot = 'desktop' | 'mobile';
 
+const MAX_BANNERS = 5;
+
 export function StorefrontBannerManager() {
   const { user } = useAuth();
   const { banners, loading, create, update, remove, move } = useStorefrontBanners(user?.id);
@@ -162,8 +164,17 @@ export function StorefrontBannerManager() {
 
       <Card className="border-dashed">
         <CardContent className="p-4 space-y-4">
-          <h3 className="font-medium">Adicionar banner</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Adicionar banner</h3>
+            <span className="text-xs text-muted-foreground">{banners.length}/{MAX_BANNERS}</span>
+          </div>
 
+          {banners.length >= MAX_BANNERS ? (
+            <p className="text-sm text-muted-foreground">
+              Limite de {MAX_BANNERS} banners atingido. Remova um banner para adicionar outro.
+            </p>
+          ) : (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="text-xs text-muted-foreground mb-1.5 block">Imagem desktop (1920x650)</Label>
@@ -231,6 +242,8 @@ export function StorefrontBannerManager() {
             <p className="text-xs text-muted-foreground">
               Falta enviar a imagem {!draft.desktop ? 'desktop' : 'mobile'} — as duas são obrigatórias para salvar o banner.
             </p>
+          )}
+          </>
           )}
         </CardContent>
       </Card>

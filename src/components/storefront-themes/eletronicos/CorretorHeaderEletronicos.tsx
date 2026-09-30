@@ -98,10 +98,10 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCat
  * that component's big cover+avatar layout is what makes the "padrão" theme look the
  * way it does, and reusing it here defeats the point of a visually distinct theme.
  */
-export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps & { onOpenFilters: () => void; catalogRows: CatalogRow[] }) {
+export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps & { onOpenFilters: () => void; onGoHome: () => void; catalogRows: CatalogRow[] }) {
   const {
     corretor, cartEnabled, onlineSalesEnabled, filterMetadata, filters, onFiltersChange, language,
-    currency, onOpenFilters, catalogRows,
+    currency, onOpenFilters, onGoHome, catalogRows,
   } = props;
   const { isCustomDomain } = useCustomDomain();
   const productHref = (id: string) => (isCustomDomain ? `/produtos/${id}` : `/${corretor.slug}/produtos/${id}`);
@@ -260,7 +260,12 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
             {showMobileSearch ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
           </button>
 
-          <Link to={`/${corretor.slug}`} className="flex-1 flex items-center justify-center">
+          <Link
+            to={`/${corretor.slug}`}
+            onClick={onGoHome}
+            aria-label="Ir para a página inicial da loja"
+            className="flex-1 flex items-center justify-center"
+          >
             {appearance.header_logo_url ? (
               <img src={appearance.header_logo_url} alt={corretor.name} className="object-contain" style={{ height: mobileLogoPx }} />
             ) : (
@@ -324,7 +329,12 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
           continuous block — matches the reference exactly (not split white/black). */}
       <header className="hidden md:block" style={chromeStyle}>
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Link to={`/${corretor.slug}`} className="shrink-0">
+          <Link
+            to={`/${corretor.slug}`}
+            onClick={onGoHome}
+            aria-label="Ir para a página inicial da loja"
+            className="shrink-0"
+          >
             {appearance.header_logo_url ? (
               <img src={appearance.header_logo_url} alt={corretor.name} className="object-contain" style={{ height: desktopLogoPx }} />
             ) : (

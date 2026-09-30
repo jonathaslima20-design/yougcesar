@@ -62,6 +62,20 @@
 html, body {
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
+  /* Stop the elastic "rubber-band" overscroll from stretching the document past its
+     bounds — on a themed storefront with a dark header/footer, that stretch briefly
+     exposed the page's plain white background as a jarring strip at the top/bottom. */
+  overscroll-behavior-y: none;
+}
+
+/* Hides the generic platform footer (PublicLayout's <Footer/>) the instant
+   StorefrontThemeContext marks the page as owning its own footer (Eletrônicos) — a
+   plain CSS attribute selector so it applies the moment the attribute is set on
+   <html>, without waiting for Footer's own effect/re-render to catch up. That render
+   lag is what let the platform footer (with the VitrineTurbo logo) flash for a frame
+   on every storefront/product page load before this rule existed. */
+html[data-hide-platform-footer] .platform-footer {
+  display: none;
 }
 
 body {

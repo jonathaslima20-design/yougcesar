@@ -109,6 +109,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
         {...props}
         filterMetadata={eletronicosFilterMetadata}
         onOpenFilters={() => setFiltersOpen(true)}
+        onGoHome={resetFilters}
         catalogRows={summary.rows}
       />
 
