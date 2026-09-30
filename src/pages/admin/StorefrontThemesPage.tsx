@@ -61,7 +61,7 @@ export default function StorefrontThemesPage() {
     if (!settings) return;
     persist(
       { ...settings, eletronicosEnabled: checked },
-      checked ? 'Tema Eletrônicos liberado para todos os lojistas' : 'Tema Eletrônicos ocultado dos lojistas'
+      checked ? 'Tema E-commerce liberado para todos os lojistas' : 'Tema E-commerce ocultado dos lojistas'
     );
   };
 
@@ -109,7 +109,7 @@ export default function StorefrontThemesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Tema Eletrônicos</CardTitle>
+          <CardTitle className="text-base">Tema E-commerce</CardTitle>
           <CardDescription>Interruptor geral, para todas as lojas.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -122,7 +122,7 @@ export default function StorefrontThemesPage() {
             <>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5 pr-4">
-                  <Label className="text-sm font-medium">Exibir o tema Eletrônicos para todos os lojistas</Label>
+                  <Label className="text-sm font-medium">Exibir o tema E-commerce para todos os lojistas</Label>
                   <p className="text-xs text-muted-foreground">
                     Quando desligado, o tema some da escolha de tema em Configurações e qualquer loja que já o tenha
                     selecionado passa a mostrar o tema Padrão, exceto as lojas liberadas abaixo. Nada é apagado: a
@@ -146,7 +146,7 @@ export default function StorefrontThemesPage() {
         <CardHeader>
           <CardTitle className="text-base">Lojas com acesso antecipado</CardTitle>
           <CardDescription>
-            Estas lojas usam o tema Eletrônicos mesmo com o interruptor geral desligado.
+            Estas lojas usam o tema E-commerce mesmo com o interruptor geral desligado.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

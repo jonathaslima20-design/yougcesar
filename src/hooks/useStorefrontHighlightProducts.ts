@@ -12,6 +12,7 @@ const HIGHLIGHT_PRODUCTS_SELECT = `
   status,
   category,
   display_order,
+  storefront_highlight_order,
   has_tiered_pricing,
   min_tiered_price,
   max_tiered_price,
@@ -54,6 +55,7 @@ export function useStorefrontHighlightProducts(userId: string | undefined) {
       .eq('user_id', userId)
       .eq('is_visible_on_storefront', true)
       .eq('storefront_highlight', true)
+      .order('storefront_highlight_order', { ascending: true, nullsFirst: false })
       .order('display_order', { ascending: true })
       .then(({ data, error }) => {
         if (cancelled) return;

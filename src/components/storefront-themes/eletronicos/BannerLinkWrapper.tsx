@@ -15,6 +15,7 @@ interface BannerLinkWrapperProps {
   link: string | null | undefined;
   context: BannerLinkContext;
   className?: string;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }
 
@@ -23,13 +24,13 @@ interface BannerLinkWrapperProps {
  * category" (a button — no navigation, it filters the store like the category menu does)
  * or a link to a product page. Without a link it renders a plain block.
  */
-export default function BannerLinkWrapper({ link, context, className, children }: BannerLinkWrapperProps) {
+export default function BannerLinkWrapper({ link, context, className, style, children }: BannerLinkWrapperProps) {
   const { isCustomDomain } = useCustomDomain();
   const parsed = parseBannerLink(link);
 
   if (parsed.type === 'url') {
     return (
-      <a href={parsed.value} target="_blank" rel="noopener noreferrer" className={className}>
+      <a href={parsed.value} target="_blank" rel="noopener noreferrer" className={className} style={style}>
         {children}
       </a>
     );
@@ -41,6 +42,7 @@ export default function BannerLinkWrapper({ link, context, className, children }
         type="button"
         onClick={() => context.onFiltersChange({ ...context.filters, category: parsed.value })}
         className={`${className ?? ''} w-full text-left`}
+        style={style}
       >
         {children}
       </button>
@@ -50,13 +52,13 @@ export default function BannerLinkWrapper({ link, context, className, children }
   if (parsed.type === 'product') {
     const to = isCustomDomain ? `/produtos/${parsed.value}` : `/${context.slug}/produtos/${parsed.value}`;
     return (
-      <Link to={to} className={className}>
+      <Link to={to} className={className} style={style}>
         {children}
       </Link>
     );
   }
 
-  return <div className={className}>{children}</div>;
+  return <div className={className} style={style}>{children}</div>;
 }
 
 export function hasBannerLink(link: string | null | undefined): boolean {

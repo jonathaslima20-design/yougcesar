@@ -43,7 +43,7 @@ export default function OffersCarousel({
         </div>
 
         <Carousel opts={{ align: 'start' }} className="relative">
-          <CarouselContent>
+          <CarouselContent className="-ml-4">
             {products.map((product) => (
               <CarouselItem key={product.id} className="basis-1/2 sm:basis-1/3 lg:basis-1/4 pl-4">
                 <div className="h-full">

@@ -36,6 +36,8 @@ import { useAffiliateWhatsAppOverride } from '@/hooks/useAffiliateWhatsAppOverri
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import CartModal from '@/components/corretor/CartModal';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
+import { normalizeTopBarPhrase } from '@/lib/appearanceDefaults';
+import BannerLinkWrapper, { hasBannerLink } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
 
 type CategoryNavProps = Pick<StorefrontPageBodyProps, 'filterMetadata' | 'filters' | 'onFiltersChange'> & {
   onOpenAllCategories: () => void;
@@ -118,8 +120,8 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
   const mobileLogoPx = `${44 * logoScale}px`;
   const desktopLogoPx = `${64 * logoScale}px`;
   const topBarPhrases = appearance.top_bar_phrases.length > 0
-    ? appearance.top_bar_phrases
-    : ['Fale com a gente pelo WhatsApp'];
+    ? appearance.top_bar_phrases.map(normalizeTopBarPhrase)
+    : [{ text: 'Fale com a gente pelo WhatsApp', link_url: null }];
   const [topBarIndex, setTopBarIndex] = useState(0);
   const [showCart, setShowCart] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
@@ -230,24 +232,47 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
 
   return (
     <div>
-      {appearance.top_bar_enabled && (
-        whatsappUrl && whatsappUrl !== '#' ? (
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleWhatsAppClick}
-            className="block text-center text-xs py-1.5 hover:underline"
-            style={topBarStyle}
-          >
-            {topBarPhrases[topBarIndex % topBarPhrases.length]}
-          </a>
-        ) : (
+      {appearance.top_bar_enabled && (() => {
+        const currentPhrase = topBarPhrases[topBarIndex % topBarPhrases.length];
+
+        // A phrase's own link (external URL, category or product) wins over the
+        // bar's old default of always pointing at WhatsApp; that default still
+        // applies to any phrase left without one, so existing stores keep behaving
+        // exactly as before.
+        if (hasBannerLink(currentPhrase.link_url)) {
+          return (
+            <BannerLinkWrapper
+              link={currentPhrase.link_url}
+              context={{ slug: corretor.slug || '', filters, onFiltersChange }}
+              className="block text-center text-xs py-1.5 hover:underline"
+              style={topBarStyle}
+            >
+              {currentPhrase.text}
+            </BannerLinkWrapper>
+          );
+        }
+
+        if (whatsappUrl && whatsappUrl !== '#') {
+          return (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleWhatsAppClick}
+              className="block text-center text-xs py-1.5 hover:underline"
+              style={topBarStyle}
+            >
+              {currentPhrase.text}
+            </a>
+          );
+        }
+
+        return (
           <div className="block text-center text-xs py-1.5" style={topBarStyle}>
-            {topBarPhrases[topBarIndex % topBarPhrases.length]}
+            {currentPhrase.text}
           </div>
-        )
-      )}
+        );
+      })()}
 
       {/* Mobile: single dark bar, like the reference collapses to at small widths */}
       <header className="md:hidden" style={chromeStyle}>

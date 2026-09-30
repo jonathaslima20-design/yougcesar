@@ -1,5 +1,18 @@
 export type StorefrontThemeId = 'padrao' | 'eletronicos';
 
+export interface TopBarPhrase {
+  text: string;
+  /** Same encoding as a banner's `link_url` (see lib/bannerLink.ts) — an external
+   *  URL, `category:<name>`, `product:<id>`, or null for no link. */
+  link_url?: string | null;
+}
+
+/** Tolerates phrases saved before per-phrase links existed (plain strings). */
+export function normalizeTopBarPhrase(raw: TopBarPhrase | string): TopBarPhrase {
+  if (typeof raw === 'string') return { text: raw, link_url: null };
+  return raw;
+}
+
 export interface StorefrontAppearance {
   id?: string;
   user_id?: string;
@@ -51,7 +64,7 @@ export interface StorefrontAppearance {
   category_showcase_enabled: boolean;
   category_showcase_title: string | null;
   header_logo_url: string | null;
-  top_bar_phrases: string[];
+  top_bar_phrases: TopBarPhrase[];
   top_bar_enabled: boolean;
   benefits_bar_enabled: boolean;
   mini_banners_enabled: boolean;
@@ -268,7 +281,7 @@ export const GRADIENT_PRESETS = [
 
 export const STOREFRONT_THEME_OPTIONS: { value: StorefrontThemeId; label: string; description: string }[] = [
   { value: 'padrao', label: 'Padrão', description: 'O layout atual da sua vitrine.' },
-  { value: 'eletronicos', label: 'Eletrônicos', description: 'Vitrine estilo loja online, com banners, categorias em destaque e prateleiras de produtos.' },
+  { value: 'eletronicos', label: 'E-commerce', description: 'Vitrine estilo loja online, com banners, categorias em destaque e prateleiras de produtos.' },
 ];
 
 export const GRADIENT_DIRECTION_OPTIONS = [

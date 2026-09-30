@@ -47,8 +47,14 @@ export async function savePlatformThemeSettings(settings: PlatformThemeSettings)
   cached = Promise.resolve(settings);
 }
 
-export function canUseEletronicosTheme(settings: PlatformThemeSettings, userId: string | null | undefined): boolean {
-  return settings.eletronicosEnabled || (!!userId && settings.eletronicosAllowedUserIds.includes(userId));
+/**
+ * The "E-commerce" theme is free and available to every merchant — no admin
+ * allowlist gate anymore. Kept as a function (rather than inlining `true` at
+ * every call site, in the picker and in the public storefront's own render
+ * resolution below) so a future access restriction has one place to change.
+ */
+export function canUseEletronicosTheme(_settings: PlatformThemeSettings, _userId: string | null | undefined): boolean {
+  return true;
 }
 
 /** The theme a store actually renders: "Eletrônicos" falls back to "Padrão" unless enabled for that store. */

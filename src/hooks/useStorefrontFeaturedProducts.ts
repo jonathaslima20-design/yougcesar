@@ -12,6 +12,7 @@ const FEATURED_PRODUCTS_SELECT = `
   status,
   category,
   display_order,
+  storefront_featured_order,
   has_tiered_pricing,
   min_tiered_price,
   max_tiered_price,
@@ -53,6 +54,7 @@ export function useStorefrontFeaturedProducts(userId: string | undefined) {
       .eq('user_id', userId)
       .eq('storefront_featured', true)
       .eq('is_visible_on_storefront', true)
+      .order('storefront_featured_order', { ascending: true, nullsFirst: false })
       .order('display_order', { ascending: true })
       .then(({ data, error }) => {
         if (cancelled) return;

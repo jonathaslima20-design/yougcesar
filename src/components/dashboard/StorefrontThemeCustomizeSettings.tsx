@@ -24,7 +24,7 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
   const { user } = useAuth();
   // Drives the discreet bg/text swatches in each content section's header below —
   // independent from whatever each manager's own hook instance fetches internally.
-  const { appearance, loading: appearanceLoading, save } = useStorefrontAppearance(user?.id, 'eletronicos');
+  const { appearance, loading: appearanceLoading, save } = useStorefrontAppearance(user?.id, themeId);
   const palette = getUsedThemeColors(appearance);
 
   return (
