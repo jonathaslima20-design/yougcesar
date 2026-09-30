@@ -68,9 +68,14 @@ export function useStorefrontBanners(userId: string | undefined, options: UseSto
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   const create = useCallback(async (userId: string, banner: NewStorefrontBanner): Promise<boolean> => {
+    // Based on the highest sort_order actually in use, not banners.length — a
+    // banner deleted earlier leaves a gap that .length doesn't account for,
+    // which was producing duplicate sort_order values (and silently breaking
+    // the up/down reorder buttons whenever two banners shared one).
+    const nextOrder = banners.length > 0 ? Math.max(...banners.map((b) => b.sort_order)) + 1 : 0;
     const { error } = await supabase.from('storefront_banners').insert({
       user_id: userId,
-      sort_order: banner.sort_order ?? banners.length,
+      sort_order: banner.sort_order ?? nextOrder,
       is_active: banner.is_active ?? true,
       ...banner,
     });
@@ -80,7 +85,7 @@ export function useStorefrontBanners(userId: string | undefined, options: UseSto
     }
     refresh();
     return true;
-  }, [banners.length, refresh]);
+  }, [banners, refresh]);
 
   const update = useCallback(async (id: string, data: Partial<StorefrontBanner>): Promise<boolean> => {
     const { error } = await supabase
@@ -110,14 +115,21 @@ export function useStorefrontBanners(userId: string | undefined, options: UseSto
     const swapWith = direction === 'up' ? index - 1 : index + 1;
     if (index < 0 || swapWith < 0 || swapWith >= banners.length) return false;
 
-    const current = banners[index];
-    const other = banners[swapWith];
-    const [a, b] = await Promise.all([
-      supabase.from('storefront_banners').update({ sort_order: other.sort_order }).eq('id', current.id),
-      supabase.from('storefront_banners').update({ sort_order: current.sort_order }).eq('id', other.id),
-    ]);
-    if (a.error || b.error) {
-      console.error('Error reordering storefront banners:', a.error || b.error);
+    // Renumbers every banner 0..N-1 from the new order, instead of swapping the
+    // two banners' existing sort_order values — swapping is a no-op whenever
+    // they happen to share the same value (which `create` could previously
+    // produce), so a reorder click could silently do nothing. Renumbering from
+    // scratch always produces a valid, unique order and self-heals any old
+    // duplicates the moment a merchant reorders again.
+    const reordered = [...banners];
+    [reordered[index], reordered[swapWith]] = [reordered[swapWith], reordered[index]];
+
+    const results = await Promise.all(
+      reordered.map((b, i) => supabase.from('storefront_banners').update({ sort_order: i }).eq('id', b.id))
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) {
+      console.error('Error reordering storefront banners:', failed.error);
       return false;
     }
     refresh();
