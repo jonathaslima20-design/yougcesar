@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Image as ImageIcon } from 'lucide-react';
 import { useStorefrontBanners } from '@/hooks/useStorefrontBanners';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { cn } from '@/lib/utils';
@@ -55,7 +56,23 @@ export default function BannerCarousel({ userId, linkContext }: BannerCarouselPr
     return () => clearInterval(interval);
   }, [api, banners.length, appearance.banners_autoplay_seconds]);
 
-  if (loading || banners.length === 0) return null;
+  if (loading) return null;
+
+  // No banner uploaded yet — a plain placeholder block, same size the real
+  // carousel would take, instead of hiding the section entirely. Lets a
+  // merchant see where it sits on the page before they've added one, and
+  // shows on the live storefront (not just the dashboard) so it's visible
+  // from the same place they'll eventually check their actual banners.
+  if (banners.length === 0) {
+    return (
+      <div
+        className="flex w-full aspect-[960/425] md:aspect-[1920/650] items-center justify-center"
+        style={{ backgroundColor: appearance.banners_bg_color, color: appearance.banners_text_color }}
+      >
+        <ImageIcon className="h-10 w-10 md:h-14 md:w-14 opacity-20" />
+      </div>
+    );
+  }
 
   return (
     <div
