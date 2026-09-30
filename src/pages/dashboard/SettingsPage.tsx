@@ -93,7 +93,34 @@ export default function SettingsPage() {
                   domain: 'Domínio',
                   integrations: 'Integrações',
                 };
-                const button = (
+                // "Personalizar <tema>" only shows up right after "Tema", and only while
+                // it's the active tab — it's not a persistent bar item. It renders as a
+                // single breadcrumb unit ("Tema / Personalizar Eletrônicos") nested inside
+                // the same tab cell, not as a separate tab beside it, so "Tema" still reads
+                // as the active section.
+                if (tab === 'theme' && activeTab === 'theme-customize') {
+                  return [
+                    <div
+                      key="theme-customize"
+                      className="flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-medium relative whitespace-nowrap"
+                    >
+                      <button
+                        type="button"
+                        onClick={goToThemeTab}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        Tema
+                      </button>
+                      <span className="text-muted-foreground">/</span>
+                      <span className="text-foreground">
+                        Personalizar {STOREFRONT_THEME_OPTIONS.find((t) => t.value === effectiveCustomizeThemeId)?.label}
+                      </span>
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+                    </div>,
+                  ];
+                }
+
+                return [
                   <button
                     key={tab}
                     onClick={() => tab === 'theme' ? goToThemeTab() : setActiveTab(tab)}
@@ -108,24 +135,8 @@ export default function SettingsPage() {
                     {activeTab === tab && (
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
                     )}
-                  </button>
-                );
-
-                // "Personalizar <tema>" only shows up right after "Tema", and only
-                // while it's the active tab — it's not a persistent bar item.
-                if (tab === 'theme' && activeTab === 'theme-customize') {
-                  return [
-                    button,
-                    <button
-                      key="theme-customize"
-                      className="px-3 sm:px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap text-foreground"
-                    >
-                      Personalizar {STOREFRONT_THEME_OPTIONS.find((t) => t.value === effectiveCustomizeThemeId)?.label}
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
-                    </button>,
-                  ];
-                }
-                return [button];
+                  </button>,
+                ];
               })}
             </div>
 

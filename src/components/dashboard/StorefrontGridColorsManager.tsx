@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
-import type { StorefrontAppearance } from '@/lib/appearanceDefaults';
+import { getUsedThemeColors, type StorefrontAppearance } from '@/lib/appearanceDefaults';
+import { ColorSwatchField } from '@/components/dashboard/ThemeSection';
 
 type GridColorField =
   | 'grid_card_bg_color'
@@ -34,36 +35,31 @@ function ColorRow({
   hint,
   value,
   fallback,
+  palette,
   onCommit,
 }: {
   label: string;
   hint: string;
   value: string | null;
   fallback: string;
+  palette: string[];
   onCommit: (value: string | null) => void;
 }) {
   const [local, setLocal] = useState(value || fallback);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Follow the stored value when it changes from outside (reset, reload).
   useEffect(() => setLocal(value || fallback), [value, fallback]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-
-  // Dragging inside the picker fires many changes; save only once it settles.
-  const handleChange = (next: string) => {
-    setLocal(next);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => onCommit(next), 600);
-  };
 
   return (
     <div className="flex items-center gap-3 rounded-lg border p-3">
-      <input
-        type="color"
+      <ColorSwatchField
         value={local}
-        onChange={(e) => handleChange(e.target.value)}
-        aria-label={label}
-        className="h-9 w-12 shrink-0 cursor-pointer rounded border bg-transparent p-0.5"
+        label={label}
+        palette={palette}
+        onCommit={(next) => {
+          setLocal(next);
+          onCommit(next);
+        }}
       />
       <div className="flex-1 min-w-0">
         <Label className="text-sm font-medium">{label}</Label>
@@ -79,7 +75,7 @@ function ColorRow({
 }
 
 /**
- * Colors for the product cards shown in the theme's grids (Ofertas, Novidades and the
+ * Colors for the product cards shown in the theme's grids (Ofertas, Novidades e a
  * category/search listing). Every color is optional: leave it on "Padrão do tema" and the
  * card keeps its current look.
  */
@@ -89,6 +85,7 @@ export function StorefrontGridColorsManager() {
 
   if (loading) return null;
 
+  const palette = getUsedThemeColors(appearance);
   const commit = (field: GridColorField) => (value: string | null) =>
     save({ [field]: value } as Partial<StorefrontAppearance>);
   const hasAny = GRID_COLORS.some(({ field }) => !!appearance[field]);
@@ -102,6 +99,7 @@ export function StorefrontGridColorsManager() {
           hint={hint}
           value={appearance[field]}
           fallback={fallback}
+          palette={palette}
           onCommit={commit(field)}
         />
       ))}

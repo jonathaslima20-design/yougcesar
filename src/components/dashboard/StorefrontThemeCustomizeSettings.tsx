@@ -1,9 +1,10 @@
-import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, LayoutGrid, PanelBottom } from 'lucide-react';
+import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, LayoutGrid, PanelBottom, Palette, Rows3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
-import { STOREFRONT_THEME_OPTIONS, type StorefrontThemeId } from '@/lib/appearanceDefaults';
+import { STOREFRONT_THEME_OPTIONS, getUsedThemeColors, type StorefrontThemeId } from '@/lib/appearanceDefaults';
 import { StorefrontVisualIdentity } from '@/components/dashboard/StorefrontVisualIdentity';
 import { StorefrontTopBarManager } from '@/components/dashboard/StorefrontTopBarManager';
 import { StorefrontFooterContentManager } from '@/components/dashboard/StorefrontFooterContentManager';
@@ -11,6 +12,7 @@ import { StorefrontGridColorsManager } from '@/components/dashboard/StorefrontGr
 import { StorefrontMovableSections } from '@/components/dashboard/StorefrontMovableSections';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import { ThemeSection, SectionColorSwatches, ColorOnlyRow } from '@/components/dashboard/ThemeSection';
+import { ThemeColorPaletteBar } from '@/components/dashboard/ThemeColorPaletteBar';
 
 interface StorefrontThemeCustomizeSettingsProps {
   themeId: StorefrontThemeId;
@@ -23,6 +25,7 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
   // Drives the discreet bg/text swatches in each content section's header below —
   // independent from whatever each manager's own hook instance fetches internally.
   const { appearance, loading: appearanceLoading, save } = useStorefrontAppearance(user?.id, 'eletronicos');
+  const palette = getUsedThemeColors(appearance);
 
   return (
     <div className="space-y-6">
@@ -37,86 +40,110 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
         </p>
       </div>
 
-      {/* Eletrônicos: seções na mesma ordem em que os elementos aparecem na página,
-          de cima para baixo — frase do topo, cabeçalho, menu, banners, benefícios,
-          categorias, mini banners, novidades e por último o rodapé. Cada bloco é
-          colapsável (só o primeiro abre por padrão) para não empilhar todos os
-          controles na tela ao mesmo tempo. */}
+      {/* Eletrônicos: agrupado por categoria (Identidade / Seções da home / Grade de
+          produtos / Rodapé) em vez de uma lista única, para não empilhar ~26 campos de
+          cor numa única rolagem. A paleta no topo mostra toda cor já usada no tema,
+          clicável para copiar — e a mesma lista reaparece como atalho dentro de cada
+          seletor de cor, então nunca é preciso "adivinhar" o tom certo de novo. */}
       {themeId === 'eletronicos' && (
-        <div className="space-y-3">
-          <ThemeSection icon={<ImageIcon size={16} />} title="Logo" defaultOpen>
-            <StorefrontVisualIdentity themeId={themeId} />
-          </ThemeSection>
+        <div className="space-y-4">
+          <ThemeColorPaletteBar appearance={appearance} />
 
-          <ThemeSection
-            icon={<Megaphone size={16} />}
-            title="Frases do topo"
-            description="A faixa de aviso que roda no topo da página, acima do cabeçalho."
-            headerExtra={
-              <SectionColorSwatches
-                bgColor={appearance.topbar_bg_color}
-                textColor={appearance.topbar_text_color}
-                onBgChange={(v) => save({ topbar_bg_color: v })}
-                onTextChange={(v) => save({ topbar_text_color: v })}
+          <Tabs defaultValue="identidade">
+            <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="identidade" className="gap-1.5"><Palette size={14} /> Identidade</TabsTrigger>
+              <TabsTrigger value="secoes" className="gap-1.5"><Rows3 size={14} /> Seções da home</TabsTrigger>
+              <TabsTrigger value="grade" className="gap-1.5"><LayoutGrid size={14} /> Grade de produtos</TabsTrigger>
+              <TabsTrigger value="rodape" className="gap-1.5"><PanelBottom size={14} /> Rodapé</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="identidade" className="space-y-3">
+              <ThemeSection icon={<ImageIcon size={16} />} title="Logo" defaultOpen>
+                <StorefrontVisualIdentity themeId={themeId} />
+              </ThemeSection>
+
+              <ThemeSection
+                icon={<Megaphone size={16} />}
+                title="Frases do topo"
+                description="A faixa de aviso que roda no topo da página, acima do cabeçalho."
+                headerExtra={
+                  <SectionColorSwatches
+                    bgColor={appearance.topbar_bg_color}
+                    textColor={appearance.topbar_text_color}
+                    onBgChange={(v) => save({ topbar_bg_color: v })}
+                    onTextChange={(v) => save({ topbar_text_color: v })}
+                    disabled={appearanceLoading}
+                    palette={palette}
+                  />
+                }
+              >
+                <StorefrontTopBarManager />
+              </ThemeSection>
+
+              {/* Pure color choices — no other setting to hide/show — so they're plain
+                  rows, not accordions. */}
+              <ColorOnlyRow
+                icon={<PanelTop size={16} />}
+                title="Cabeçalho"
+                description="Barra com a logo e a busca."
+                bgColor={appearance.header_bg_color}
+                textColor={appearance.header_text_color}
+                onBgChange={(v) => save({ header_bg_color: v })}
+                onTextChange={(v) => save({ header_text_color: v })}
                 disabled={appearanceLoading}
+                palette={palette}
               />
-            }
-          >
-            <StorefrontTopBarManager />
-          </ThemeSection>
 
-          {/* Pure color choices — no other setting to hide/show — so they're plain
-              rows, not accordions. */}
-          <ColorOnlyRow
-            icon={<PanelTop size={16} />}
-            title="Cabeçalho"
-            description="Barra com a logo e a busca."
-            bgColor={appearance.header_bg_color}
-            textColor={appearance.header_text_color}
-            onBgChange={(v) => save({ header_bg_color: v })}
-            onTextChange={(v) => save({ header_text_color: v })}
-            disabled={appearanceLoading}
-          />
-
-          <ColorOnlyRow
-            icon={<MenuIcon size={16} />}
-            title="Menu"
-            description="Barra de categorias logo abaixo do cabeçalho."
-            bgColor={appearance.nav_bg_color}
-            textColor={appearance.nav_text_color}
-            onBgChange={(v) => save({ nav_bg_color: v })}
-            onTextChange={(v) => save({ nav_text_color: v })}
-            disabled={appearanceLoading}
-          />
-
-          {/* Reorderable home sections (each has its own up/down), in page order. */}
-          <StorefrontMovableSections />
-
-          <ThemeSection
-            icon={<LayoutGrid size={16} />}
-            title="Grade de produtos"
-            description="Cores dos cards de produto (Ofertas, Novidades e a lista ao filtrar por categoria)."
-          >
-            <StorefrontGridColorsManager />
-          </ThemeSection>
-
-
-          <ThemeSection
-            icon={<PanelBottom size={16} />}
-            title="Rodapé"
-            description="O rodapé, no fim da página."
-            headerExtra={
-              <SectionColorSwatches
-                bgColor={appearance.footer_bg_color}
-                textColor={appearance.footer_text_color}
-                onBgChange={(v) => save({ footer_bg_color: v })}
-                onTextChange={(v) => save({ footer_text_color: v })}
+              <ColorOnlyRow
+                icon={<MenuIcon size={16} />}
+                title="Menu"
+                description="Barra de categorias logo abaixo do cabeçalho."
+                bgColor={appearance.nav_bg_color}
+                textColor={appearance.nav_text_color}
+                onBgChange={(v) => save({ nav_bg_color: v })}
+                onTextChange={(v) => save({ nav_text_color: v })}
                 disabled={appearanceLoading}
+                palette={palette}
               />
-            }
-          >
-            <StorefrontFooterContentManager />
-          </ThemeSection>
+            </TabsContent>
+
+            <TabsContent value="secoes" className="space-y-3">
+              {/* Reorderable home sections (each has its own up/down), in page order. */}
+              <StorefrontMovableSections />
+            </TabsContent>
+
+            <TabsContent value="grade">
+              <ThemeSection
+                icon={<LayoutGrid size={16} />}
+                title="Grade de produtos"
+                description="Cores dos cards de produto (Ofertas, Novidades e a lista ao filtrar por categoria)."
+                defaultOpen
+              >
+                <StorefrontGridColorsManager />
+              </ThemeSection>
+            </TabsContent>
+
+            <TabsContent value="rodape">
+              <ThemeSection
+                icon={<PanelBottom size={16} />}
+                title="Rodapé"
+                description="O rodapé, no fim da página."
+                defaultOpen
+                headerExtra={
+                  <SectionColorSwatches
+                    bgColor={appearance.footer_bg_color}
+                    textColor={appearance.footer_text_color}
+                    onBgChange={(v) => save({ footer_bg_color: v })}
+                    onTextChange={(v) => save({ footer_text_color: v })}
+                    disabled={appearanceLoading}
+                    palette={palette}
+                  />
+                }
+              >
+                <StorefrontFooterContentManager />
+              </ThemeSection>
+            </TabsContent>
+          </Tabs>
         </div>
       )}
 

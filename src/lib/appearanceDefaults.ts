@@ -76,6 +76,8 @@ export interface StorefrontAppearance {
   footer_payment_enabled: boolean;
   footer_credit_enabled: boolean;
   footer_tagline: string | null;
+  footer_company_name: string | null;
+  footer_cnpj: string | null;
   footer_logo_url: string | null;
   footer_institutional_links: { label: string; url: string }[];
   // Per-section background/text color, independent from header/footer.
@@ -88,6 +90,8 @@ export interface StorefrontAppearance {
   category_showcase_text_color: string;
   mini_banners_bg_color: string;
   mini_banners_text_color: string;
+  highlights_bg_color: string;
+  highlights_text_color: string;
   new_arrivals_bg_color: string;
   new_arrivals_text_color: string;
 }
@@ -161,6 +165,8 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   footer_payment_enabled: true,
   footer_credit_enabled: true,
   footer_tagline: null,
+  footer_company_name: null,
+  footer_cnpj: null,
   footer_logo_url: null,
   footer_institutional_links: [],
   banners_bg_color: '#ffffff',
@@ -172,6 +178,8 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   category_showcase_text_color: '#0a0a0a',
   mini_banners_bg_color: '#ffffff',
   mini_banners_text_color: '#0a0a0a',
+  highlights_bg_color: '#ffffff',
+  highlights_text_color: '#0a0a0a',
   new_arrivals_bg_color: '#ffffff',
   new_arrivals_text_color: '#0a0a0a',
 };
@@ -187,6 +195,7 @@ export const HOME_SECTIONS = [
   { id: 'offers', label: 'Ofertas' },
   { id: 'feature_banner', label: 'Banner de destaque' },
   { id: 'mini_banners', label: 'Mini banners' },
+  { id: 'highlights', label: 'Destaques' },
   { id: 'new_arrivals', label: 'Novidades' },
 ] as const;
 
@@ -298,6 +307,71 @@ export function getSpacingValue(value: string, type: 'section' | 'gap'): string 
 export function getFontSizeScale(value: string): string {
   const map = { sm: '0.875', md: '1', lg: '1.125' };
   return map[value as keyof typeof map] || '1';
+}
+
+/** Every color field the Eletrônicos theme exposes, used to build the "cores em uso" quick-pick palette. */
+const THEME_COLOR_FIELDS: (keyof StorefrontAppearance)[] = [
+  'header_bg_color', 'header_text_color',
+  'nav_bg_color', 'nav_text_color',
+  'topbar_bg_color', 'topbar_text_color',
+  'footer_bg_color', 'footer_text_color',
+  'banners_bg_color', 'banners_text_color',
+  'benefits_bg_color', 'benefits_text_color',
+  'category_showcase_bg_color', 'category_showcase_text_color',
+  'mini_banners_bg_color', 'mini_banners_text_color',
+  'highlights_bg_color', 'highlights_text_color',
+  'new_arrivals_bg_color', 'new_arrivals_text_color',
+  'grid_card_bg_color', 'grid_card_border_color', 'grid_title_color', 'grid_price_color',
+  'grid_button_bg_color', 'grid_button_text_color', 'grid_badge_bg_color', 'grid_section_bg_color',
+];
+
+/**
+ * Every distinct hex color already applied somewhere in the theme, deduped
+ * case-insensitively. Backs the "cores em uso" quick-pick strip so a merchant
+ * can reuse an exact shade instead of eyeballing a new one in the color wheel.
+ */
+export function getUsedThemeColors(appearance: StorefrontAppearance): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const field of THEME_COLOR_FIELDS) {
+    const value = appearance[field];
+    if (typeof value === 'string' && value) {
+      const key = value.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(value);
+      }
+    }
+  }
+  return out;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  const num = parseInt(full, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function relativeLuminance([r, g, b]: [number, number, number]): number {
+  const [rs, gs, bs] = [r, g, b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+/** WCAG contrast ratio (1–21) between two hex colors. Returns 21 (safe) if either hex is invalid. */
+export function getContrastRatio(hexA: string, hexB: string): number {
+  try {
+    const l1 = relativeLuminance(hexToRgb(hexA));
+    const l2 = relativeLuminance(hexToRgb(hexB));
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  } catch {
+    return 21;
+  }
 }
 
 export function loadGoogleFont(fontFamily: string): void {

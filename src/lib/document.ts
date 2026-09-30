@@ -17,6 +17,18 @@ export function formatCpfCnpj(value: string): string {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }
 
+// Always applies the CNPJ pattern regardless of how many digits are typed so far —
+// for fields that are specifically CNPJ (not a CPF/CNPJ dual field), where switching
+// pattern mid-typing would be confusing.
+export function formatCnpj(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14);
+  return digits
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+}
+
 function cpfCheckDigit(digits: string, length: number): number {
   let sum = 0;
   for (let i = 0; i < length; i++) {

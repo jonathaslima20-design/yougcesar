@@ -11,6 +11,7 @@ import MiniBannerGrid from '@/components/storefront-themes/eletronicos/MiniBanne
 import OffersCarousel from '@/components/storefront-themes/eletronicos/OffersCarousel';
 import FeatureBanner from '@/components/storefront-themes/eletronicos/FeatureBanner';
 import NewArrivalsCarousel from '@/components/storefront-themes/eletronicos/NewArrivalsCarousel';
+import HighlightsCarousel from '@/components/storefront-themes/eletronicos/HighlightsCarousel';
 import EletronicosBreadcrumb from '@/components/storefront-themes/eletronicos/EletronicosBreadcrumb';
 import CorretorFooterEletronicos from '@/components/storefront-themes/eletronicos/CorretorFooterEletronicos';
 import StorefrontProductCatalogSectionEletronicos from '@/components/storefront-themes/eletronicos/StorefrontProductCatalogSectionEletronicos';
@@ -67,6 +68,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
     offers: <OffersCarousel {...props} />,
     feature_banner: <FeatureBanner linkContext={linkContext} />,
     mini_banners: <MiniBannerGrid userId={props.corretor.id} linkContext={linkContext} />,
+    highlights: <HighlightsCarousel {...props} />,
     new_arrivals: <NewArrivalsCarousel {...props} />,
   };
   const activeCategory = filters?.category && filters.category !== 'todos' ? filters.category : null;

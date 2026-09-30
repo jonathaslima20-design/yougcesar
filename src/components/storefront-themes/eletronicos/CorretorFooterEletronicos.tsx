@@ -107,6 +107,13 @@ export default function CorretorFooterEletronicos({ corretor, language, currency
               {(appearance.footer_tagline || corretor.bio) && (
                 <p className="text-sm opacity-70 max-w-xs">{appearance.footer_tagline || corretor.bio}</p>
               )}
+              {(appearance.footer_company_name || appearance.footer_cnpj) && (
+                <p className="text-xs opacity-60 max-w-xs">
+                  {appearance.footer_company_name}
+                  {appearance.footer_company_name && appearance.footer_cnpj && ' — '}
+                  {appearance.footer_cnpj && `CNPJ: ${appearance.footer_cnpj}`}
+                </p>
+              )}
               {socialLinks.length > 0 && (
                 <div className="flex items-center gap-3 flex-wrap mt-1">
                   {socialLinks.map(({ url, label, Icon }) => (

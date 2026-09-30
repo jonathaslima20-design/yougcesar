@@ -22,7 +22,7 @@ interface ProductRow {
 
 interface StorefrontProductPickerManagerProps {
   /** products column holding the merchant's on/off flag for this section. */
-  column: 'storefront_featured' | 'storefront_offer';
+  column: 'storefront_featured' | 'storefront_offer' | 'storefront_highlight';
   /** Warn on rows without a real markdown (used by "Ofertas"). */
   requireDiscount?: boolean;
 }
@@ -268,4 +268,8 @@ export function StorefrontNewArrivalsManager() {
 
 export function StorefrontOffersManager() {
   return <StorefrontProductPickerManager column="storefront_offer" requireDiscount />;
+}
+
+export function StorefrontHighlightsManager() {
+  return <StorefrontProductPickerManager column="storefront_highlight" />;
 }

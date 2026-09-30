@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { ImageCropperBanner } from '@/components/ui/image-cropper-banner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 import { uploadImage, getExtensionForBlob } from '@/lib/image';
+import { formatCnpj, isValidCnpj } from '@/lib/document';
 
 const SOCIAL_FIELDS = [
   { key: 'facebook_url', label: 'Facebook', placeholder: 'https://facebook.com/sualoja' },
@@ -21,8 +22,24 @@ export function StorefrontFooterContentManager() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoCropperOpen, setLogoCropperOpen] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [cnpjInput, setCnpjInput] = useState(appearance.footer_cnpj ?? '');
+  const [cnpjError, setCnpjError] = useState(false);
+
+  useEffect(() => setCnpjInput(appearance.footer_cnpj ?? ''), [appearance.footer_cnpj]);
 
   if (loading) return null;
+
+  const handleCnpjBlur = () => {
+    const digits = cnpjInput.replace(/\D/g, '');
+    if (!digits) {
+      setCnpjError(false);
+      if (appearance.footer_cnpj) save({ footer_cnpj: null });
+      return;
+    }
+    const valid = isValidCnpj(digits);
+    setCnpjError(!valid);
+    if (valid) save({ footer_cnpj: cnpjInput });
+  };
 
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,6 +132,35 @@ export function StorefrontFooterContentManager() {
           placeholder={user?.bio || 'Usa a bio do perfil por padrão'}
           maxLength={160}
         />
+      </div>
+
+      <div>
+        <Label className="text-xs text-muted-foreground mb-2 block">Dados da empresa (opcional)</Label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Aparecem juntos, abaixo da frase, no rodapé da loja.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Nome da empresa</Label>
+            <Input
+              defaultValue={appearance.footer_company_name ?? ''}
+              onBlur={(e) => save({ footer_company_name: e.target.value.trim() || null })}
+              placeholder="Razão social ou nome fantasia"
+              maxLength={160}
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">CNPJ</Label>
+            <Input
+              value={cnpjInput}
+              onChange={(e) => setCnpjInput(formatCnpj(e.target.value))}
+              onBlur={handleCnpjBlur}
+              placeholder="00.000.000/0001-00"
+              maxLength={18}
+            />
+            {cnpjError && <p className="text-xs text-destructive mt-1">CNPJ inválido — confira os números.</p>}
+          </div>
+        </div>
       </div>
 
       <div>

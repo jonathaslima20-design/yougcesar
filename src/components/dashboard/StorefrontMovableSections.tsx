@@ -1,16 +1,16 @@
-import { ArrowUp, ArrowDown, GalleryHorizontal, BadgePercent, LayoutGrid, Images, Sparkles } from 'lucide-react';
+import { ArrowUp, ArrowDown, GalleryHorizontal, BadgePercent, LayoutGrid, Images, Sparkles, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
-import { resolveHomeSectionOrder, type HomeSectionId } from '@/lib/appearanceDefaults';
+import { getUsedThemeColors, resolveHomeSectionOrder, type HomeSectionId } from '@/lib/appearanceDefaults';
 import { ThemeSection, SectionColorSwatches } from '@/components/dashboard/ThemeSection';
 import { StorefrontBannerManager } from '@/components/dashboard/StorefrontBannerManager';
 import { StorefrontBenefitsManager } from '@/components/dashboard/StorefrontBenefitsManager';
 import { StorefrontCategoryShowcaseManager } from '@/components/dashboard/StorefrontCategoryShowcaseManager';
 import { StorefrontFeatureBannerManager } from '@/components/dashboard/StorefrontFeatureBannerManager';
 import { StorefrontMiniBannerManager } from '@/components/dashboard/StorefrontMiniBannerManager';
-import { StorefrontNewArrivalsManager, StorefrontOffersManager } from '@/components/dashboard/StorefrontNewArrivalsManager';
+import { StorefrontNewArrivalsManager, StorefrontOffersManager, StorefrontHighlightsManager } from '@/components/dashboard/StorefrontNewArrivalsManager';
 
 /**
  * The reorderable home sections of the "Eletrônicos" theme, listed here in the same
@@ -23,6 +23,7 @@ export function StorefrontMovableSections() {
   const { appearance, loading, save } = useStorefrontAppearance(user?.id, 'eletronicos');
 
   const order = resolveHomeSectionOrder(appearance.home_section_order);
+  const palette = getUsedThemeColors(appearance);
 
   const move = async (index: number, direction: -1 | 1) => {
     const target = index + direction;
@@ -40,6 +41,7 @@ export function StorefrontMovableSections() {
       onBgChange={(v) => save({ [bg]: v })}
       onTextChange={(v) => save({ [text]: v })}
       disabled={loading}
+      palette={palette}
     />
   );
 
@@ -83,6 +85,13 @@ export function StorefrontMovableSections() {
       description: 'Grade de 3 banners menores.',
       extra: swatches('mini_banners_bg_color', 'mini_banners_text_color'),
       body: <StorefrontMiniBannerManager />,
+    },
+    highlights: {
+      icon: <Star size={16} />,
+      title: 'Destaques',
+      description: 'Carrossel dos produtos que você escolher para aparecer em destaque, logo abaixo dos mini banners.',
+      extra: swatches('highlights_bg_color', 'highlights_text_color'),
+      body: <StorefrontHighlightsManager />,
     },
     new_arrivals: {
       icon: <Sparkles size={16} />,
