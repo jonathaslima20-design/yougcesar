@@ -24,7 +24,7 @@ export default function MiniBannerGrid({ userId, linkContext }: MiniBannerGridPr
   if (banners.length === 0) {
     return (
       <div>
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-8 md:py-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {Array.from({ length: PLACEHOLDER_SLOTS }).map((_, i) => (
               <BannerPlaceholder key={i} className="w-full aspect-[832/960]" />
@@ -37,7 +37,7 @@ export default function MiniBannerGrid({ userId, linkContext }: MiniBannerGridPr
 
   return (
     <div style={{ backgroundColor: appearance.mini_banners_bg_color }}>
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-8 md:py-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {banners.map((banner) => {
             const clickable = hasBannerLink(banner.link_url);

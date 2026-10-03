@@ -1,5 +1,6 @@
 import { ProductCard } from '@/components/product/ProductCard';
 import { useStorefrontOfferProducts } from '@/hooks/useStorefrontOfferProducts';
+import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import {
   Carousel,
   CarouselContent,
@@ -8,13 +9,14 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 import { ProductCardPlaceholder } from '@/components/storefront-themes/eletronicos/ProductCardPlaceholder';
+import { CarouselSkeleton } from '@/components/storefront-themes/eletronicos/CarouselSkeleton';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
 const PLACEHOLDER_SLOTS = 4;
 
 type OffersCarouselProps = Pick<
   StorefrontPageBodyProps,
-  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled' | 'onProductNavigate'
+  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled' | 'onlineSalesEnabled' | 'onProductNavigate'
 >;
 
 /**
@@ -29,26 +31,28 @@ export default function OffersCarousel({
   showStockOnStorefront,
   blockZeroStock,
   cartEnabled,
+  onlineSalesEnabled,
   onProductNavigate,
 }: OffersCarouselProps) {
+  const { appearance } = useStorefrontTheme();
   const { products, loading } = useStorefrontOfferProducts(corretor.id);
-
-  if (loading) return null;
 
   const heading = (
     <div className="text-center mb-6">
       <h2 className="text-xl md:text-2xl font-bold inline-block relative pb-2">
-        Ofertas
+        {appearance.offers_title || 'Ofertas'}
         <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-16 bg-current" />
       </h2>
     </div>
   );
 
+  if (loading) return <CarouselSkeleton heading={heading} />;
+
   // No product picked for this row yet — a static grid of placeholder cards
   // instead of hiding the section, same reasoning as the banner placeholders.
   if (products.length === 0) {
     return (
-      <section className="py-10">
+      <section className="py-8 md:py-10">
         <div className="container mx-auto px-4">
           {heading}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
@@ -62,7 +66,7 @@ export default function OffersCarousel({
   }
 
   return (
-    <section className="py-10">
+    <section className="py-8 md:py-10">
       <div className="container mx-auto px-4">
         {heading}
 
@@ -80,6 +84,7 @@ export default function OffersCarousel({
                     showStockOnStorefront={showStockOnStorefront}
                     blockZeroStock={blockZeroStock}
                     cartEnabled={cartEnabled}
+                    buyNowEnabled={onlineSalesEnabled}
                     onNavigate={onProductNavigate}
                   />
                 </div>

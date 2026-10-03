@@ -139,6 +139,11 @@ export default function BuyerRegisterPage() {
           </div>
         )}
 
+        {storeSlug && (
+          <Link to={`/${storeSlug}`} className="mb-3 inline-block text-sm text-muted-foreground hover:underline">
+            ← Voltar para a loja
+          </Link>
+        )}
         <Card className="shadow-xl border-border/50 backdrop-blur-sm">
           <CardHeader className="space-y-2 px-7 pt-7">
             <CardTitle className="text-2xl text-center page-title">Criar Conta</CardTitle>

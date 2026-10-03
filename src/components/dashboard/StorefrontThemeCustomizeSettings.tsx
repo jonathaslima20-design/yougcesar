@@ -1,4 +1,4 @@
-import { ArrowLeft, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, LayoutGrid, PanelBottom, Palette, Rows3 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, ImageIcon, Megaphone, PanelTop, Menu as MenuIcon, LayoutGrid, PanelBottom, Palette, Rows3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -9,6 +9,7 @@ import { StorefrontVisualIdentity } from '@/components/dashboard/StorefrontVisua
 import { StorefrontTopBarManager } from '@/components/dashboard/StorefrontTopBarManager';
 import { StorefrontFooterContentManager } from '@/components/dashboard/StorefrontFooterContentManager';
 import { StorefrontGridColorsManager } from '@/components/dashboard/StorefrontGridColorsManager';
+import { StorefrontNavCategoriesManager } from '@/components/dashboard/StorefrontNavCategoriesManager';
 import { StorefrontMovableSections } from '@/components/dashboard/StorefrontMovableSections';
 import { AppearanceSettings } from '@/components/dashboard/AppearanceSettings';
 import { ThemeSection, SectionColorSwatches, ColorOnlyRow } from '@/components/dashboard/ThemeSection';
@@ -39,6 +40,17 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
           Essas configurações valem só para o tema {themeLabel} — trocar de tema não afeta o que você ajustar aqui.
         </p>
       </div>
+
+      {/* Preview without activating: opens the store with the E-commerce theme for the owner
+          only (see lib/storefrontPreview.ts). Nothing is published until the theme is activated. */}
+      {themeId === 'eletronicos' && user?.slug && (
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" asChild>
+          <a href={`/${user.slug}?preview_theme=eletronicos`} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-3.5 w-3.5" />
+            Visualizar loja
+          </a>
+        </Button>
+      )}
 
       {/* Eletrônicos: agrupado por categoria (Identidade / Seções da home / Grade de
           produtos / Rodapé) em vez de uma lista única, para não empilhar ~26 campos de
@@ -94,17 +106,24 @@ export function StorefrontThemeCustomizeSettings({ themeId, onBack }: Storefront
                 palette={palette}
               />
 
-              <ColorOnlyRow
+              {/* Menu: its colors and the categories it lists live in one section. */}
+              <ThemeSection
                 icon={<MenuIcon size={16} />}
                 title="Menu"
-                description="Barra de categorias logo abaixo do cabeçalho."
-                bgColor={appearance.nav_bg_color}
-                textColor={appearance.nav_text_color}
-                onBgChange={(v) => save({ nav_bg_color: v })}
-                onTextChange={(v) => save({ nav_text_color: v })}
-                disabled={appearanceLoading}
-                palette={palette}
-              />
+                description="Barra de categorias logo abaixo do cabeçalho, e o que ela mostra."
+                headerExtra={
+                  <SectionColorSwatches
+                    bgColor={appearance.nav_bg_color}
+                    textColor={appearance.nav_text_color}
+                    onBgChange={(v) => save({ nav_bg_color: v })}
+                    onTextChange={(v) => save({ nav_text_color: v })}
+                    disabled={appearanceLoading}
+                    palette={palette}
+                  />
+                }
+              >
+                <StorefrontNavCategoriesManager />
+              </ThemeSection>
             </TabsContent>
 
             <TabsContent value="secoes" className="space-y-3">

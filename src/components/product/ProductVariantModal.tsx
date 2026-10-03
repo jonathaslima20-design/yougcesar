@@ -45,6 +45,9 @@ interface ProductVariantModalProps {
   inventoryEnabled?: boolean;
   blockZeroStock?: boolean;
   showStockOnStorefront?: boolean;
+  // Called right after the item goes to the cart (before the modal closes), so a caller
+  // can continue to checkout — used by the card's "Comprar" button.
+  onAddedToCart?: () => void;
 }
 
 export default function ProductVariantModal({
@@ -57,6 +60,7 @@ export default function ProductVariantModal({
   inventoryEnabled = false,
   blockZeroStock = false,
   showStockOnStorefront = false,
+  onAddedToCart,
 }: ProductVariantModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [distributionMode, setDistributionMode] = useState(false);
@@ -367,18 +371,21 @@ export default function ProductVariantModal({
       }
 
       // Add each distribution item to cart separately
-      distributionItems.forEach(item => {
-        addToCart(product, item.color, item.size, item.quantity, unitPrice, selectedFlavor, weightPayload);
-      });
+      // Same product for every line, so one refusal (e.g. another store's cart) refuses them all.
+      const added = distributionItems.map(item =>
+        addToCart(product, item.color, item.size, item.quantity, unitPrice, selectedFlavor, weightPayload)
+      );
+      if (added.includes(false)) return;
 
       toast.success(`${quantity} ${quantity === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho`);
     } else {
       // Simple add to cart - pass selected color and size if available
-      addToCart(product, selectedColor, selectedSize, quantity, unitPrice, selectedFlavor, weightPayload);
+      if (!addToCart(product, selectedColor, selectedSize, quantity, unitPrice, selectedFlavor, weightPayload)) return;
       toast.success(`${quantity} ${quantity === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho`);
     }
 
     // Reset and close
+    onAddedToCart?.();
     onOpenChange(false);
   };
 

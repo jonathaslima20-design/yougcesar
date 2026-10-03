@@ -57,12 +57,17 @@ export function canUseEletronicosTheme(_settings: PlatformThemeSettings, _userId
   return true;
 }
 
-/** The theme a store actually renders: "Eletrônicos" falls back to "Padrão" unless enabled for that store. */
+/**
+ * The theme a store actually renders: "Eletrônicos" falls back to "Padrão" unless enabled for that store.
+ * `previewThemeId` (owner-only, see lib/storefrontPreview.ts) wins over the store's active theme.
+ */
 export function resolveStorefrontThemeId(
   themeId: StorefrontThemeId | null | undefined,
   settings: PlatformThemeSettings,
-  ownerId: string | null | undefined
+  ownerId: string | null | undefined,
+  previewThemeId?: StorefrontThemeId | null
 ): StorefrontThemeId {
+  if (previewThemeId === 'eletronicos') return 'eletronicos';
   if (themeId === 'eletronicos' && canUseEletronicosTheme(settings, ownerId)) return 'eletronicos';
   return 'padrao';
 }

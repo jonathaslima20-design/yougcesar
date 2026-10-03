@@ -75,6 +75,13 @@ export interface StorefrontAppearance {
   feature_banner_link_url: string | null;
   // Order of the movable home sections (see HOME_SECTIONS); null = default order.
   home_section_order: string[] | null;
+  // Categories shown in the Eletrônicos menu bar + drawer, independent from the Vitrine
+  // order (see applyCategoryDisplayOrder). null = follow the Vitrine setting.
+  nav_category_settings: { category: string; order: number; enabled: boolean }[] | null;
+  // Custom titles for the product carousels (E-commerce). null = the default name.
+  offers_title: string | null;
+  new_arrivals_title: string | null;
+  highlights_title: string | null;
   // Product grid colors (Eletrônicos). null = keep the theme's current look.
   grid_card_bg_color: string | null;
   grid_card_border_color: string | null;
@@ -165,6 +172,10 @@ export const DEFAULT_APPEARANCE: StorefrontAppearance = {
   feature_banner_mobile_url: null,
   feature_banner_link_url: null,
   home_section_order: null,
+  nav_category_settings: null,
+  offers_title: null,
+  new_arrivals_title: null,
+  highlights_title: null,
   grid_card_bg_color: null,
   grid_card_border_color: null,
   grid_title_color: null,

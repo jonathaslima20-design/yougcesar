@@ -64,7 +64,7 @@ export default function CategoryShowcase({ corretor, covers, filterMetadata, fil
 
   return (
     <section
-      className="py-10"
+      className="py-8 md:py-10"
       style={{ backgroundColor: appearance.category_showcase_bg_color, color: appearance.category_showcase_text_color }}
     >
       <div className="container mx-auto px-4">

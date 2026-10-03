@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Loader as LoaderIcon, Settings2 } from 'lucide-react';
+import { Check, ExternalLink, Loader as LoaderIcon, Settings2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -131,6 +131,17 @@ export function StorefrontThemeSettings({ onCustomize }: StorefrontThemeSettings
                     <Settings2 className="h-3.5 w-3.5" />
                     Personalizar
                   </Button>
+
+                  {/* Preview without activating: the store opens with this theme for the owner
+                      only (see lib/storefrontPreview.ts). Only E-commerce has it for now. */}
+                  {theme.value === 'eletronicos' && user?.slug && (
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5" asChild>
+                      <a href={`/${user.slug}?preview_theme=eletronicos`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Visualizar
+                      </a>
+                    </Button>
+                  )}
 
                   {!isActive && (
                     <Button

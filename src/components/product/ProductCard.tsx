@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, MessageCircle, ImageOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,8 @@ interface ProductCardProps {
   showStockOnStorefront?: boolean;
   blockZeroStock?: boolean;
   cartEnabled?: boolean;
+  // Shows "Comprar" next to the cart icon (needs online payments on). Off = the single "Adicionar" button.
+  buyNowEnabled?: boolean;
   priceTiers?: PriceTier[] | null;
   onNavigate?: () => void;
 }
@@ -38,6 +40,7 @@ function ProductCardComponent({
   showStockOnStorefront = false,
   blockZeroStock = false,
   cartEnabled = true,
+  buyNowEnabled = false,
   priceTiers = null,
   onNavigate
 }: ProductCardProps) {
@@ -180,6 +183,27 @@ function ProductCardComponent({
     if (!isAvailable) {
       return;
     }
+  };
+
+  const navigate = useNavigate();
+  // Set while a "Comprar" is waiting on the variant modal, so the modal knows to continue to checkout.
+  const buyNowPendingRef = useRef(false);
+  const goToCheckout = () => navigate(`/${corretorSlug}/pedido/endereco`);
+
+  // "Comprar": same cart path as "Adicionar", then straight to checkout. Products with options
+  // open the variant modal first and continue to checkout once the item is in the cart.
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAvailable || !hasPrice) return;
+
+    if (hasOptions || product.has_tiered_pricing || hasWeightVariants) {
+      buyNowPendingRef.current = true;
+      setShowVariantModal(true);
+      return;
+    }
+
+    if (addToCart(product)) goToCheckout();
   };
 
   const handleProductClick = () => {
@@ -341,7 +365,27 @@ function ProductCardComponent({
               {/* Add to Cart Button, View Details Button, or Consult Availability */}
               {isAvailable && hasPrice && !isOutOfStock && (
                 <div className="mt-2 md:mt-3 pt-1.5 md:pt-2 border-t">
-                  {cartEnabled ? (
+                  {cartEnabled && buyNowEnabled && !product.external_checkout_url ? (
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        data-card-cta
+                        size="sm"
+                        className="flex-1 min-w-0 text-[10px] md:text-xs h-7 md:h-8"
+                        onClick={handleBuyNow}
+                      >
+                        Comprar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 md:h-8 md:w-8 shrink-0"
+                        aria-label={totalInCart > 0 ? `Carrinho (${totalInCart})` : 'Adicionar ao carrinho'}
+                        onClick={handleAddToCart}
+                      >
+                        <ShoppingCart className="h-3 w-3 md:h-4 md:w-4" />
+                      </Button>
+                    </div>
+                  ) : cartEnabled ? (
                     <Button
                       data-card-cta
                       size="sm"
@@ -404,7 +448,13 @@ function ProductCardComponent({
       {/* Variant Selection Modal */}
       <ProductVariantModal
         open={showVariantModal}
-        onOpenChange={setShowVariantModal}
+        onOpenChange={(open) => {
+          setShowVariantModal(open);
+          if (!open) buyNowPendingRef.current = false;
+        }}
+        onAddedToCart={() => {
+          if (buyNowPendingRef.current) goToCheckout();
+        }}
         product={product}
         currency={currency}
         language={language}
@@ -436,6 +486,7 @@ const arePropsEqual = (prevProps: ProductCardProps, nextProps: ProductCardProps)
     prevProps.inventoryEnabled === nextProps.inventoryEnabled &&
     prevProps.showStockOnStorefront === nextProps.showStockOnStorefront &&
     prevProps.cartEnabled === nextProps.cartEnabled &&
+    prevProps.buyNowEnabled === nextProps.buyNowEnabled &&
     prevProps.currency === nextProps.currency &&
     prevProps.language === nextProps.language &&
     prevProps.corretorSlug === nextProps.corretorSlug &&

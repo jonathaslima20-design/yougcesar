@@ -390,6 +390,8 @@ export interface CartState {
   distributions: CartDistribution[];
   total: number;
   itemCount: number;
+  // user_id of the store whose products are in the cart. A cart holds one store only.
+  storeId?: string;
 }
 
 // Referral System Types

@@ -45,6 +45,15 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
     [props.filterMetadata, props.categorySettings]
   );
 
+  // The menu bar + "Todas Categorias" drawer have their own list (Personalizar Eletrônicos →
+  // Categorias do menu). null = no own list yet, so the menu keeps following the Vitrine.
+  const navCategories = useMemo(
+    () => appearance.nav_category_settings
+      ? applyCategoryDisplayOrder(props.filterMetadata?.categories || [], appearance.nav_category_settings)
+      : eletronicosFilterMetadata.categories,
+    [props.filterMetadata, appearance.nav_category_settings, eletronicosFilterMetadata.categories]
+  );
+
   // Merchant-picked product grid colors, applied only when set (see index.css,
   // ".theme-eletronicos [data-product-card]"). Unset ones keep the card's own look.
   const gridColorVars: Record<string, string> = {};
@@ -110,6 +119,7 @@ export default function CorretorPageEletronicos(props: StorefrontPageBodyProps) 
       <CorretorHeaderEletronicos
         {...props}
         filterMetadata={eletronicosFilterMetadata}
+        navCategories={navCategories}
         onOpenFilters={() => setFiltersOpen(true)}
         onGoHome={resetFilters}
         catalogRows={summary.rows}

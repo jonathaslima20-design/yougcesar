@@ -20,7 +20,7 @@ export default function FeatureBanner({ linkContext }: { linkContext: BannerLink
 
   if (!desktop && !mobile) {
     return (
-      <section className="container mx-auto px-4 py-6">
+      <section className="container mx-auto px-4 py-8 md:py-6">
         <BannerPlaceholder className="rounded-lg aspect-[4/3] md:aspect-[1290/300]" />
       </section>
     );
@@ -30,7 +30,7 @@ export default function FeatureBanner({ linkContext }: { linkContext: BannerLink
   const clickable = hasBannerLink(link);
 
   return (
-    <section className="container mx-auto px-4 py-6">
+    <section className="container mx-auto px-4 py-8 md:py-6">
       <BannerLinkWrapper
         link={link}
         context={linkContext}

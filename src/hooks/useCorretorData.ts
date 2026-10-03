@@ -6,6 +6,7 @@ import { updateMetaTags, updateFavicon, getCorretorMetaTags, resetMetaTags } fro
 import { validateSession } from '@/lib/auth/simpleAuth';
 import { loadGoogleFont, type StorefrontAppearance } from '@/lib/appearanceDefaults';
 import { fetchPlatformThemeSettings, resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
+import { getOwnerPreviewTheme } from '@/lib/storefrontPreview';
 import type { User } from '@/types';
 
 // v2: keyed by theme too, since a store now holds one appearance row per theme
@@ -162,7 +163,8 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
       const activeThemeId = resolveStorefrontThemeId(
         corretorData.active_storefront_theme_id,
         await fetchPlatformThemeSettings(),
-        corretorData.id
+        corretorData.id,
+        getOwnerPreviewTheme(corretorData.id)
       );
       const cachedAppearance = getCachedAppearance(corretorData.id, activeThemeId);
       if (cachedAppearance) {

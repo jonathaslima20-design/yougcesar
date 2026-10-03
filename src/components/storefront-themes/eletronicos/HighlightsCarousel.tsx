@@ -1,4 +1,5 @@
 import { ProductCard } from '@/components/product/ProductCard';
+import { CarouselSkeleton } from '@/components/storefront-themes/eletronicos/CarouselSkeleton';
 import { useStorefrontHighlightProducts } from '@/hooks/useStorefrontHighlightProducts';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import {
@@ -15,7 +16,7 @@ const PLACEHOLDER_SLOTS = 4;
 
 type HighlightsCarouselProps = Pick<
   StorefrontPageBodyProps,
-  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled' | 'onProductNavigate'
+  'corretor' | 'currency' | 'language' | 'inventoryEnabled' | 'showStockOnStorefront' | 'blockZeroStock' | 'cartEnabled' | 'onlineSalesEnabled' | 'onProductNavigate'
 >;
 
 /**
@@ -32,28 +33,29 @@ export default function HighlightsCarousel({
   showStockOnStorefront,
   blockZeroStock,
   cartEnabled,
+  onlineSalesEnabled,
   onProductNavigate,
 }: HighlightsCarouselProps) {
   const { appearance } = useStorefrontTheme();
   const { products, loading } = useStorefrontHighlightProducts(corretor.id);
 
-  if (loading) return null;
-
   const heading = (
     <div className="text-center mb-6">
       <h2 className="text-xl md:text-2xl font-bold inline-block relative pb-2">
-        Destaques
+        {appearance.highlights_title || 'Destaques'}
         <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-16" style={{ backgroundColor: appearance.highlights_text_color }} />
       </h2>
     </div>
   );
+
+  if (loading) return <CarouselSkeleton heading={heading} />;
 
   // No product picked for this row yet — a static grid of placeholder cards
   // instead of hiding the section, same reasoning as the banner placeholders.
   if (products.length === 0) {
     return (
       <section
-        className="py-10"
+        className="py-8 md:py-10"
         style={{ backgroundColor: appearance.highlights_bg_color, color: appearance.highlights_text_color }}
       >
         <div className="container mx-auto px-4">
@@ -70,7 +72,7 @@ export default function HighlightsCarousel({
 
   return (
     <section
-      className="py-10"
+      className="py-8 md:py-10"
       style={{ backgroundColor: appearance.highlights_bg_color, color: appearance.highlights_text_color }}
     >
       <div className="container mx-auto px-4">
@@ -93,6 +95,7 @@ export default function HighlightsCarousel({
                     showStockOnStorefront={showStockOnStorefront}
                     blockZeroStock={blockZeroStock}
                     cartEnabled={cartEnabled}
+                    buyNowEnabled={onlineSalesEnabled}
                     onNavigate={onProductNavigate}
                   />
                 </div>

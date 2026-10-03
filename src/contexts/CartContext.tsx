@@ -10,7 +10,7 @@ interface CartContextType {
   appliedCoupon: AppliedCoupon | null;
   setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
   clearAppliedCoupon: () => void;
-  addToCart: (product: Product, selectedColor?: string, selectedSize?: string, quantity?: number, appliedTierPrice?: number, selectedFlavor?: string, selectedWeightVariant?: { id: string; label: string; price: number }) => void;
+  addToCart: (product: Product, selectedColor?: string, selectedSize?: string, quantity?: number, appliedTierPrice?: number, selectedFlavor?: string, selectedWeightVariant?: { id: string; label: string; price: number }) => boolean;
   removeFromCart: (productId: string) => void;
   removeCartVariant: (variantId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -29,12 +29,30 @@ interface CartContextType {
   updateDistributionItems: (distributionId: string, items: Array<{ color?: string; size?: string; quantity: number }>) => Promise<boolean>;
   loadDistributions: () => Promise<void>;
   getDistributions: () => CartDistribution[];
+  setCurrentStore: (storeId: string | undefined) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'vitrineturbo_cart';
 const COUPON_STORAGE_KEY = 'vitrineturbo_coupon';
+
+// Carts saved before each cart remembered its store: take the store from the products
+// themselves. Returns 'mixed' when the saved cart already spans two stores.
+async function findCartStoreOwner(items: CartItem[], distributions: CartDistribution[]): Promise<string | 'mixed' | null> {
+  const owners = new Set<string>();
+  distributions.forEach((d) => {
+    if (d.product?.user_id) owners.add(d.product.user_id);
+  });
+  const itemIds = [...new Set(items.map((i) => i.id))];
+  if (itemIds.length > 0) {
+    const { data, error } = await supabase.from('products').select('id, user_id').in('id', itemIds);
+    if (error || !data) return null;
+    data.forEach((p) => owners.add(p.user_id));
+  }
+  if (owners.size === 0) return null;
+  return owners.size === 1 ? [...owners][0] : 'mixed';
+}
 
 // Identifies "which products, in what quantities" so a coupon's frozen
 // discount can be tied to the cart it was validated against.
@@ -58,6 +76,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     itemCount: 0,
   });
   const [appliedCoupon, setAppliedCouponState] = useState<AppliedCoupon | null>(null);
+  // Store the buyer is browsing right now (set by the store's pages, see useStoreScopedCart).
+  const [currentStoreId, setCurrentStoreId] = useState<string | undefined>(undefined);
   const [tiersCache, setTiersCache] = useState<Map<string, PriceTier[]>>(new Map());
   const [productsCache, setProductsCache] = useState<Map<string, Product>>(new Map());
   // Snapshot of the cart contents at the moment a coupon was applied — a
@@ -82,7 +102,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
           distributions: loadedDistributions,
           total: parsedCart.total || 0,
           itemCount: parsedCart.itemCount || 0,
+          storeId: parsedCart.storeId,
         });
+
+        if (!parsedCart.storeId && (loadedItems.length > 0 || loadedDistributions.length > 0)) {
+          findCartStoreOwner(loadedItems, loadedDistributions).then((owner) => {
+            if (owner === 'mixed') {
+              setCart({ items: [], distributions: [], total: 0, itemCount: 0 });
+              toast.info('Seu carrinho tinha produtos de mais de uma loja e foi esvaziado. Adicione os produtos novamente.');
+            } else if (owner) {
+              setCart((prev) => ({ ...prev, storeId: owner }));
+            }
+          });
+        }
       }
       const savedCoupon = localStorage.getItem(COUPON_STORAGE_KEY);
       if (savedCoupon) {
@@ -183,14 +215,46 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return `${productId}-${color || 'no-color'}-${size || 'no-size'}-${flavor || 'no-flavor'}-${weightVariantId || 'no-weight'}`;
   };
 
-  const addToCart = (product: Product, selectedColor?: string, selectedSize?: string, quantity: number = 1, appliedTierPrice?: number, selectedFlavor?: string, selectedWeightVariant?: { id: string; label: string; price: number }) => {
+  // True when the cart holds products of a different store than `ownerId`.
+  const isFromAnotherStore = (ownerId: string | undefined) =>
+    !!cart.storeId &&
+    !!ownerId &&
+    cart.storeId !== ownerId &&
+    (cart.items.length > 0 || cart.distributions.length > 0);
+
+  // Empties the cart of its store's products. Distributions live in the database, so their rows go too.
+  const emptyCartOfOtherStore = () => {
+    setCart({ items: [], distributions: [], total: 0, itemCount: 0, storeId: undefined });
+    setAppliedCouponState(null);
+    couponCartSignatureRef.current = null;
+    Promise.all(cart.distributions.map((d) => deleteDistribution(d.distribution.id))).then(() => loadDistributions());
+  };
+
+  // A cart keeps products of one store. Adding a product from another store empties the cart
+  // first, so the buyer only ever sees the store they are shopping in.
+  const replaceCartForStore = (ownerId: string | undefined) => {
+    if (isFromAnotherStore(ownerId)) emptyCartOfOtherStore();
+  };
+
+  // Entering a store empties a cart left from another store. Runs again whenever the store or
+  // the cart's store changes, so it works whatever order the page and the saved cart load in.
+  useEffect(() => {
+    if (!currentStoreId || !cart.storeId || cart.storeId === currentStoreId) return;
+    if (cart.items.length === 0 && cart.distributions.length === 0) return;
+    emptyCartOfOtherStore();
+  }, [currentStoreId, cart.storeId, cart.items.length, cart.distributions.length]);
+
+  // Returns false when the item was not added, so callers can skip the next step (e.g. checkout).
+  const addToCart = (product: Product, selectedColor?: string, selectedSize?: string, quantity: number = 1, appliedTierPrice?: number, selectedFlavor?: string, selectedWeightVariant?: { id: string; label: string; price: number }): boolean => {
     // Check if product has a price (either base price, tiered price, or weight variant price)
     const hasValidPrice = (product.price && product.price > 0) || (product.has_tiered_pricing && appliedTierPrice && appliedTierPrice > 0) || (selectedWeightVariant && selectedWeightVariant.price > 0);
 
     if (!hasValidPrice) {
       toast.error('Este produto não pode ser adicionado ao carrinho pois não possui preço definido.');
-      return;
+      return false;
     }
+
+    replaceCartForStore(product.user_id);
 
     const variantId = generateVariantId(product.id, selectedColor, selectedSize, selectedFlavor, selectedWeightVariant?.id);
 
@@ -212,7 +276,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         const variantText = [selectedWeightVariant?.label, selectedColor, selectedSize, selectedFlavor].filter(Boolean).join(', ');
         toast.success(`Quantidade atualizada: ${product.title}${variantText ? ` (${variantText})` : ''}`);
-        return { ...prev, items: updatedItems };
+        return { ...prev, storeId: product.user_id, items: updatedItems };
       } else {
         // Add new item to cart
         // Priority: weight variant price > tiered price > product price
@@ -250,9 +314,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         const variantText = [selectedWeightVariant?.label, selectedColor, selectedSize, selectedFlavor].filter(Boolean).join(', ');
         toast.success(`Adicionado ao carrinho: ${product.title}${variantText ? ` (${variantText})` : ''}`);
-        return { ...prev, items: [...prev.items, newItem] };
+        return { ...prev, storeId: product.user_id, items: [...prev.items, newItem] };
       }
     });
+    return true;
   };
 
   const removeFromCart = (productId: string) => {
@@ -320,6 +385,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       distributions: [],
       total: 0,
       itemCount: 0,
+      storeId: undefined,
     });
     setAppliedCouponState(null);
     toast.success('Carrinho limpo');
@@ -456,6 +522,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     totalQuantity: number,
     items: Array<{ color?: string; size?: string; quantity: number }>
   ): Promise<boolean> => {
+    replaceCartForStore(product.user_id);
     try {
       const tiers = await fetchProductPriceTiers(product.id);
       const basePrice = product.price || 0;
@@ -477,6 +544,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      setCart((prev) => ({ ...prev, storeId: product.user_id }));
       await loadDistributions();
       toast.success('Distribuição adicionada ao carrinho');
       return true;
@@ -617,9 +685,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     updateDistributionItems,
     loadDistributions,
     getDistributions,
+    setCurrentStore: setCurrentStoreId,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+
+// Call from a store's page with the store's id: a cart from another store is emptied on entry.
+export function useStoreScopedCart(storeId: string | undefined) {
+  const { setCurrentStore } = useCart();
+  useEffect(() => {
+    setCurrentStore(storeId);
+  }, [storeId, setCurrentStore]);
 }
 
 export const useCart = () => {

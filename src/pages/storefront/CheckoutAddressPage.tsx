@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCorretorData } from '@/hooks/useCorretorData';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, useStoreScopedCart } from '@/contexts/CartContext';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
@@ -42,6 +42,46 @@ interface ManualAddress {
   zipCode: string;
 }
 
+// Address typed in the manual form, kept per store on this device so a refresh doesn't lose it.
+// Cleared once the order is created. CPF is not kept: it's personal data and the device may be shared.
+const ADDRESS_DRAFT_PREFIX = 'vitrineturbo_checkout_address:';
+
+interface AddressDraft {
+  manualAddress: ManualAddress;
+  showManualForm: boolean;
+}
+
+function readAddressDraft(storeSlug: string | undefined): AddressDraft | null {
+  if (!storeSlug) return null;
+  try {
+    const raw = localStorage.getItem(ADDRESS_DRAFT_PREFIX + storeSlug);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      manualAddress: { ...EMPTY_ADDRESS, ...parsed.manualAddress },
+      showManualForm: !!parsed.showManualForm,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeAddressDraft(storeSlug: string, draft: AddressDraft) {
+  try {
+    localStorage.setItem(ADDRESS_DRAFT_PREFIX + storeSlug, JSON.stringify(draft));
+  } catch {
+    // Storage full or blocked: the draft is a convenience, the form still works.
+  }
+}
+
+function clearAddressDraft(storeSlug: string) {
+  try {
+    localStorage.removeItem(ADDRESS_DRAFT_PREFIX + storeSlug);
+  } catch {
+    // Nothing to clear if storage is unavailable.
+  }
+}
+
 const EMPTY_ADDRESS: ManualAddress = {
   street: '',
   number: '',
@@ -57,6 +97,7 @@ export default function CheckoutAddressPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { corretor, loading: corretorLoading } = useCorretorData({ slug });
+  useStoreScopedCart(corretor?.id);
   const { cart, appliedCoupon, setAppliedCoupon, clearAppliedCoupon, updateVariantQuantity, removeCartVariant } = useCart();
   const { customer: buyerAccount, loading: authLoading, saveCpf } = useBuyerAuth();
   const accountLink = buyerAccount
@@ -73,8 +114,14 @@ export default function CheckoutAddressPage() {
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [manualAddress, setManualAddress] = useState<ManualAddress>(EMPTY_ADDRESS);
+  const [addressDraft] = useState(() => readAddressDraft(slug));
+  const [showManualForm, setShowManualForm] = useState(addressDraft?.showManualForm ?? false);
+  const [manualAddress, setManualAddress] = useState<ManualAddress>(addressDraft?.manualAddress ?? EMPTY_ADDRESS);
+
+  useEffect(() => {
+    if (!slug) return;
+    writeAddressDraft(slug, { manualAddress, showManualForm });
+  }, [slug, manualAddress, showManualForm]);
   const [cepLoading, setCepLoading] = useState(false);
   const [whatsappFallback, setWhatsappFallback] = useState('');
   const [cpf, setCpf] = useState('');
@@ -98,7 +145,8 @@ export default function CheckoutAddressPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!buyerAccount) {
-      navigate(`/conta/entrar?loja=${slug}`, { state: { from: `/${slug}/pedido/endereco` } });
+      // replace: Back from the login screen returns to the store, not into this page (which would redirect again).
+      navigate(`/conta/entrar?loja=${slug}`, { replace: true, state: { from: `/${slug}/pedido/endereco` } });
     }
   }, [authLoading, buyerAccount, navigate, slug]);
 
@@ -593,6 +641,7 @@ export default function CheckoutAddressPage() {
       // actually confirms the payment (handleSuccess there).
       clearAppliedCoupon();
       setUseCashback(false);
+      if (slug) clearAddressDraft(slug);
       navigate(`/${corretor.slug}/pedido/${order.id}/pagamento`);
     } catch (error) {
       console.error('Error creating order:', error);

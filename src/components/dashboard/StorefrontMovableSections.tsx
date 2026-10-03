@@ -11,6 +11,7 @@ import { StorefrontCategoryShowcaseManager } from '@/components/dashboard/Storef
 import { StorefrontFeatureBannerManager } from '@/components/dashboard/StorefrontFeatureBannerManager';
 import { StorefrontMiniBannerManager } from '@/components/dashboard/StorefrontMiniBannerManager';
 import { StorefrontNewArrivalsManager, StorefrontOffersManager, StorefrontHighlightsManager } from '@/components/dashboard/StorefrontNewArrivalsManager';
+import { SectionTitleField } from '@/components/dashboard/SectionTitleField';
 
 /**
  * The reorderable home sections of the "Eletrônicos" theme, listed here in the same
@@ -71,7 +72,7 @@ export function StorefrontMovableSections() {
       icon: <BadgePercent size={16} />,
       title: 'Ofertas',
       description: 'Carrossel dos produtos que você escolher para aparecer em oferta.',
-      body: <StorefrontOffersManager />,
+      body: <><SectionTitleField field="offers_title" placeholder="Ofertas" /><StorefrontOffersManager /></>,
     },
     feature_banner: {
       icon: <GalleryHorizontal size={16} />,
@@ -91,14 +92,14 @@ export function StorefrontMovableSections() {
       title: 'Destaques',
       description: 'Carrossel dos produtos que você escolher para aparecer em destaque, logo abaixo dos mini banners.',
       extra: swatches('highlights_bg_color', 'highlights_text_color'),
-      body: <StorefrontHighlightsManager />,
+      body: <><SectionTitleField field="highlights_title" placeholder="Destaques" /><StorefrontHighlightsManager /></>,
     },
     new_arrivals: {
       icon: <Sparkles size={16} />,
       title: 'Novidades',
       description: 'Carrossel dos produtos que você escolher para aparecer em destaque.',
       extra: swatches('new_arrivals_bg_color', 'new_arrivals_text_color'),
-      body: <StorefrontNewArrivalsManager />,
+      body: <><SectionTitleField field="new_arrivals_title" placeholder="Novidades" /><StorefrontNewArrivalsManager /></>,
     },
   };
 

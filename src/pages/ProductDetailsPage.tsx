@@ -17,7 +17,7 @@ import ContactSidebar from '@/components/details/ContactSidebar';
 import TieredPricingTable from '@/components/details/TieredPricingTable';
 import TieredPricingSkeleton from '@/components/details/TieredPricingSkeleton';
 import { useTieredPricing } from '@/hooks/useTieredPricing';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, useStoreScopedCart } from '@/contexts/CartContext';
 import CartModal from '@/components/corretor/CartModal';
 import ProductVariantModal from '@/components/product/ProductVariantModal';
 import InlineVariantSelector from '@/components/product/InlineVariantSelector';
@@ -50,6 +50,8 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const slug = customDomainSlug || paramSlug;
   const [product, setProduct] = useState<any | null>(null);
   const [corretor, setCorretor] = useState<any | null>(null);
+  // Entering this store empties a cart left from another store.
+  useStoreScopedCart(corretor?.id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shareSupported, setShareSupported] = useState(false);

@@ -28,6 +28,7 @@ export default function StorefrontProductCatalogSectionEletronicos({
   language,
   currency,
   cartEnabled,
+  onlineSalesEnabled,
   productsContainerRef,
   productsError,
   productsLoading,
@@ -145,6 +146,7 @@ export default function StorefrontProductCatalogSectionEletronicos({
                         showStockOnStorefront={showStockOnStorefront}
                         blockZeroStock={blockZeroStock}
                         cartEnabled={cartEnabled}
+                        buyNowEnabled={onlineSalesEnabled}
                         priceTiers={priceTiersMap.get(product.id) || null}
                         onNavigate={onProductNavigate}
                       />

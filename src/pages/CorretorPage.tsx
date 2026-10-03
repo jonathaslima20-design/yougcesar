@@ -6,6 +6,9 @@ import { useCorretorData } from '@/hooks/useCorretorData';
 import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
 import { resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
 import { rememberStorefrontTheme } from '@/lib/storefrontThemeHint';
+import { getOwnerPreviewTheme } from '@/lib/storefrontPreview';
+import { useStoreScopedCart } from '@/contexts/CartContext';
+import { STOREFRONT_THEME_OPTIONS } from '@/lib/appearanceDefaults';
 import { useProductData } from '@/hooks/useProductData';
 import { useProductSearch } from '@/hooks/useProductSearch';
 import { useCorretorPageState } from '@/hooks/useCorretorPageState';
@@ -65,12 +68,18 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
 
   // Load corretor data
   const { corretor, loading: corretorLoading, error: corretorError, preloadedAppearance } = useCorretorData({ slug });
+  // Entering this store empties a cart left from another store.
+  useStoreScopedCart(corretor?.id);
   const { settings: platformThemeSettings, loading: platformThemeLoading } = usePlatformThemeSettings();
   // "Eletrônicos" stores don't preload the whole catalog: their home shows carousels and
   // the grid comes from the server-side search. Which theme actually renders depends on
   // the platform switch, so hold the product load until that flag is known (only for
   // stores that picked "eletronicos" — everyone else starts loading immediately).
-  const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, platformThemeSettings, corretor?.id);
+  // The owner's "Visualizar loja" preview (see lib/storefrontPreview.ts) overrides the active theme for
+  // them only. The theme hint below still records the active theme, so visitors never inherit a preview.
+  const previewThemeId = getOwnerPreviewTheme(corretor?.id);
+  const activeThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, platformThemeSettings, corretor?.id);
+  const storefrontThemeId = resolveStorefrontThemeId(corretor?.active_storefront_theme_id, platformThemeSettings, corretor?.id, previewThemeId);
   const waitingForThemeFlag = corretor?.active_storefront_theme_id === 'eletronicos' && platformThemeLoading;
   const deferCatalog = storefrontThemeId === 'eletronicos';
 
@@ -79,9 +88,9 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
   // fetch resolves again.
   useEffect(() => {
     if (corretor && !platformThemeLoading && !customDomainSlug) {
-      rememberStorefrontTheme(slug, storefrontThemeId);
+      rememberStorefrontTheme(slug, activeThemeId);
     }
-  }, [corretor, platformThemeLoading, customDomainSlug, slug, storefrontThemeId]);
+  }, [corretor, platformThemeLoading, customDomainSlug, slug, activeThemeId]);
 
   const isPaidPlan = corretor?.plan_status === 'active';
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
@@ -560,6 +569,16 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
       themeId={storefrontThemeId}
       preloadedAppearance={preloadedAppearance}
     >
+      {previewThemeId && previewThemeId !== activeThemeId && (
+        <div className="sticky top-0 z-[60] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-100 px-4 py-2 text-center text-sm text-amber-900 border-b border-amber-300">
+          <span>
+            Pré-visualização do tema E-commerce. Seus clientes ainda veem o tema {STOREFRONT_THEME_OPTIONS.find((t) => t.value === activeThemeId)?.label}.
+          </span>
+          <a href={`/${corretor.slug}`} className="font-semibold underline underline-offset-2">
+            Sair da pré-visualização
+          </a>
+        </div>
+      )}
       <StorefrontThemedBody
         corretor={corretor}
         language={language}

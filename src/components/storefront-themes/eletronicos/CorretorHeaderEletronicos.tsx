@@ -39,13 +39,13 @@ import type { StorefrontPageBodyProps } from '@/components/storefront-themes/typ
 import { normalizeTopBarPhrase } from '@/lib/appearanceDefaults';
 import BannerLinkWrapper, { hasBannerLink } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
 
-type CategoryNavProps = Pick<StorefrontPageBodyProps, 'filterMetadata' | 'filters' | 'onFiltersChange'> & {
+type CategoryNavProps = Pick<StorefrontPageBodyProps, 'filters' | 'onFiltersChange'> & {
+  categories: string[];
   onOpenAllCategories: () => void;
   navStyle: { backgroundColor: string; color: string };
 };
 
-function useCategoryNav({ filterMetadata, filters, onFiltersChange }: Pick<StorefrontPageBodyProps, 'filterMetadata' | 'filters' | 'onFiltersChange'>) {
-  const categories: string[] = filterMetadata?.categories || [];
+function useCategoryNav({ categories, filters, onFiltersChange }: Pick<CategoryNavProps, 'categories' | 'filters' | 'onFiltersChange'>) {
   const activeCategory = filters?.category && filters.category !== 'todos' ? filters.category : null;
   const selectCategory = (category: string | null) => onFiltersChange({ ...filters, category: category || 'todos' });
   return { categories, activeCategory, selectCategory };
@@ -54,8 +54,8 @@ function useCategoryNav({ filterMetadata, filters, onFiltersChange }: Pick<Store
 // "Todas Categorias" opens the category list (EletronicosCategoryDrawer); the full
 // filter panel is reached from that drawer and from the toolbar above the product
 // grid (see CorretorPageEletronicos.tsx).
-function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCategories, navStyle }: CategoryNavProps) {
-  const { categories, activeCategory, selectCategory } = useCategoryNav({ filterMetadata, filters, onFiltersChange });
+function CategoryNavBar({ categories, filters, onFiltersChange, onOpenAllCategories, navStyle }: CategoryNavProps) {
+  const { activeCategory, selectCategory } = useCategoryNav({ categories, filters, onFiltersChange });
 
   return (
     <nav className="hidden md:block" style={navStyle}>
@@ -66,7 +66,8 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCat
             onClick={onOpenAllCategories}
             className={cn(
               'shrink-0 flex flex-row items-center gap-1.5 font-semibold leading-tight transition-opacity',
-              !activeCategory ? 'opacity-100' : 'opacity-80 hover:opacity-100'
+              'hover:underline underline-offset-4',
+              !activeCategory && 'underline underline-offset-4'
             )}
           >
             <Menu className="h-4 w-4" />
@@ -78,8 +79,8 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCat
               type="button"
               onClick={() => selectCategory(category)}
               className={cn(
-                'shrink-0 leading-tight transition-opacity max-w-[140px] text-center',
-                activeCategory === category ? 'opacity-100 underline underline-offset-4' : 'opacity-80 hover:opacity-100'
+                'shrink-0 leading-tight max-w-[140px] text-center hover:underline underline-offset-4',
+                activeCategory === category && 'font-semibold underline underline-offset-4'
               )}
             >
               {category}
@@ -100,10 +101,10 @@ function CategoryNavBar({ filterMetadata, filters, onFiltersChange, onOpenAllCat
  * that component's big cover+avatar layout is what makes the "padrão" theme look the
  * way it does, and reusing it here defeats the point of a visually distinct theme.
  */
-export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps & { onOpenFilters: () => void; onGoHome: () => void; catalogRows: CatalogRow[] }) {
+export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps & { onOpenFilters: () => void; onGoHome: () => void; catalogRows: CatalogRow[]; navCategories: string[] }) {
   const {
     corretor, cartEnabled, onlineSalesEnabled, filterMetadata, filters, onFiltersChange, language,
-    currency, onOpenFilters, onGoHome, catalogRows,
+    currency, onOpenFilters, onGoHome, catalogRows, navCategories,
   } = props;
   const { isCustomDomain } = useCustomDomain();
   const productHref = (id: string) => (isCustomDomain ? `/produtos/${id}` : `/${corretor.slug}/produtos/${id}`);
@@ -428,7 +429,7 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
       </header>
 
       <CategoryNavBar
-        filterMetadata={filterMetadata}
+        categories={navCategories}
         filters={filters}
         onFiltersChange={onFiltersChange}
         onOpenAllCategories={() => setCategoriesOpen(true)}
@@ -441,7 +442,7 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
       <EletronicosCategoryDrawer
         open={categoriesOpen}
         onOpenChange={setCategoriesOpen}
-        categories={filterMetadata?.categories || []}
+        categories={navCategories}
         activeCategory={filters?.category && filters.category !== 'todos' ? filters.category : null}
         onSelectCategory={(category) => onFiltersChange({ ...filters, category: category || 'todos' })}
         onOpenFilters={onOpenFilters}

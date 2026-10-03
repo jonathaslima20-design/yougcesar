@@ -568,7 +568,8 @@ export default function OrderPaymentPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!customer) {
-      navigate(`/conta/entrar?loja=${slug}`, { state: { from: `/${slug}/pedido/${orderId}/pagamento` } });
+      // replace: Back from the login screen returns to the store, not into this payment page.
+      navigate(`/conta/entrar?loja=${slug}`, { replace: true, state: { from: `/${slug}/pedido/${orderId}/pagamento` } });
       return;
     }
     if (!orderId) return;
