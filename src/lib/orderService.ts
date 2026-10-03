@@ -182,7 +182,7 @@ export async function createOrder(
   return { id: orderId, stock_shortfall: stockShortfall } as Order;
 }
 
-interface FetchOrdersFilters {
+export interface FetchOrdersFilters {
   status?: OrderStatus;
   search?: string;
   orderType?: 'whatsapp' | 'ecommerce';

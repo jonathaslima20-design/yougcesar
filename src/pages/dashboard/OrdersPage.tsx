@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Package, Search, Filter, Loader as Loader2, ShoppingBag, Clock, CircleCheck as CheckCircle, DollarSign, MessageCircle, Ticket, Wallet, Truck, CreditCard, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { Package, Search, Filter, Loader as Loader2, ShoppingBag, Clock, CircleCheck as CheckCircle, DollarSign, MessageCircle, Ticket, Wallet, Truck, CreditCard, TriangleAlert as AlertTriangle, Printer } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOrders, getOrderStats, type OrderStats } from '@/lib/orderService';
 import { getMerchantPaymentConfig } from '@/lib/merchantPayments';
@@ -163,13 +163,32 @@ export default function OrdersPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl page-title">Pedidos</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {showPaymentUI
-            ? 'Gerencie os pedidos recebidos via WhatsApp e pagamento online'
-            : 'Gerencie os pedidos recebidos via WhatsApp'}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl page-title">Pedidos</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {showPaymentUI
+              ? 'Gerencie os pedidos recebidos via WhatsApp e pagamento online'
+              : 'Gerencie os pedidos recebidos via WhatsApp'}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 self-start sm:self-auto shrink-0"
+          disabled={totalCount === 0}
+          onClick={() => {
+            const params = new URLSearchParams({ print: '1' });
+            if (statusFilter !== 'all') params.set('status', statusFilter);
+            if (orderTypeFilter !== 'all') params.set('orderType', orderTypeFilter);
+            if (paymentStatusFilter !== 'all') params.set('paymentStatus', paymentStatusFilter);
+            if (searchQuery.trim()) params.set('search', searchQuery.trim());
+            window.open(`/dashboard/orders/imprimir-lista?${params.toString()}`, '_blank');
+          }}
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Imprimir lista
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -395,6 +414,18 @@ export default function OrdersPage() {
                     <span className="text-lg font-bold text-primary">
                       {formatCurrency(order.total)}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Imprimir pedido"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(`/dashboard/orders/${order.id}/imprimir?print=1`, '_blank');
+                      }}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
                     {whatsappUrl && (
                       <Button
                         variant="ghost"
