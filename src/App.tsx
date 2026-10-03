@@ -89,6 +89,8 @@ import CategoriesPage from '@/pages/dashboard/CategoriesPage.tsx';
 import ReferralPage from '@/pages/dashboard/ReferralPage.tsx';
 import NotificationsPage from '@/pages/dashboard/NotificationsPage.tsx';
 import OrdersPage from '@/pages/dashboard/OrdersPage.tsx';
+import OrderPrintPage from '@/pages/dashboard/OrderPrintPage.tsx';
+import OrderListPrintPage from '@/pages/dashboard/OrderListPrintPage.tsx';
 import StockMovementsPage from '@/pages/dashboard/StockMovementsPage.tsx';
 import InventoryOverviewPage from '@/pages/dashboard/InventoryOverviewPage.tsx';
 import CheckoutPage from '@/pages/dashboard/CheckoutPage.tsx';
@@ -356,6 +358,9 @@ function AppContent() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard/settings/integrations/olist/callback" element={<OlistCallbackPage />} />
           <Route path="/dashboard/settings/payment/mercadopago/callback" element={<MercadoPagoConnectCallbackPage />} />
+          {/* Impressão de pedido: página própria, sem sidebar, aberta em nova aba */}
+          <Route path="/dashboard/orders/:orderId/imprimir" element={<OrderPrintPage />} />
+          <Route path="/dashboard/orders/imprimir-lista" element={<OrderListPrintPage />} />
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/dashboard/reports" element={<ReportsPage />} />

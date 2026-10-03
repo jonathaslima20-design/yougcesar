@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ShieldCheck, ExternalLink, ChevronDown, ChevronUp, TriangleAlert as AlertTriangle, FileDown, Tag } from 'lucide-react';
+import { X, MessageCircle, Package, Clock, ShoppingCart, MapPin, Ticket, Wallet, Truck, ShieldCheck, ExternalLink, ChevronDown, ChevronUp, TriangleAlert as AlertTriangle, FileDown, Tag, Printer } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -461,8 +461,17 @@ export default function OrderDetailsPanel({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-lg overflow-y-auto">
           <SheetHeader className="pb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 pr-8">
               <SheetTitle className="text-lg">Detalhes do Pedido</SheetTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shrink-0"
+                onClick={() => window.open(`/dashboard/orders/${order.id}/imprimir?print=1`, '_blank')}
+              >
+                <Printer className="h-3.5 w-3.5" />
+                Imprimir / PDF
+              </Button>
             </div>
             <div className="flex items-center gap-2 mt-1">
               <OrderStatusBadge status={order.status} />
