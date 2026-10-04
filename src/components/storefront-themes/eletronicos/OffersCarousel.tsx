@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useStorefrontOfferProducts } from '@/hooks/useStorefrontOfferProducts';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
@@ -5,9 +6,9 @@ import {
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
+  type CarouselApi,
 } from '@/components/ui/carousel';
+import { CarouselDots } from '@/components/storefront-themes/eletronicos/CarouselDots';
 import { ProductCardPlaceholder } from '@/components/storefront-themes/eletronicos/ProductCardPlaceholder';
 import { CarouselSkeleton } from '@/components/storefront-themes/eletronicos/CarouselSkeleton';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
@@ -36,6 +37,7 @@ export default function OffersCarousel({
 }: OffersCarouselProps) {
   const { appearance } = useStorefrontTheme();
   const { products, loading } = useStorefrontOfferProducts(corretor.id);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
 
   const heading = (
     <div className="text-center mb-6">
@@ -70,7 +72,7 @@ export default function OffersCarousel({
       <div className="container mx-auto px-4">
         {heading}
 
-        <Carousel opts={{ align: 'start' }} className="relative">
+        <Carousel opts={{ align: 'start', slidesToScroll: 'auto' }} setApi={setCarouselApi} className="relative">
           <CarouselContent className="-ml-4">
             {products.map((product) => (
               <CarouselItem key={product.id} className="basis-1/2 sm:basis-1/3 lg:basis-1/4 pl-4">
@@ -93,11 +95,10 @@ export default function OffersCarousel({
           </CarouselContent>
           {products.length > 4 && (
             <>
-              <CarouselPrevious className="-left-4" />
-              <CarouselNext className="-right-4" />
             </>
           )}
         </Carousel>
+        <CarouselDots api={carouselApi} />
       </div>
     </section>
   );

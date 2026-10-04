@@ -1344,6 +1344,52 @@ html { scroll-behavior: smooth; }
 }
 
 
+/* Eletronicos, phones: the floating WhatsApp button sits above the bottom bar of the product
+   page instead of covering its button. :has() reads the theme from the body, because the
+   button is rendered outside the storefront's theme wrapper. */
+@media (max-width: 767px) {
+  body:has(.theme-eletronicos) [data-whatsapp-float] {
+    bottom: 5rem;
+  }
+}
+
+/* Eletronicos: while a product photo loads, the card shows a lighter placeholder than the
+   default gray, so the grid reads as calm instead of a block of gray boxes. */
+.theme-eletronicos [data-product-card] [data-image-placeholder] {
+  background-image: linear-gradient(135deg, #f4f4f5 0%, #fafafa 50%, #f4f4f5 100%) !important;
+}
+
+/* Eletronicos: product cards lift on hover and press down on click; the photo zooms a little
+   inside its frame. Off for people who ask the system for less motion. */
+.theme-eletronicos [data-product-card] {
+  transition: transform 250ms ease, box-shadow 250ms ease, background-color 250ms ease, border-color 250ms ease;
+}
+.theme-eletronicos [data-product-card]:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgb(0 0 0 / 0.18);
+}
+.theme-eletronicos [data-product-card]:active {
+  transform: translateY(-1px) scale(0.985);
+  transition-duration: 80ms;
+}
+.theme-eletronicos [data-product-card] img {
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+.theme-eletronicos [data-product-card]:hover img {
+  transform: scale(1.05);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-eletronicos [data-product-card],
+  .theme-eletronicos [data-product-card] img {
+    transition: none;
+  }
+  .theme-eletronicos [data-product-card]:hover,
+  .theme-eletronicos [data-product-card]:active,
+  .theme-eletronicos [data-product-card]:hover img {
+    transform: none;
+  }
+}
+
 /* Eletronicos: merchant-chosen product grid colors ("Grade de produtos" in Personalizar
    Eletronicos). The page sets --sfe-* on its root only for the colors the merchant
    picked; every rule falls back to the value the card already had, so an unset color

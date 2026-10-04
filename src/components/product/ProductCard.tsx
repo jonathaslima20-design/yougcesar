@@ -257,7 +257,7 @@ function ProductCardComponent({
                       }}
                     />
                     {!imageLoaded && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-pulse" />
+                      <div data-image-placeholder className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-pulse" />
                     )}
                   </>
                 ) : (

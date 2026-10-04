@@ -89,6 +89,7 @@ export default function FloatingWhatsAppButton({ className }: FloatingWhatsAppBu
         damping: 25
       }}
       className={`fixed bottom-6 right-6 z-50 ${className}`}
+      data-whatsapp-float
     >
       <Button
         size="sm"

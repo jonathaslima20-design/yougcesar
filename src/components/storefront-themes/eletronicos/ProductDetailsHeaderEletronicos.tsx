@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,14 @@ export default function ProductDetailsHeaderEletronicos({ corretor, homeHref, ca
   const { cart } = useCart();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
+  // On phones the logo and icons leave little room, so the placeholder gets a short form.
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setIsPhone(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
 
   const chromeStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
   // Buttons always follow the header's own colors — see CorretorHeaderEletronicos.tsx.
@@ -62,7 +70,7 @@ export default function ProductDetailsHeaderEletronicos({ corretor, homeHref, ca
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
-              placeholder="O que deseja procurar?"
+              placeholder={isPhone ? 'Buscar' : 'O que deseja procurar?'}
               className="pr-11 rounded-md h-10 bg-white text-foreground border-0"
             />
             <button
