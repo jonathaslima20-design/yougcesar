@@ -14,6 +14,7 @@ const PAGE_SIZE = 100;
 
 const PRODUCTS_SELECT = `
   id,
+  slug,
   title,
   price,
   discounted_price,

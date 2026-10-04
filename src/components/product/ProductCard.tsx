@@ -9,6 +9,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useCustomDomain } from '@/contexts/CustomDomainContext';
 import ProductVariantModal from './ProductVariantModal';
 import type { Product } from '@/types';
+import { productUrlSegment } from '@/lib/productLinks';
 import { fetchProductPriceTiers, getMinimumPriceFromTiers, getFirstTierPrices } from '@/lib/tieredPricingUtils';
 import type { PriceTier } from '@/types';
 import { supabase } from '@/lib/supabase';
@@ -218,7 +219,7 @@ function ProductCardComponent({
       transition={{ duration: 0.4 }}
     >
       <Link
-        to={isCustomDomain ? `/produtos/${product.id}` : `/${corretorSlug}/produtos/${product.id}`}
+        to={isCustomDomain ? `/produtos/${productUrlSegment(product)}` : `/${corretorSlug}/produtos/${productUrlSegment(product)}`}
         state={{ from: 'product-detail' }}
         onClick={handleProductClick}
         className="block h-full"

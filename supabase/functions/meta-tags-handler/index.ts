@@ -27,6 +27,31 @@ interface ProductProfile {
   user_id: string;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * PostgREST filter for the product in a /:slug/produtos/:segment URL. The segment is an id
+ * (old links) or a slug, which is only unique inside its store, so the store is looked up first.
+ * Returns null when the store or the product can't be resolved from the segment.
+ */
+async function buildProductFilter(
+  storeSlug: string,
+  segment: string,
+  supabaseUrl: string,
+  supabaseKey: string
+): Promise<string | null> {
+  if (UUID_PATTERN.test(segment)) return `id=eq.${segment}`;
+
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/users?slug=eq.${encodeURIComponent(storeSlug)}&select=id`,
+    { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+  );
+  if (!response.ok) return null;
+  const rows = await response.json();
+  if (!rows[0]?.id) return null;
+  return `user_id=eq.${rows[0].id}&slug=eq.${encodeURIComponent(segment)}`;
+}
+
 /**
  * Detects if the request is from a social media crawler/bot
  */
@@ -441,9 +466,18 @@ Deno.serve(async (req: Request) => {
       // Handle product page
       console.log('🛍️ Processing product page');
       
+      // The URL carries the product id (old links) or its slug, which is unique per store.
+      const productFilter = await buildProductFilter(slug, productId, supabaseUrl, supabaseKey);
+      if (!productFilter) {
+        return new Response(generateDefaultMetaTagsHTML(), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
+
       // First, get the product details
       const productResponse = await fetch(
-        `${supabaseUrl}/rest/v1/products?id=eq.${productId}&select=id,title,description,short_description,featured_image_url,price,discounted_price,is_starting_price,user_id`,
+        `${supabaseUrl}/rest/v1/products?${productFilter}&select=id,title,description,short_description,featured_image_url,price,discounted_price,is_starting_price,user_id`,
         {
           headers: {
             'apikey': supabaseKey,

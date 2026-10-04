@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAffiliateAuth } from '@/contexts/AffiliateAuthContext';
 import { supabaseAffiliate } from '@/lib/supabaseAffiliate';
 import { generateAffiliateProductLink, generateAffiliateCategoryLink } from '@/lib/affiliateUtils';
+import { productUrlSegment } from '@/lib/productLinks';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -79,9 +80,9 @@ export default function AffiliateCatalogPage() {
     return Array.from(set).sort();
   }, [products]);
 
-  const handleCopyProductLink = (productId: string) => {
+  const handleCopyProductLink = (product: { id: string; slug?: string | null }) => {
     if (!storeSlug || !affiliate) return;
-    navigator.clipboard.writeText(generateAffiliateProductLink(storeSlug, productId, affiliate.affiliate_code));
+    navigator.clipboard.writeText(generateAffiliateProductLink(storeSlug, productUrlSegment(product), affiliate.affiliate_code));
     toast.success('Link do produto copiado');
   };
 
@@ -189,7 +190,7 @@ export default function AffiliateCatalogPage() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0"
-                      onClick={() => handleCopyProductLink(p.id)}
+                      onClick={() => handleCopyProductLink(p)}
                       title="Copiar link do produto"
                     >
                       <Copy className="h-3.5 w-3.5" />

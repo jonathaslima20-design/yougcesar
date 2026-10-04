@@ -23,7 +23,7 @@ export interface CatalogRow {
 }
 
 const SUMMARY_SELECT =
-  'id,title,featured_image_url,category,brand,gender,condition,sizes,price,discounted_price,has_tiered_pricing,min_tiered_price,has_weight_variants,min_variant_price';
+  'id,slug,title,featured_image_url,category,brand,gender,condition,sizes,price,discounted_price,has_tiered_pricing,min_tiered_price,has_weight_variants,min_variant_price';
 
 // The price a shopper sees on the card: tier/variant "from" price, else a real markdown, else list price.
 function toDisplayPrice(row: any): number {

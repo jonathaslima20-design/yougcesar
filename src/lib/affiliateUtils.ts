@@ -23,8 +23,8 @@ export function generateAffiliateLink(storeSlug: string, affiliateSlug: string):
  * Works with the same attribution capture already wired into
  * ProductDetailsPage.tsx (?aff= is read there independent of other params).
  */
-export function generateAffiliateProductLink(storeSlug: string, productId: string, affiliateCode: string): string {
-  return `https://vitrineturbo.com/${storeSlug}/produtos/${productId}?aff=${affiliateCode}`;
+export function generateAffiliateProductLink(storeSlug: string, productSegment: string, affiliateCode: string): string {
+  return `https://vitrineturbo.com/${storeSlug}/produtos/${productSegment}?aff=${affiliateCode}`;
 }
 
 /**

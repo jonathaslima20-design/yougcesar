@@ -1,4 +1,5 @@
 import type { CartItem, CartDistribution, AppliedCoupon } from '@/types';
+import { productUrlSegment } from '@/lib/productLinks';
 import { formatCurrencyI18n, generateWhatsAppMessage, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
 
 // Coupon usage tracking (coupon_usages.customer_whatsapp / the
@@ -13,7 +14,8 @@ export function cleanWhatsappDigits(raw: string | null | undefined): string {
   return (raw || '').replace(/\D/g, '');
 }
 
-function getProductUrl(productId: string, corretorSlug: string, color?: string): string {
+function getProductUrl(product: { id: string; slug?: string | null }, corretorSlug: string, color?: string): string {
+  const productId = productUrlSegment(product);
   const colorParam = color ? `?cor=${encodeURIComponent(color)}` : '';
 
   if (typeof window === 'undefined') return `https://vitrineturbo.com/${corretorSlug}/produtos/${productId}${colorParam}`;
@@ -98,7 +100,7 @@ export function generateCartOrderMessage(
     // Add product link
     if (corretorSlug) {
       try {
-        orderMessage += `${getProductUrl(dist.product.id, corretorSlug)}\n`;
+        orderMessage += `${getProductUrl(dist.product, corretorSlug)}\n`;
       } catch {
         orderMessage += `Ver produto\n`;
       }
@@ -191,7 +193,7 @@ export function generateCartOrderMessage(
     // Add product link for easy access to full details
     if (corretorSlug) {
       try {
-        orderMessage += `${getProductUrl(item.id, corretorSlug, item.selectedColor)}\n`;
+        orderMessage += `${getProductUrl({ id: item.id, slug: item.slug }, corretorSlug, item.selectedColor)}\n`;
       } catch {
         orderMessage += `Ver produto\n`;
       }

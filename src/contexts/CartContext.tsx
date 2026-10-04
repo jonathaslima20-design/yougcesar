@@ -288,6 +288,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         const newItem: CartItem = {
           id: product.id,
+          slug: product.slug,
           variantId,
           title: product.title,
           price: effectivePrice,

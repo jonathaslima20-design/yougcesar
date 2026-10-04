@@ -4,6 +4,7 @@ import type { Product } from '@/types';
 
 const OFFER_PRODUCTS_SELECT = `
   id,
+  slug,
   title,
   price,
   discounted_price,

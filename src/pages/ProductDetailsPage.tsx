@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, getColorValue, getWhatsAppContactUrl } from '@/lib/utils';
 import { loadTrackingSettings, injectMetaPixel, injectGoogleAnalytics, trackView } from '@/lib/tracking';
+import { isProductIdSegment } from '@/lib/productLinks';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 import { useTranslation, getPageTitle, formatCurrencyI18n, generateWhatsAppMessage, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
@@ -126,6 +127,18 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
           return;
         }
 
+        // The URL carries the product id (old links) or its readable slug. A slug is unique only
+        // inside a store, so the store is looked up first.
+        let storeOwnerId: string | null = null;
+        if (!isProductIdSegment(productId)) {
+          const { data: storeOwner } = await supabase.from('users').select('id').eq('slug', slug).maybeSingle();
+          if (!storeOwner) {
+            setError("Produto não encontrado");
+            return;
+          }
+          storeOwnerId = storeOwner.id;
+        }
+
         // Fetch product details with images ordered by is_featured (featured first)
         const { data: productData, error: productError } = await supabase
           .from('products')
@@ -140,7 +153,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
               associated_color
             )
           `)
-          .eq('id', productId)
+          .match(storeOwnerId ? { user_id: storeOwnerId, slug: productId } : { id: productId })
           .order('is_featured', { referencedTable: 'product_images', ascending: false })
           .order('display_order', { referencedTable: 'product_images', ascending: true })
           .single();
@@ -197,7 +210,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         }
 
         // Track product view - this is crucial for the stats
-        const viewTracked = await trackView(productId, 'product');
+        const viewTracked = await trackView(productData.id, 'product');
         if (!viewTracked) {
           console.error('Failed to track product view');
         }
@@ -223,7 +236,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
         console.error('Error cleaning up styles:', e);
       }
     };
-  }, [productId]);
+  }, [productId, slug]);
 
   // Resolve ?aff=CODE against this store's affiliates when the link lands directly on a product.
   useEffect(() => {

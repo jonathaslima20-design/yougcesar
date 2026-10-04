@@ -51,6 +51,7 @@ export function useServerSideProductSearch(): UseServerSideProductSearchReturn {
         .from('products')
         .select(`
           id,
+          slug,
           title,
           price,
           discounted_price,

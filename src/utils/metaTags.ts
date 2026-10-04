@@ -2,6 +2,7 @@
  * Utility functions for managing dynamic meta tags for social media previews
  */
 import { getPageTitle, type SupportedLanguage } from '@/lib/i18n';
+import { productUrlSegment } from '@/lib/productLinks';
 
 export interface MetaTagsConfig {
   title: string;
@@ -185,7 +186,7 @@ export function getProductMetaTags(product: any, corretor: any, language: Suppor
   
   // For products, prioritize the product image, then the store's social icon/avatar.
   const image = product.featured_image_url || corretor.social_icon_url || corretor.avatar_url || 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png';
-  const url = `${window.location.origin}/${corretor.slug}/produtos/${product.id}`;
+  const url = `${window.location.origin}/${corretor.slug}/produtos/${productUrlSegment(product)}`;
 
   return {
     title,

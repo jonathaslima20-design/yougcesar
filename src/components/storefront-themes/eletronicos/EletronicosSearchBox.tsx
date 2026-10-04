@@ -15,7 +15,7 @@ interface SearchBoxProps {
   rows: CatalogRow[];
   categories: string[];
   onPickCategory: (category: string) => void;
-  productHref: (id: string) => string;
+  productHref: (product: { id: string; slug?: string | null }) => string;
   currency: string;
   language: string;
   buttonStyle: { backgroundColor: string; color: string };
@@ -78,7 +78,7 @@ export default function EletronicosSearchBox({
       if (item?.type === 'category') {
         onPickCategory(item.category);
       } else if (item?.type === 'product') {
-        navigate(productHref(item.product.id));
+        navigate(productHref(item.product));
       } else {
         onSubmit();
       }
@@ -142,7 +142,7 @@ export default function EletronicosSearchBox({
             return (
               <Link
                 key={product.id}
-                to={productHref(product.id)}
+                to={productHref(product)}
                 role="option"
                 aria-selected={active === index}
                 onClick={() => setOpen(false)}

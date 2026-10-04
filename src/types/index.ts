@@ -188,6 +188,8 @@ export interface PriceTier {
 export interface Product {
   id: string;
   user_id: string;
+  // Readable URL segment, unique within the store (see migration 20261004100000). Null on old rows.
+  slug?: string | null;
   sku?: string | null;
   title: string;
   description: string;
@@ -332,6 +334,8 @@ export interface Payment {
 
 export interface CartItem {
   id: string;
+  // Product slug, used for the product link in the order message. Items saved before slugs fall back to the id.
+  slug?: string | null;
   title: string;
   price: number;
   discounted_price?: number;

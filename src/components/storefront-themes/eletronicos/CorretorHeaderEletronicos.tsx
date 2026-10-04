@@ -38,6 +38,7 @@ import CartModal from '@/components/corretor/CartModal';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 import { normalizeTopBarPhrase } from '@/lib/appearanceDefaults';
 import BannerLinkWrapper, { hasBannerLink } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
+import { productUrlSegment } from '@/lib/productLinks';
 
 type CategoryNavProps = Pick<StorefrontPageBodyProps, 'filters' | 'onFiltersChange'> & {
   categories: string[];
@@ -107,7 +108,10 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
     currency, onOpenFilters, onGoHome, catalogRows, navCategories,
   } = props;
   const { isCustomDomain } = useCustomDomain();
-  const productHref = (id: string) => (isCustomDomain ? `/produtos/${id}` : `/${corretor.slug}/produtos/${id}`);
+  const productHref = (product: { id: string; slug?: string | null }) => {
+    const segment = productUrlSegment(product);
+    return isCustomDomain ? `/produtos/${segment}` : `/${corretor.slug}/produtos/${segment}`;
+  };
   const { cart } = useCart();
   const { customer } = useBuyerAuth();
   const { appearance } = useStorefrontTheme();
