@@ -9,6 +9,13 @@ interface SizeEntry {
 
 export async function autoPopulateSizesForUser(userId: string): Promise<void> {
   try {
+    // Only the store owner can write their own sizes (RLS: auth.uid() = user_id).
+    // Storefront visitors load this too, and would otherwise retry a failing insert on every visit.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user.id !== userId) {
+      return;
+    }
+
     const { data: products, error: productsError } = await supabase
       .from('products')
       .select('sizes')
