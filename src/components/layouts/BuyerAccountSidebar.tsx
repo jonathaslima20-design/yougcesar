@@ -1,11 +1,10 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, MapPin, User, LogOut, Menu, X, ShoppingCart, Wallet } from 'lucide-react';
+import { LayoutDashboard, Package, MapPin, User, LogOut, Menu, X, ShoppingCart } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useBuyerAccountSummary } from '@/hooks/useBuyerAccountSummary';
 import { useBuyerStore } from '@/contexts/BuyerStoreContext';
 import { cn, getInitials } from '@/lib/utils';
 import { useState } from 'react';
@@ -30,24 +29,14 @@ const BASE_NAV_ITEMS: NavItemDef[] = [
   { name: 'Perfil', href: '/perfil', icon: User },
 ];
 
-const CASHBACK_NAV_ITEM: NavItemDef = { name: 'Cashback', href: '/cashback', icon: Wallet };
-
-function formatCashbackBadge(value: number): string | undefined {
-  if (value <= 0) return undefined;
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-}
-
 export default function BuyerAccountSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { customer, signOut } = useBuyerAuth();
   const { cart } = useCart();
-  const { store, path, cashbackEnabled: cashbackAvailable } = useBuyerStore();
-  const { cashbackTotal } = useBuyerAccountSummary(customer?.id, store?.id);
+  const { store, path } = useBuyerStore();
   const navigate = useNavigate();
 
-  const navItems = cashbackAvailable
-    ? [...BASE_NAV_ITEMS.slice(0, 3), CASHBACK_NAV_ITEM, ...BASE_NAV_ITEMS.slice(3)]
-    : BASE_NAV_ITEMS;
+  const navItems = BASE_NAV_ITEMS;
 
   const toggleMobileSidebar = () => setMobileOpen((prev) => !prev);
 
@@ -96,9 +85,7 @@ export default function BuyerAccountSidebar() {
               badge={
                 item.href === '/carrinho' && cart.itemCount > 0
                   ? cart.itemCount
-                  : item.href === '/cashback'
-                    ? formatCashbackBadge(cashbackTotal)
-                    : undefined
+                  : undefined
               }
               onClick={() => isMobile && toggleMobileSidebar()}
             />

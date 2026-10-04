@@ -67,7 +67,6 @@ import BuyerRegisterPage from '@/pages/buyer/BuyerRegisterPage.tsx';
 import LegacyContaRedirect from '@/pages/buyer/LegacyContaRedirect';
 import BuyerOverviewPage from '@/pages/buyer/BuyerOverviewPage.tsx';
 import BuyerOrdersPage from '@/pages/buyer/BuyerOrdersPage.tsx';
-import BuyerCashbackPage from '@/pages/buyer/BuyerCashbackPage.tsx';
 import BuyerAuthCallbackPage from '@/pages/buyer/BuyerAuthCallbackPage.tsx';
 import BuyerProfilePage from '@/pages/buyer/BuyerProfilePage.tsx';
 import BuyerAddressesPage from '@/pages/buyer/BuyerAddressesPage.tsx';
@@ -312,7 +311,6 @@ function AppContent() {
             <Route index element={<BuyerOverviewPage />} />
             <Route path="pedidos" element={<BuyerOrdersPage />} />
             <Route path="pedidos/:orderId" element={<BuyerOrderDetailPage />} />
-            <Route path="cashback" element={<BuyerCashbackPage />} />
             <Route path="carrinho" element={<BuyerCartPage />} />
             <Route path="enderecos" element={<BuyerAddressesPage />} />
             <Route path="perfil" element={<BuyerProfilePage />} />
