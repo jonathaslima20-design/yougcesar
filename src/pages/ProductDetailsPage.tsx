@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,6 +56,10 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const [error, setError] = useState<string | null>(null);
   const [shareSupported, setShareSupported] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
+  // Set while a "Comprar" waits on the variant modal, so it continues to checkout once an item is added.
+  const buyNowPendingRef = useRef(false);
+  const [ctaArea, setCtaArea] = useState<HTMLDivElement | null>(null);
+  const [ctaVisible, setCtaVisible] = useState(true);
   const { theme } = useTheme();
   const [language, setLanguage] = useState<SupportedLanguage>('pt-BR');
   const [currency, setCurrency] = useState<SupportedCurrency>('BRL');
@@ -268,6 +272,16 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
     }
   };
 
+  // E-commerce: the bottom bar (price + buy action on phones) shows only while the main
+  // action is out of view. Hooks must stay above the early returns below.
+  // Watches the element itself (state, not a ref), so it re-attaches if React swaps the element out.
+  useEffect(() => {
+    if (!isEletronicos || !ctaArea) return;
+    const observer = new IntersectionObserver(([entry]) => setCtaVisible(entry.isIntersecting));
+    observer.observe(ctaArea);
+    return () => observer.disconnect();
+  }, [isEletronicos, ctaArea]);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -406,6 +420,26 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
     addToCart(product);
   };
 
+  // "Comprar" on E-commerce: same cart path as "Adicionar", then straight to checkout.
+  // Only shown when online payments are on (see buyNowEnabled).
+  const buyNowEnabled = isEletronicos && !!cartEnabled && !!checkoutSettings.onlinePaymentEnabled && !product.external_checkout_url;
+  const goToCheckout = () => navigate(`/${corretor.slug}/pedido/endereco`);
+
+  const handleBuyNow = () => {
+    if (!isAvailable || !hasPrice || (blockZeroStock && isOutOfStock)) {
+      handleAddToCart();
+      return;
+    }
+    if (hasOptions || product.has_tiered_pricing || hasWeightVariants) {
+      buyNowPendingRef.current = true;
+      handleAddToCart(); // opens the variant modal; checkout follows once an item is added
+      return;
+    }
+    if (addToCart(product)) goToCheckout();
+  };
+
+  const scrollToCtaArea = () => ctaArea?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
   const isPaidPlan = corretor?.plan_status !== 'free';
 
   // Same message the "Fale conosco agora" sidebar sends (mentions this product by
@@ -453,7 +487,19 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
       <section className="py-8">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row md:items-start gap-8">
-            <motion.div className="flex-1">
+            {/* E-commerce: the photo is its own column — first on phones, left on desktop, and it
+                stays in view while the buying info on the right scrolls. */}
+            {isEletronicos && (
+              <div className="md:w-1/2 md:sticky md:top-24 md:self-start">
+                <ImageGallery
+                  media={galleryMedia}
+                  title={product.title}
+                  selectedColor={selectedColor}
+                  onColorSelect={setSelectedColor}
+                />
+              </div>
+            )}
+            <motion.div className={isEletronicos ? 'flex-1 md:w-1/2 min-w-0' : 'flex-1'}>
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex gap-2 mb-3">
@@ -589,13 +635,15 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                 )}
               </div>
 
-              {/* Photo Gallery */}
-              <ImageGallery
-                media={galleryMedia}
-                title={product.title}
-                selectedColor={selectedColor}
-                onColorSelect={setSelectedColor}
-              />
+              {/* Photo Gallery (padrão theme; E-commerce renders it in its own column above) */}
+              {!isEletronicos && (
+                <ImageGallery
+                  media={galleryMedia}
+                  title={product.title}
+                  selectedColor={selectedColor}
+                  onColorSelect={setSelectedColor}
+                />
+              )}
 
               {/* Tiered Pricing Table - Moved right after gallery */}
               {product.has_tiered_pricing && (
@@ -616,15 +664,18 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
               {/* Inline variant + quantity picker (plain-priced products) */}
               {useInlineSelector && (
-                <InlineVariantSelector
-                  product={product}
-                  variantStockData={variantStockData}
-                  inventoryEnabled={inventoryEnabled}
-                  blockZeroStock={blockZeroStock}
-                  onOpenVariantModal={() => setShowVariantModal(true)}
-                  selectedColor={selectedColor}
-                  onColorChange={setSelectedColor}
-                />
+                <div ref={setCtaArea}>
+                  <InlineVariantSelector
+                    product={product}
+                    variantStockData={variantStockData}
+                    inventoryEnabled={inventoryEnabled}
+                    blockZeroStock={blockZeroStock}
+                    onOpenVariantModal={() => setShowVariantModal(true)}
+                    selectedColor={selectedColor}
+                    onColorChange={setSelectedColor}
+                    onBuyNow={buyNowEnabled ? goToCheckout : undefined}
+                  />
+                </div>
               )}
 
               {/* Product Variants Display (read-only) — tiered pricing / weight-variant
@@ -801,15 +852,33 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
               {/* Send Button — InlineVariantSelector renders its own contextual button */}
               {cartEnabled && isAvailable && hasPrice && !isOutOfStock && !useInlineSelector && (
-                <div className="mt-8">
-                  <Button
-                    size="lg"
-                    className="w-full"
-                    onClick={handleAddToCart}
-                  >
-                    <ShoppingCart className="h-5 w-5 mr-2" />
-                    {totalInCart > 0 ? `No Carrinho (${totalInCart})` : 'Adicionar ao carrinho'}
-                  </Button>
+                <div className="mt-8" ref={setCtaArea}>
+                  {buyNowEnabled ? (
+                    // E-commerce with online payments: "Comprar" takes the full width, the cart stays as an icon.
+                    <div className="flex items-center gap-2">
+                      <Button size="lg" className="flex-1" onClick={handleBuyNow}>
+                        Comprar
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="px-4 shrink-0"
+                        onClick={handleAddToCart}
+                        aria-label={totalInCart > 0 ? `Carrinho (${totalInCart})` : 'Adicionar ao carrinho'}
+                      >
+                        <ShoppingCart className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="w-full"
+                      onClick={handleAddToCart}
+                    >
+                      <ShoppingCart className="h-5 w-5 mr-2" />
+                      {totalInCart > 0 ? `No Carrinho (${totalInCart})` : 'Adicionar ao carrinho'}
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -894,9 +963,34 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
       </section>
 
         {/* Variant Selection Modal */}
+        {/* E-commerce mobile bar: price + the buy action, shown while the main action is out of view. */}
+        {isEletronicos && cartEnabled && isAvailable && hasPrice && !isOutOfStock && !ctaVisible && !showVariantModal && (
+          // pr-20 keeps the button clear of the floating WhatsApp button in the bottom-right corner.
+          <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t bg-background py-3 pl-4 pr-20 shadow-lg md:hidden">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs text-muted-foreground">{product.title}</div>
+              {displayPrice ? (
+                <div className="font-bold text-primary">{formatCurrencyI18n(displayPrice, currency, language)}</div>
+              ) : null}
+            </div>
+            <Button
+              size="lg"
+              onClick={useInlineSelector ? scrollToCtaArea : buyNowEnabled ? handleBuyNow : handleAddToCart}
+            >
+              {useInlineSelector ? 'Escolher opções' : buyNowEnabled ? 'Comprar' : 'Adicionar'}
+            </Button>
+          </div>
+        )}
+
         <ProductVariantModal
           open={showVariantModal}
-          onOpenChange={setShowVariantModal}
+          onOpenChange={(open) => {
+            setShowVariantModal(open);
+            if (!open) buyNowPendingRef.current = false;
+          }}
+          onAddedToCart={() => {
+            if (buyNowPendingRef.current) goToCheckout();
+          }}
           product={product}
           currency={currency}
           language={language}

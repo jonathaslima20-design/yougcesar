@@ -18,6 +18,8 @@ interface InlineVariantSelectorProps {
   onOpenVariantModal: () => void;
   selectedColor?: string;
   onColorChange: (color: string | undefined) => void;
+  // E-commerce with online payments: adds the chosen combination and goes to checkout.
+  onBuyNow?: () => void;
 }
 
 const LIGHT_COLORS = ['branco', 'amarelo', 'bege', 'off-white', 'creme'];
@@ -44,6 +46,7 @@ export default function InlineVariantSelector({
   onOpenVariantModal,
   selectedColor,
   onColorChange,
+  onBuyNow,
 }: InlineVariantSelectorProps) {
   const { addToCart, getItemQuantity } = useCart();
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
@@ -79,14 +82,15 @@ export default function InlineVariantSelector({
 
   const totalInCart = getItemQuantity(product.id);
 
-  function handleAdd() {
+  function handleAdd(thenCheckout = false) {
     if (!canAddToCart) {
       toast.error('Selecione as opções do produto');
       return;
     }
-    addToCart(product, selectedColor, selectedSize, quantity, undefined, selectedFlavor);
+    if (!addToCart(product, selectedColor, selectedSize, quantity, undefined, selectedFlavor)) return;
     toast.success(`${quantity} ${quantity === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho`);
     setQuantity(1);
+    if (thenCheckout) onBuyNow?.();
   }
 
   return (
@@ -286,10 +290,28 @@ export default function InlineVariantSelector({
       </div>
 
       <div className="space-y-2">
-        <Button size="lg" className="w-full" onClick={handleAdd} disabled={!canAddToCart}>
-          <ShoppingCart className="h-5 w-5 mr-2" />
-          {totalInCart > 0 ? `No Carrinho (${totalInCart}) · Adicionar mais` : 'Adicionar ao carrinho'}
-        </Button>
+        {onBuyNow ? (
+          <div className="flex items-center gap-2">
+            <Button size="lg" className="flex-1" onClick={() => handleAdd(true)} disabled={!canAddToCart}>
+              Comprar
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="px-4 shrink-0"
+              onClick={() => handleAdd(false)}
+              disabled={!canAddToCart}
+              aria-label={totalInCart > 0 ? `Carrinho (${totalInCart}) · Adicionar mais` : 'Adicionar ao carrinho'}
+            >
+              <ShoppingCart className="h-5 w-5" />
+            </Button>
+          </div>
+        ) : (
+          <Button size="lg" className="w-full" onClick={() => handleAdd(false)} disabled={!canAddToCart}>
+            <ShoppingCart className="h-5 w-5 mr-2" />
+            {totalInCart > 0 ? `No Carrinho (${totalInCart}) · Adicionar mais` : 'Adicionar ao carrinho'}
+          </Button>
+        )}
         <button
           type="button"
           onClick={onOpenVariantModal}
