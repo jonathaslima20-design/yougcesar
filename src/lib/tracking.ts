@@ -110,25 +110,16 @@ export const trackView = async (itemId: string, type: 'product' = 'product') => 
 
     console.log('Tracking view for:', { itemId, type, viewerId, viewDate });
 
-    const { error } = await supabase
-      .from('property_views')
-      .upsert(
-        {
-          property_id: itemId,
-          viewer_id: viewerId,
-          listing_type: type,
-          source: document.referrer || 'direct',
-          view_date: viewDate,
-          viewed_at: new Date().toISOString(),
-          is_unique: true
-        },
-        {
-          onConflict: 'property_id,viewer_id,view_date,listing_type',
-          ignoreDuplicates: true
-        }
-      );
-      // No .select(): visitors may insert a view but can't read it back (RLS allows INSERT only),
-      // so asking for the row made every view fail with 42501.
+    // Goes through the register_product_view RPC (SECURITY DEFINER). A direct upsert from anon
+    // fails with 42501: PostgREST adds RETURNING to the INSERT, and anon has no SELECT policy.
+    const { error } = await supabase.rpc('register_product_view', {
+      p_property_id: itemId,
+      p_viewer_id: viewerId,
+      p_listing_type: type,
+      p_source: document.referrer || 'direct',
+      p_view_date: viewDate,
+      p_viewed_at: new Date().toISOString()
+    });
 
     if (error) {
       console.error('Error tracking view:', error);
