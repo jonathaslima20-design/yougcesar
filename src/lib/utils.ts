@@ -404,16 +404,13 @@ export async function syncUserCategoriesWithStorefrontSettings(userId: string): 
           categoryDisplaySettings: [],
         };
 
-        await supabase
-          .from('user_storefront_settings')
-          .upsert({
-            user_id: userId,
-            settings: updatedSettings
-          }, {
-            onConflict: 'user_id'
-          });
+        // Through the RPC so an admin can save another user's settings (see migration 20261004160000)
+        await supabase.rpc('save_storefront_settings_for_user', {
+          p_user_id: userId,
+          p_settings: updatedSettings
+        });
       }
-      
+
       return;
     }
 
@@ -531,15 +528,12 @@ export async function syncUserCategoriesWithStorefrontSettings(userId: string): 
     retryCount = 0;
     
     while (retryCount < maxRetries) {
-      const result = await supabase
-        .from('user_storefront_settings')
-        .upsert({
-          user_id: userId,
-          settings: updatedSettings
-        }, {
-          onConflict: 'user_id'
-        });
-      
+      // Through the RPC so an admin can save another user's settings (see migration 20261004160000)
+      const result = await supabase.rpc('save_storefront_settings_for_user', {
+        p_user_id: userId,
+        p_settings: updatedSettings
+      });
+
       upsertError = result.error;
       
       if (!upsertError) break;
