@@ -76,7 +76,7 @@ export default function StorefrontProductCatalogSectionEletronicos({
               <p className="text-muted-foreground">{productsError}</p>
             </CardContent>
           </Card>
-        ) : productsLoading && categoryEntries.length === 0 ? (
+        ) : (productsLoading || (isSearchActive && serverSearchLoading)) && categoryEntries.length === 0 ? (
           <div className="space-y-12">
             {[1, 2].map((categoryIdx) => (
               <div key={categoryIdx} className="space-y-6">

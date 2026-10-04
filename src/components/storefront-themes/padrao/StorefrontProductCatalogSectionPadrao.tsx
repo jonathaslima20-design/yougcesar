@@ -76,7 +76,7 @@ export default function StorefrontProductCatalogSectionPadrao({
                 <p className="text-muted-foreground">{productsError}</p>
               </CardContent>
             </Card>
-          ) : productsLoading && Object.keys(organizedProducts).length === 0 ? (
+          ) : (productsLoading || (isSearchActive && serverSearchLoading)) && Object.keys(organizedProducts).length === 0 ? (
             <div className="space-y-12">
               {[1, 2].map((categoryIdx) => (
                 <div key={categoryIdx} className="space-y-6">
