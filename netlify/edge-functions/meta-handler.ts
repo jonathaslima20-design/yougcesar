@@ -336,6 +336,17 @@ interface LinkPreviewConfig {
   is_active: boolean;
 }
 
+const PRODUCT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * PostgREST filter for a /produtos/:segment URL. The segment is either a product id (old links)
+ * or its slug, which is unique only inside one store, so the slug is scoped to the store owner.
+ */
+function productFilter(segment: string, ownerId: string): string {
+  if (PRODUCT_ID_PATTERN.test(segment)) return `id=eq.${segment}`;
+  return `user_id=eq.${ownerId}&slug=eq.${encodeURIComponent(segment)}`;
+}
+
 async function fetchLinkPreviewConfig(
   supabaseUrl: string,
   supabaseKey: string,
@@ -581,7 +592,7 @@ export default async (request: Request, context: Context) => {
               if (isProductPage && productId) {
                 // Product page on custom domain
                 const productResponse = await fetch(
-                  `${supabaseUrl}/rest/v1/products?id=eq.${productId}&user_id=eq.${userId}&select=id,title,description,short_description,featured_image_url,price,discounted_price,is_starting_price,user_id&limit=1`,
+                  `${supabaseUrl}/rest/v1/products?${productFilter(productId, userId)}&select=id,title,description,short_description,featured_image_url,price,discounted_price,is_starting_price,user_id&limit=1`,
                   {
                     headers: {
                       'apikey': supabaseKey,
@@ -797,9 +808,29 @@ export default async (request: Request, context: Context) => {
       // Handle product page
       console.log('🛍️ Processing product page');
       
-      // First, get the product details
+      // First, get the product details. The segment is an id (old links) or a slug in this store.
+      let storeOwnerId = '';
+      if (!PRODUCT_ID_PATTERN.test(productId)) {
+        const ownerResponse = await fetch(
+          `${supabaseUrl}/rest/v1/users?slug=eq.${encodeURIComponent(slug)}&select=id&limit=1`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        const owners = ownerResponse.ok ? await ownerResponse.json() as { id: string }[] : [];
+        if (owners.length === 0) {
+          console.log('⚠️ Store not found for product page:', slug);
+          return context.next();
+        }
+        storeOwnerId = owners[0].id;
+      }
+
       const productResponse = await fetch(
-        `${supabaseUrl}/rest/v1/products?id=eq.${productId}&select=id,title,description,short_description,featured_image_url,price,discounted_price,is_starting_price,user_id&limit=1`,
+        `${supabaseUrl}/rest/v1/products?${productFilter(productId, storeOwnerId)}&select=id,title,description,short_description,featured_image_url,price,discounted_price,is_starting_price,user_id&limit=1`,
         {
           headers: {
             'apikey': supabaseKey,
