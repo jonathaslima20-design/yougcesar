@@ -155,7 +155,8 @@ export const trackLead = async (data: {
   try {
     console.log('Tracking lead for:', data);
 
-    const { data: result, error } = await supabase
+    // No .select(): visitors can insert leads but can't read them back (RLS has no anon SELECT policy)
+    const { error } = await supabase
       .from('leads')
       .insert({
         property_id: data.itemId,
@@ -166,15 +167,14 @@ export const trackLead = async (data: {
         message: data.message,
         source: data.source || 'form',
         status: 'new'
-      })
-      .select();
+      });
 
     if (error) {
       console.error('Error tracking lead:', error);
       return false;
     }
 
-    console.log('Lead tracked successfully:', result);
+    console.log('Lead tracked successfully');
     return true;
   } catch (err) {
     console.error('Error tracking lead:', err);
@@ -193,7 +193,8 @@ export const trackWhatsAppClick = async (itemId: string, itemType: 'product' = '
 
     console.log('Tracking WhatsApp click for:', { itemId, propertyId, itemType, source, viewerId });
 
-    const { data, error } = await supabase
+    // No .select(): same RLS reason as trackLead
+    const { error } = await supabase
       .from('leads')
       .insert({
         property_id: propertyId,
@@ -204,15 +205,14 @@ export const trackWhatsAppClick = async (itemId: string, itemType: 'product' = '
         message: `WhatsApp click from ${source}`,
         source: source,
         status: 'new'
-      })
-      .select();
+      });
 
     if (error) {
       console.error('Error tracking WhatsApp click:', error);
       return false;
     }
 
-    console.log('WhatsApp click tracked successfully:', data);
+    console.log('WhatsApp click tracked successfully');
     return true;
   } catch (err) {
     console.error('Error tracking WhatsApp click:', err);
