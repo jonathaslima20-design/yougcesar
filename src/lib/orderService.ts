@@ -27,7 +27,6 @@ interface CreateOrderData {
   delivery_weight_kg?: number | null;
   pickup_instructions?: string | null;
   insurance_fee?: number;
-  cashback_used?: number;
   affiliate_id?: string | null;
   buyer_id?: string | null;
   payment_status?: string;
@@ -103,7 +102,7 @@ export async function createOrder(
     p_delivery_weight_kg: orderData.delivery_weight_kg ?? null,
     p_pickup_instructions: orderData.pickup_instructions || null,
     p_insurance_fee: orderData.insurance_fee || 0,
-    p_cashback_used: orderData.cashback_used || 0,
+    p_cashback_used: 0, // still required by create_order_complete; dropped with the cashback migration
     p_affiliate_id: orderData.affiliate_id || null,
     p_items: orderItems,
     p_buyer_id: orderData.buyer_id || null,

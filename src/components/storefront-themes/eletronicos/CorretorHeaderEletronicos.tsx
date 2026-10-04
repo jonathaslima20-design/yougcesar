@@ -7,7 +7,6 @@ import {
   UserRound,
   ChevronDown,
   Package,
-  Wallet,
   User as UserIcon,
   HelpCircle,
   X,
@@ -205,11 +204,6 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
             <DropdownMenuItem asChild>
               <Link to={`/${corretor.slug}/conta/pedidos`} className="flex items-center gap-2 cursor-pointer">
                 <Package className="h-4 w-4" /> Meus pedidos
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to={`/${corretor.slug}/conta/cashback`} className="flex items-center gap-2 cursor-pointer">
-                <Wallet className="h-4 w-4" /> Meu cashback
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

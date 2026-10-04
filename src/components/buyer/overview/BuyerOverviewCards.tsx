@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, Package, Truck, Wallet, ArrowRight, CreditCard, MapPin, Loader } from 'lucide-react';
+import { Check, Copy, Package, Truck, ArrowRight, CreditCard, MapPin, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { OrderStatusTimeline } from '@/components/buyer/OrderStatusTimeline';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import { Badge } from '@/components/ui/badge';
@@ -128,45 +127,6 @@ export function ActiveOrderCard({
   );
 }
 
-export function CashbackCard({
-  balance,
-  ratePercent,
-  loading,
-  cashbackPath,
-}: {
-  balance: number;
-  ratePercent: number;
-  loading: boolean;
-  cashbackPath: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-5 pb-5 px-5 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
-            <Wallet className="h-3.5 w-3.5" />
-            Seu cashback
-          </p>
-          {loading ? (
-            <Skeleton className="h-8 w-28" />
-          ) : (
-            <p className="text-3xl font-bold truncate">{formatMoney(balance)}</p>
-          )}
-          <p className="text-xs text-muted-foreground mt-1">
-            {balance > 0
-              ? 'Use como desconto na sua próxima compra.'
-              : ratePercent > 0
-                ? `Ganhe ${ratePercent}% de volta nas suas próximas compras pagas online.`
-                : 'Acumule saldo nas suas compras.'}
-          </p>
-        </div>
-        <Link to={cashbackPath} className="text-xs text-primary hover:underline shrink-0 inline-flex items-center gap-1 py-2 -my-2">
-          Extrato <ArrowRight className="h-3 w-3" />
-        </Link>
-      </CardContent>
-    </Card>
-  );
-}
 
 function describeCoupon(coupon: CustomerCoupon): { headline: string; details: string[] } {
   const headline =

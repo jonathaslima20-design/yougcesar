@@ -4,7 +4,6 @@ import { ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useBuyerAccountSummary } from '@/hooks/useBuyerAccountSummary';
 import { useBuyerStore } from '@/contexts/BuyerStoreContext';
 import { useBuyAgainItems, type BuyAgainItem } from '@/hooks/useBuyAgainItems';
 import { useCustomerCoupons } from '@/hooks/useCustomerCoupons';
@@ -12,7 +11,6 @@ import { useReorderDestination } from '@/hooks/useReorderDestination';
 import {
   ActiveOrderCard,
   BuyAgainCard,
-  CashbackCard,
   DefaultAddressCard,
   OffersCard,
   RecentOrderRowCard,
@@ -38,10 +36,9 @@ export default function BuyerOverviewPage() {
   const { customer, loading: authLoading } = useBuyerAuth();
   const { addToCart, clearCart } = useCart();
   const navigate = useNavigate();
-  const { store, path, loginPath, cashbackEnabled: cashbackAvailable, cashbackRate } = useBuyerStore();
+  const { store, path, loginPath } = useBuyerStore();
   const { coupons } = useCustomerCoupons(store?.slug);
   const { destination, isCheckout } = useReorderDestination(store);
-  const summary = useBuyerAccountSummary(customer?.id, store?.id);
   const { items: buyAgainItems } = useBuyAgainItems(customer?.id, 4, store?.id);
   const [buyingAgainId, setBuyingAgainId] = useState<string | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
@@ -137,15 +134,6 @@ export default function BuyerOverviewPage() {
       <h1 className="sr-only">Visão geral da sua conta</h1>
       {activeOrder && store && (
         <ActiveOrderCard order={activeOrder} storeSlug={store.slug} orderPath={path(`/pedidos/${activeOrder.id}`)} />
-      )}
-
-      {cashbackAvailable && (
-        <CashbackCard
-          balance={summary.cashbackTotal}
-          ratePercent={cashbackRate}
-          loading={summary.loading}
-          cashbackPath={path('/cashback')}
-        />
       )}
 
       <OffersCard coupons={coupons} />

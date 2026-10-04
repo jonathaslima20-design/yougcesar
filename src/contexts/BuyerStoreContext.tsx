@@ -22,11 +22,6 @@ interface BuyerStoreContextType {
   // The store lookup itself failed (network/auth hiccup) — different from not found.
   loadFailed: boolean;
   retry: () => void;
-  // Admin gate (users.cashback_enabled) AND the merchant's own toggle — the
-  // same check the storefront applies (see useCheckoutSettings.ts).
-  cashbackEnabled: boolean;
-  // Merchant-configured % of each paid order returned as cashback (0 when disabled).
-  cashbackRate: number;
   // When the buyer's account in THIS store was created (not the platform signup).
   customerSince: string | null;
   // Absolute path inside this store's buyer area, e.g. path('/pedidos').
@@ -41,8 +36,6 @@ export function BuyerStoreProvider({ children }: { children: ReactNode }) {
   const { slug } = useParams<{ slug: string }>();
   const { customer } = useBuyerAuth();
   const [store, setStore] = useState<BuyerStore | null>(null);
-  const [cashbackEnabled, setCashbackEnabled] = useState(false);
-  const [cashbackRate, setCashbackRate] = useState(0);
   const [customerSince, setCustomerSince] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -56,13 +49,11 @@ export function BuyerStoreProvider({ children }: { children: ReactNode }) {
     setNotFound(false);
     setLoadFailed(false);
     setStore(null);
-    setCashbackEnabled(false);
-    setCashbackRate(0);
 
     (async () => {
       const { data, error } = await supabaseBuyer
         .from('users')
-        .select('id, slug, name, avatar_url, cashback_enabled')
+        .select('id, slug, name, avatar_url')
         .eq('slug', slug)
         .eq('role', 'corretor')
         .maybeSingle();
@@ -81,22 +72,7 @@ export function BuyerStoreProvider({ children }: { children: ReactNode }) {
 
       setStore({ id: data.id, slug: data.slug, name: data.name, avatar_url: data.avatar_url });
 
-      let enabled = false;
-      let rate = 0;
-      if (data.cashback_enabled) {
-        const { data: settingsRow } = await supabaseBuyer
-          .from('user_storefront_settings')
-          .select('settings')
-          .eq('user_id', data.id)
-          .maybeSingle();
-        const cashback = settingsRow?.settings?.checkout?.cashback;
-        enabled = !!cashback?.enabled;
-        rate = enabled ? Number(cashback?.percentageRate) || 0 : 0;
-      }
-
       if (cancelled) return;
-      setCashbackEnabled(enabled);
-      setCashbackRate(rate);
       setLoading(false);
     })();
 
@@ -134,13 +110,11 @@ export function BuyerStoreProvider({ children }: { children: ReactNode }) {
       notFound,
       loadFailed,
       retry: () => setAttempt((n) => n + 1),
-      cashbackEnabled,
-      cashbackRate,
       customerSince,
       path: (sub = '') => `/${slug}/conta${sub}`,
       loginPath: `/conta/entrar?loja=${slug}`,
     }),
-    [store, loading, notFound, loadFailed, cashbackEnabled, cashbackRate, customerSince, slug]
+    [store, loading, notFound, loadFailed, customerSince, slug]
   );
 
   return <BuyerStoreContext.Provider value={value}>{children}</BuyerStoreContext.Provider>;

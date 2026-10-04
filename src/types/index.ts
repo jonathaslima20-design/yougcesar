@@ -85,7 +85,6 @@ export interface User {
   payments_test_override?: boolean;
   shipping_test_override?: boolean;
   insurance_enabled?: boolean;
-  cashback_enabled?: boolean;
   affiliate_program_enabled?: boolean;
   affiliate_teaser_hidden?: boolean;
   last_login_at?: string;
@@ -833,11 +832,6 @@ export interface ShippingInsuranceConfig {
   percentageRate: number; // e.g. 2.5 = 2.5% of subtotal after coupon discount
 }
 
-export interface CashbackConfig {
-  enabled: boolean;       // merchant's own on/off switch (only usable if users.cashback_enabled is true)
-  percentageRate: number; // e.g. 3 = 3% of the amount actually paid online, credited on payment approval
-}
-
 export interface SuperFreteConfig {
   enabled: boolean;      // merchant's own on/off switch (only takes effect if credentials are validated/active)
   serviceIds: string[];  // subset of ['1','2','17','3','33','31'] (PAC/SEDEX/Mini Envios/Jadlog/J&T/Loggi)
@@ -864,5 +858,4 @@ export interface CheckoutSettings {
   // Whether CEP/city matching is needed is no longer a stored setting — see
   // isDeliveryCepNeeded in src/lib/localDelivery.ts, computed live from
   // deliveryOptions/superFrete instead.
-  cashback?: CashbackConfig;
 }
