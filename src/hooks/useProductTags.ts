@@ -48,9 +48,12 @@ export function useProductTags() {
     if (!user?.id) return;
     try {
       setLoading(true);
+      // Only this store's products: the table holds every store's assignments, and loading it all
+      // on each visit to the listings page grew with the whole platform, not with this store.
       const { data, error } = await supabase
         .from('product_tag_assignments')
-        .select('product_id, tag_id');
+        .select('product_id, tag_id, products!inner(user_id)')
+        .eq('products.user_id', user.id);
 
       if (error) throw error;
 
