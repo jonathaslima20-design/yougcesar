@@ -111,6 +111,20 @@ function tierSignature(
   );
 }
 
+// What the weight variants mean for the price and shipping, in display order.
+function weightVariantSignature(variants: WeightVariant[]): string {
+  return JSON.stringify(
+    variants.map((v) => [
+      v.label.trim(),
+      Number(v.unit_value) || 0,
+      v.unit_type,
+      Number(v.price) || 0,
+      v.discounted_price == null ? null : Number(v.discounted_price),
+      v.shipping_weight_kg && v.shipping_weight_kg > 0 ? Number(v.shipping_weight_kg) : null,
+    ])
+  );
+}
+
 export default function EditProductPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -133,6 +147,8 @@ export default function EditProductPage() {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [hasWeightVariants, setHasWeightVariants] = useState(false);
   const [weightVariants, setWeightVariants] = useState<WeightVariant[]>([]);
+  // Snapshot of the variants as saved; a save rewrites them only when this differs.
+  const [savedWeightSignature, setSavedWeightSignature] = useState(() => weightVariantSignature([]));
   const [images, setImages] = useState<MediaItem[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [initialImages, setInitialImages] = useState<MediaItem[]>([]);
@@ -265,19 +281,22 @@ export default function EditProductPage() {
             .order('display_order');
           if (variantsError) throw variantsError;
           if (variantRows) {
-            setWeightVariants(
-              variantRows.map((v) => ({
-                id: v.id,
-                product_id: v.product_id,
-                label: v.label,
-                unit_value: Number(v.unit_value) || 0,
-                unit_type: v.unit_type,
-                price: Number(v.price) || 0,
-                discounted_price:
-                  v.discounted_price != null ? Number(v.discounted_price) : null,
-                display_order: v.display_order,
-              }))
-            );
+            const loadedVariants = variantRows.map((v) => ({
+              id: v.id,
+              product_id: v.product_id,
+              label: v.label,
+              unit_value: Number(v.unit_value) || 0,
+              unit_type: v.unit_type,
+              price: Number(v.price) || 0,
+              discounted_price:
+                v.discounted_price != null ? Number(v.discounted_price) : null,
+              display_order: v.display_order,
+              // Loaded too, so saving the product doesn't wipe the shipping weight.
+              shipping_weight_kg:
+                v.shipping_weight_kg != null ? Number(v.shipping_weight_kg) : null,
+            }));
+            setWeightVariants(loadedVariants);
+            setSavedWeightSignature(weightVariantSignature(loadedVariants));
           }
         }
 
@@ -555,13 +574,19 @@ export default function EditProductPage() {
 
       if (tiersChanged) setSavedTierSignature(tierSignature(effectiveTiers));
 
-      const { error: deleteVariantsError } = await supabase
-        .from('product_weight_variants')
-        .delete()
-        .eq('product_id', id);
-      if (deleteVariantsError) throw deleteVariantsError;
+      // Variantes só são regravadas quando mudaram (mesmo critério das faixas de preço).
+      const effectiveVariants = hasWeightVariants ? weightVariants : [];
+      const variantsChanged = weightVariantSignature(effectiveVariants) !== savedWeightSignature;
 
-      if (hasWeightVariants && weightVariants.length > 0) {
+      if (variantsChanged) {
+        const { error: deleteVariantsError } = await supabase
+          .from('product_weight_variants')
+          .delete()
+          .eq('product_id', id);
+        if (deleteVariantsError) throw deleteVariantsError;
+      }
+
+      if (variantsChanged && hasWeightVariants && weightVariants.length > 0) {
         const variantRows = weightVariants.map((v, idx) => ({
           product_id: id,
           label: v.label.trim(),
@@ -577,6 +602,8 @@ export default function EditProductPage() {
           .insert(variantRows);
         if (insertVariantsError) throw insertVariantsError;
       }
+
+      if (variantsChanged) setSavedWeightSignature(weightVariantSignature(effectiveVariants));
 
       logActivity('product.update', `Editou o produto "${data.title}"`, 'product', id);
       toast.success('Produto atualizado com sucesso!');
