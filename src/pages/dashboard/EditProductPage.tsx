@@ -95,6 +95,22 @@ type MediaItem = {
   associatedColor?: string | null;
 };
 
+// What a tier list means for the price: quantity and prices, sorted by quantity. Ids and
+// timestamps are ignored, so the same tiers always produce the same signature.
+function tierSignature(
+  tiers: { min_quantity: number; unit_price: number; discounted_unit_price?: number | null }[]
+): string {
+  return JSON.stringify(
+    [...tiers]
+      .sort((a, b) => a.min_quantity - b.min_quantity)
+      .map((t) => [
+        Number(t.min_quantity),
+        Number(t.unit_price),
+        t.discounted_unit_price == null ? null : Number(t.discounted_unit_price),
+      ])
+  );
+}
+
 export default function EditProductPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -106,6 +122,8 @@ export default function EditProductPage() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [pricingMode, setPricingMode] = useState<'simple' | 'tiered'>('simple');
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
+  // Snapshot of the tiers as saved in the database; a save rewrites them only when this differs.
+  const [savedTierSignature, setSavedTierSignature] = useState(() => tierSignature([]));
   const [isPriceTiersValid, setIsPriceTiersValid] = useState(true);
   const [isSizesColorsOpen, setIsSizesColorsOpen] = useState(false);
   const [isFlavorsOpen, setIsFlavorsOpen] = useState(false);
@@ -272,13 +290,15 @@ export default function EditProductPage() {
 
           if (tiersError) throw tiersError;
           if (tiers) {
-            setPriceTiers(tiers.map(tier => ({
+            const loadedTiers = tiers.map(tier => ({
               id: tier.id,
               min_quantity: tier.min_quantity,
               max_quantity: tier.max_quantity,
               unit_price: parseFloat(tier.unit_price),
               discounted_unit_price: tier.discounted_unit_price ? parseFloat(tier.discounted_unit_price) : null,
-            })));
+            }));
+            setPriceTiers(loadedTiers);
+            setSavedTierSignature(tierSignature(loadedTiers));
           }
         }
 
@@ -492,7 +512,11 @@ export default function EditProductPage() {
         }
       }
 
-      if (pricingMode === 'tiered') {
+      // Faixas só são regravadas quando mudaram: salvar outros campos não apaga e recria a tabela.
+      const effectiveTiers = pricingMode === 'tiered' ? priceTiers : [];
+      const tiersChanged = tierSignature(effectiveTiers) !== savedTierSignature;
+
+      if (tiersChanged && pricingMode === 'tiered') {
         const { error: deleteOldTiersError } = await supabase
           .from('product_price_tiers')
           .delete()
@@ -519,7 +543,8 @@ export default function EditProductPage() {
 
           if (tiersError) throw tiersError;
         }
-      } else {
+      } else if (tiersChanged) {
+        // Switched from tiered to simple pricing: the old tiers must go.
         const { error: deleteAllTiersError } = await supabase
           .from('product_price_tiers')
           .delete()
@@ -527,6 +552,8 @@ export default function EditProductPage() {
 
         if (deleteAllTiersError) throw deleteAllTiersError;
       }
+
+      if (tiersChanged) setSavedTierSignature(tierSignature(effectiveTiers));
 
       const { error: deleteVariantsError } = await supabase
         .from('product_weight_variants')

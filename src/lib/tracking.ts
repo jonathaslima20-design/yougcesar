@@ -110,7 +110,7 @@ export const trackView = async (itemId: string, type: 'product' = 'product') => 
 
     console.log('Tracking view for:', { itemId, type, viewerId, viewDate });
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('property_views')
       .upsert(
         {
@@ -126,15 +126,16 @@ export const trackView = async (itemId: string, type: 'product' = 'product') => 
           onConflict: 'property_id,viewer_id,view_date,listing_type',
           ignoreDuplicates: true
         }
-      )
-      .select();
+      );
+      // No .select(): visitors may insert a view but can't read it back (RLS allows INSERT only),
+      // so asking for the row made every view fail with 42501.
 
     if (error) {
       console.error('Error tracking view:', error);
       return false;
     }
 
-    console.log('View tracked successfully:', data);
+    console.log('View tracked successfully');
     return true;
   } catch (err) {
     console.error('Error tracking view:', err);
