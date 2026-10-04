@@ -319,6 +319,11 @@ export function useProductData({
     try {
       const categoriesArray = categories;
 
+      // Storefront visitors load this too. Only the store owner can write these settings
+      // (RLS: auth.uid() = user_id), so visitors get the computed list without saving it.
+      const { data: { session } } = await supabase.auth.getSession();
+      const isStoreOwner = session?.user.id === userId;
+
       if (currentSettings.length === 0 && categoriesArray.length > 0) {
         logCategoryOperation('INITIALIZING_ALL_CATEGORIES', {
           categories: categoriesArray,
@@ -342,14 +347,16 @@ export function useProductData({
           categoryDisplaySettings: initialSettings
         };
 
-        await supabase
-          .from('user_storefront_settings')
-          .upsert({
-            user_id: userId,
-            settings: mergedSettings
-          }, {
-            onConflict: 'user_id'
-          });
+        if (isStoreOwner) {
+          await supabase
+            .from('user_storefront_settings')
+            .upsert({
+              user_id: userId,
+              settings: mergedSettings
+            }, {
+              onConflict: 'user_id'
+            });
+        }
 
         logCategoryOperation('ALL_CATEGORIES_INITIALIZED', {
           total: initialSettings.length
@@ -389,14 +396,16 @@ export function useProductData({
           categoryDisplaySettings: updatedSettings
         };
 
-        await supabase
-          .from('user_storefront_settings')
-          .upsert({
-            user_id: userId,
-            settings: mergedSettings
-          }, {
-            onConflict: 'user_id'
-          });
+        if (isStoreOwner) {
+          await supabase
+            .from('user_storefront_settings')
+            .upsert({
+              user_id: userId,
+              settings: mergedSettings
+            }, {
+              onConflict: 'user_id'
+            });
+        }
 
         logCategoryOperation('CATEGORIES_AUTO_SYNCED', {
           added: newCategories,
