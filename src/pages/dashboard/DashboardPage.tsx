@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, TrendingUp, Users, DollarSign, Loader as Loader2, ExternalLink, ShoppingBag, TriangleAlert as AlertTriangle, Copy, Check, MessageSquare } from 'lucide-react';
+import { Loader as Loader2, ExternalLink, Copy, Check, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useDashboardRevenue } from '@/hooks/useDashboardRevenue';
+import { useSalesFunnel } from '@/hooks/useSalesFunnel';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
 import { useDashboardPeriod } from '@/hooks/useDashboardPeriod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RevenueCard } from '@/components/dashboard/RevenueCard';
+import { formatCurrency } from '@/lib/utils';
+import { ViewsAndLeadsChart } from '@/components/dashboard/ViewsAndLeadsChart';
+import { TopProductsList } from '@/components/dashboard/TopProductsList';
 import { RecentActivityFeed } from '@/components/dashboard/RecentActivityFeed';
 import { DashboardPeriodFilter } from '@/components/dashboard/DashboardPeriodFilter';
 import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist';
@@ -17,13 +21,102 @@ import { toast } from 'sonner';
 
 const PERIOD_STORAGE_KEY = 'vitrineturbo_dashboard_period';
 
+// Headline indicator: big value, change against the previous period, and a short hint.
+function KpiCard({
+  title,
+  value,
+  change,
+  hint,
+  loading,
+}: {
+  title: string;
+  value: string;
+  change?: number;
+  hint: string;
+  loading: boolean;
+}) {
+  const up = (change ?? 0) > 0;
+  const down = (change ?? 0) < 0;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        ) : (
+          <>
+            <div className="text-3xl font-bold">{value}</div>
+            <div className="mt-1 flex items-center gap-1.5 text-xs">
+              {change !== undefined && (
+                <span
+                  className={`inline-flex items-center gap-0.5 font-medium ${
+                    up ? 'text-emerald-600' : down ? 'text-red-600' : 'text-muted-foreground'
+                  }`}
+                >
+                  {up && <ArrowUp className="h-3 w-3" />}
+                  {down && <ArrowDown className="h-3 w-3" />}
+                  {Math.abs(change).toFixed(0)}%
+                </span>
+              )}
+              <span className="text-muted-foreground">{hint}</span>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Secondary figure, shown inside "Mais detalhes".
+function DetailItem({ label, value, loading }: { label: string; value: string; loading: boolean }) {
+  return (
+    <div className="rounded-lg border p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      {loading ? (
+        <Loader2 className="mt-1 h-5 w-5 animate-spin text-muted-foreground" />
+      ) : (
+        <p className="mt-1 text-xl font-semibold">{value}</p>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [periodDays, handlePeriodChange] = useDashboardPeriod(PERIOD_STORAGE_KEY);
   const [copiedLink, setCopiedLink] = useState(false);
-  const { totalProducts, totalViews, uniqueVisitors, totalContacts, whatsappClicks, totalOrders, totalSales, purchasesPerVisitor, contactsPerVisitor, lowStockCount, outOfStockCount, loading, error } = useDashboardStats(periodDays);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const {
+    totalProducts,
+    totalViews,
+    totalOrders,
+    whatsappClicks,
+    purchasesPerVisitor,
+    contactsPerVisitor,
+    lowStockCount,
+    outOfStockCount,
+    loading,
+    error,
+  } = useDashboardStats(periodDays);
+  const { stages, loading: funnelLoading } = useSalesFunnel(periodDays);
+  const revenue = useDashboardRevenue(periodDays);
   const { inventoryEnabled } = useInventoryEnabled();
+
+  // Funnel stages from get_store_funnel: 0 Visitantes, 2 Contatos, 4 Vendas.
+  const visitors = stages[0];
+  const contacts = stages[2];
+  const sales = stages[4];
+  const kpiLoading = funnelLoading || revenue.loading;
+
+  const storeUrl = user?.custom_domain
+    ? `https://${user.custom_domain}`
+    : user?.slug
+    ? `https://vitrineturbo.com/${user.slug}`
+    : '';
 
   const getMissingProfileFields = () => {
     const missing: string[] = [];
@@ -51,12 +144,6 @@ export default function DashboardPage() {
 
     window.open(storeUrl, '_blank');
   };
-
-  const storeUrl = user?.custom_domain
-    ? `https://${user.custom_domain}`
-    : user?.slug
-    ? `https://vitrineturbo.com/${user.slug}`
-    : '';
 
   const handleCopyLink = async () => {
     if (!storeUrl) {
@@ -141,195 +228,80 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {/* Stats Cards */}
-      <div className={`grid gap-4 grid-cols-2 ${inventoryEnabled ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{totalProducts}</div>
-                <p className="text-xs text-muted-foreground">produtos cadastrados</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      {/* Headline indicators: what the store owner checks first */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title="Faturamento"
+          value={formatCurrency(revenue.totalRevenue)}
+          change={revenue.revenueChange}
+          hint={periodLabel}
+          loading={kpiLoading}
+        />
+        <KpiCard
+          title="Vendas"
+          value={String(sales?.value ?? 0)}
+          change={sales?.change}
+          hint={periodLabel}
+          loading={kpiLoading}
+        />
+        <KpiCard
+          title="Visitantes"
+          value={String(visitors?.value ?? 0)}
+          change={visitors?.change}
+          hint="visitantes únicos"
+          loading={kpiLoading}
+        />
+        <KpiCard
+          title="Contatos"
+          value={String(contacts?.value ?? 0)}
+          change={contacts?.change}
+          hint="formulários e pedidos de contato"
+          loading={kpiLoading}
+        />
+      </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visualizações únicas</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{totalViews}</div>
-                <p className="text-xs text-muted-foreground">{periodLabel}</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      {/* Main chart */}
+      <ViewsAndLeadsChart days={periodDays} />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visitantes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{uniqueVisitors}</div>
-                <p className="text-xs text-muted-foreground">visitantes únicos</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      {/* Products and activity */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <TopProductsList periodDays={periodDays} />
+        <RecentActivityFeed />
+      </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contatos</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{totalContacts}</div>
-                <p className="text-xs text-muted-foreground">formulários e pedidos de contato, sem cliques no WhatsApp</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      {/* Secondary figures, collapsed by default */}
+      <div className="space-y-3">
+        <Button variant="ghost" onClick={() => setShowDetails(v => !v)} className="gap-1.5 text-muted-foreground">
+          Mais detalhes
+          <ChevronDown className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+        </Button>
 
-        <Card className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate('/dashboard/orders')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pedidos</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{totalOrders}</div>
-                <p className="text-xs text-muted-foreground">{periodLabel}</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {inventoryEnabled && (
-          <Card className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate('/dashboard/stock-movements')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque</CardTitle>
-              <AlertTriangle className={`h-4 w-4 ${outOfStockCount > 0 ? 'text-red-500' : lowStockCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">{lowStockCount + outOfStockCount}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {outOfStockCount > 0 ? `${outOfStockCount} esgotado${outOfStockCount > 1 ? 's' : ''}` : ''}
-                    {outOfStockCount > 0 && lowStockCount > 0 ? ' / ' : ''}
-                    {lowStockCount > 0 ? `${lowStockCount} baixo${lowStockCount > 1 ? 's' : ''}` : ''}
-                    {outOfStockCount === 0 && lowStockCount === 0 ? 'tudo em ordem' : ''}
-                  </p>
-                </>
-              )}
+        {showDetails && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <DetailItem label="Visualizações únicas" value={String(totalViews)} loading={loading} />
+                <DetailItem label="Pedidos" value={String(totalOrders)} loading={loading} />
+                <DetailItem label="Ticket médio" value={formatCurrency(revenue.averageTicket)} loading={revenue.loading} />
+                <DetailItem label="Pedidos entregues" value={String(revenue.totalDelivered)} loading={revenue.loading} />
+                <DetailItem label="Cliques no WhatsApp" value={String(whatsappClicks)} loading={loading} />
+                <DetailItem label="Compras por visitante" value={`${purchasesPerVisitor.toFixed(1)}%`} loading={loading} />
+                <DetailItem label="Contatos por visitante" value={`${contactsPerVisitor.toFixed(1)}%`} loading={loading} />
+                <DetailItem label="Total de produtos" value={String(totalProducts)} loading={loading} />
+                {inventoryEnabled && (
+                  <DetailItem
+                    label="Estoque"
+                    value={lowStockCount + outOfStockCount > 0
+                      ? `${outOfStockCount} esgotado${outOfStockCount === 1 ? '' : 's'} / ${lowStockCount} baixo${lowStockCount === 1 ? '' : 's'}`
+                      : 'Tudo em ordem'}
+                    loading={loading}
+                  />
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
       </div>
-
-      {/* Sales and engagement, same definitions as the funnel */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vendas</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{totalSales}</div>
-                <p className="text-xs text-muted-foreground">pedidos confirmados, {periodLabel}</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cliques no WhatsApp</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{whatsappClicks}</div>
-                <p className="text-xs text-muted-foreground">{periodLabel}</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Compras por visitante (%)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{purchasesPerVisitor.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground">vendas ÷ visitantes únicos</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contatos por visitante (%)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{contactsPerVisitor.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground">contatos ÷ visitantes únicos</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Revenue Cards */}
-      <RevenueCard periodDays={periodDays} />
-
-      {/* Recent Activity */}
-      <RecentActivityFeed />
-
     </div>
   );
 }
