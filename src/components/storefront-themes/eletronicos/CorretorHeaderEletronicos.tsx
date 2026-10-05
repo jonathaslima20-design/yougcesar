@@ -407,7 +407,7 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
                 {AccountMenu}
                 <span className="flex flex-col items-start leading-tight text-xs">
                   <span className="opacity-70">Minha Conta</span>
-                  <span className="font-semibold">{customer ? 'Minha conta' : 'Acessar'}</span>
+                  <span className="font-semibold">{customer ? (customer.full_name?.trim().split(' ')[0] || 'Minha conta') : 'Acessar'}</span>
                 </span>
               </div>
             )}
