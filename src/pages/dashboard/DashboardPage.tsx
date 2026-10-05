@@ -41,8 +41,8 @@ function KpiCard({
   const up = (change ?? 0) > 0;
   const down = (change ?? 0) < 0;
   return (
-    <Card className="shadow-sm">
-      <CardContent className="p-5">
+    <Card className="h-full shadow-sm">
+      <CardContent className="flex h-full flex-col p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-semibold text-foreground/80">{title}</p>
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -53,8 +53,8 @@ function KpiCard({
           <Loader2 className="mt-3 h-7 w-7 animate-spin text-muted-foreground" />
         ) : (
           <>
-            <div className="mt-3 text-3xl font-bold tracking-tight text-foreground">{value}</div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <div className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{value}</div>
+            <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2 text-xs">
               {change !== undefined && (
                 <span
                   className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-semibold ${
@@ -172,11 +172,10 @@ export default function DashboardPage() {
     }
   };
 
-  const periodLabel = `nos últimos ${periodDays} dias`;
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-6 space-y-6">
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div>
           <h1 className="text-2xl md:text-3xl page-title">Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1 hidden sm:block">Bem-vindo de volta, {user?.name || 'Usuário'}!</p>
@@ -193,7 +192,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-foreground/70">Copie para compartilhar ou abra para visualizar.</p>
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative min-w-0 flex-1">
                 <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/60" />
                 <Input
@@ -202,10 +201,11 @@ export default function DashboardPage() {
                   className="pl-9 font-mono text-xs text-foreground"
                 />
               </div>
+              <div className="flex gap-2">
               <Button
                 onClick={handleCopyLink}
                 variant={copiedLink ? 'secondary' : 'outline'}
-                className="shrink-0 min-w-[100px] transition-all duration-200"
+                className="min-w-[100px] flex-1 transition-all duration-200 sm:flex-none"
               >
                 {copiedLink ? (
                   <>
@@ -228,6 +228,7 @@ export default function DashboardPage() {
               >
                 <ExternalLink className="h-4 w-4" />
               </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -249,28 +250,28 @@ export default function DashboardPage() {
           title="Faturamento" icon={Wallet}
           value={formatCurrency(revenue.totalRevenue)}
           change={revenue.revenueChange}
-          hint={periodLabel}
+          hint={`${periodDays} dias`}
           loading={kpiLoading}
         />
         <KpiCard
           title="Vendas" icon={ShoppingBag}
           value={String(sales?.value ?? 0)}
           change={sales?.change}
-          hint={periodLabel}
+          hint={`${periodDays} dias`}
           loading={kpiLoading}
         />
         <KpiCard
           title="Visitantes" icon={Eye}
           value={String(visitors?.value ?? 0)}
           change={visitors?.change}
-          hint="visitantes únicos"
+          hint="únicos"
           loading={kpiLoading}
         />
         <KpiCard
           title="Contatos" icon={MessageSquare}
           value={String(contacts?.value ?? 0)}
           change={contacts?.change}
-          hint="formulários e pedidos de contato"
+          hint="contatos"
           loading={kpiLoading}
         />
       </div>
