@@ -2,45 +2,51 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Numbers come from get_store_metrics (migration 20261005100000), so every card
+// uses the same definitions. See that migration for what each figure counts.
 interface DashboardStats {
   totalProducts: number;
   totalViews: number;
   uniqueVisitors: number;
-  totalLeads: number;
+  totalContacts: number;
+  whatsappClicks: number;
   totalOrders: number;
+  totalSales: number;
+  totalRevenue: number;
+  purchasesPerVisitor: number;
+  contactsPerVisitor: number;
   lowStockCount: number;
   outOfStockCount: number;
   loading: boolean;
   error: string | null;
 }
 
+const EMPTY_STATS: Omit<DashboardStats, 'loading' | 'error'> = {
+  totalProducts: 0,
+  totalViews: 0,
+  uniqueVisitors: 0,
+  totalContacts: 0,
+  whatsappClicks: 0,
+  totalOrders: 0,
+  totalSales: 0,
+  totalRevenue: 0,
+  purchasesPerVisitor: 0,
+  contactsPerVisitor: 0,
+  lowStockCount: 0,
+  outOfStockCount: 0,
+};
+
 export function useDashboardStats(periodDays: number = 30) {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
-    totalProducts: 0,
-    totalViews: 0,
-    uniqueVisitors: 0,
-    totalLeads: 0,
-    totalOrders: 0,
-    lowStockCount: 0,
-    outOfStockCount: 0,
+    ...EMPTY_STATS,
     loading: true,
     error: null,
   });
 
   useEffect(() => {
     if (!user?.id) {
-      setStats({
-        totalProducts: 0,
-        totalViews: 0,
-        uniqueVisitors: 0,
-        totalLeads: 0,
-        totalOrders: 0,
-        lowStockCount: 0,
-        outOfStockCount: 0,
-        loading: false,
-        error: null,
-      });
+      setStats({ ...EMPTY_STATS, loading: false, error: null });
       return;
     }
 
@@ -53,43 +59,13 @@ export function useDashboardStats(periodDays: number = 30) {
     try {
       setStats(prev => ({ ...prev, loading: true, error: null }));
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - periodDays);
-
-      const { data: products, error: productsError } = await supabase
-        .from('products')
-        .select('id')
-        .eq('user_id', user.id);
-
-      if (productsError) throw productsError;
-
-      const productIds = products?.map(p => p.id) || [];
-      const safeIds = productIds.length > 0 ? productIds : ['00000000-0000-0000-0000-000000000000'];
-
-      const [viewsResponse, uniqueVisitorsResponse, leadsResponse, ordersResponse, lowStockResponse, outOfStockResponse] = await Promise.all([
+      const [productsResponse, { data: metrics, error: metricsError }, lowStockResponse, outOfStockResponse] = await Promise.all([
         supabase
-          .from('property_views')
+          .from('products')
           .select('id', { count: 'exact', head: true })
-          .in('property_id', safeIds)
-          .gte('viewed_at', startDate.toISOString()),
+          .eq('user_id', user.id),
 
-        supabase
-          .from('property_views')
-          .select('viewer_id')
-          .in('property_id', safeIds)
-          .gte('viewed_at', startDate.toISOString()),
-
-        supabase
-          .from('leads')
-          .select('id', { count: 'exact', head: true })
-          .in('property_id', safeIds)
-          .gte('created_at', startDate.toISOString()),
-
-        supabase
-          .from('orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('store_owner_id', user.id)
-          .gte('created_at', startDate.toISOString()),
+        supabase.rpc('get_store_metrics', { p_days: periodDays }),
 
         supabase
           .from('products')
@@ -109,16 +85,22 @@ export function useDashboardStats(periodDays: number = 30) {
           .lte('stock_quantity', 0),
       ]);
 
-      const uniqueViewerIds = new Set(
-        uniqueVisitorsResponse.data?.map(v => v.viewer_id) || []
-      );
+      if (productsResponse.error) throw productsResponse.error;
+      if (metricsError) throw metricsError;
+
+      const m = (metrics ?? {}) as Record<string, number>;
 
       setStats({
-        totalProducts: products?.length || 0,
-        totalViews: viewsResponse.count || 0,
-        uniqueVisitors: uniqueViewerIds.size,
-        totalLeads: leadsResponse.count || 0,
-        totalOrders: ordersResponse.count || 0,
+        totalProducts: productsResponse.count || 0,
+        totalViews: m.views ?? 0,
+        uniqueVisitors: m.visitors ?? 0,
+        totalContacts: m.contacts ?? 0,
+        whatsappClicks: m.whatsapp_clicks ?? 0,
+        totalOrders: m.orders ?? 0,
+        totalSales: m.sales ?? 0,
+        totalRevenue: Number(m.revenue ?? 0),
+        purchasesPerVisitor: Number(m.purchases_per_visitor ?? 0),
+        contactsPerVisitor: Number(m.contacts_per_visitor ?? 0),
         lowStockCount: lowStockResponse.count || 0,
         outOfStockCount: outOfStockResponse.count || 0,
         loading: false,

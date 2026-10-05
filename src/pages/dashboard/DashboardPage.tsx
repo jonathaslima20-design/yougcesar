@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [periodDays, handlePeriodChange] = useDashboardPeriod(PERIOD_STORAGE_KEY);
   const [copiedLink, setCopiedLink] = useState(false);
-  const { totalProducts, totalViews, uniqueVisitors, totalLeads, totalOrders, lowStockCount, outOfStockCount, loading, error } = useDashboardStats(periodDays);
+  const { totalProducts, totalViews, uniqueVisitors, totalContacts, totalOrders, lowStockCount, outOfStockCount, loading, error } = useDashboardStats(periodDays);
   const { inventoryEnabled } = useInventoryEnabled();
 
   const getMissingProfileFields = () => {
@@ -162,7 +162,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visualizações</CardTitle>
+            <CardTitle className="text-sm font-medium">Visualizações únicas</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversões</CardTitle>
+            <CardTitle className="text-sm font-medium">Contatos</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -204,8 +204,8 @@ export default function DashboardPage() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div className="text-2xl font-bold">{totalLeads}</div>
-                <p className="text-xs text-muted-foreground">contatos recebidos</p>
+                <div className="text-2xl font-bold">{totalContacts}</div>
+                <p className="text-xs text-muted-foreground">formulários e pedidos de contato, sem cliques no WhatsApp</p>
               </>
             )}
           </CardContent>
