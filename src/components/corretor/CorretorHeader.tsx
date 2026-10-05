@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Phone, MapPin, ShoppingCart, UserRound, ChevronDown, Package, User as UserIcon } from 'lucide-react';
+import { Phone, MapPin, ShoppingCart, UserRound, ChevronDown, Package, User as UserIcon, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,7 @@ export default function CorretorHeader({
 }: CorretorHeaderProps) {
   const { t } = useTranslation(language);
   const { cart } = useCart();
-  const { customer } = useBuyerAuth();
+  const { customer, signOut } = useBuyerAuth();
   const [showCart, setShowCart] = useState(false);
 
   // Ao contrário do checkout (que precisa devolver o comprador pra onde
@@ -107,6 +107,10 @@ export default function CorretorHeader({
                       <UserIcon className="h-4 w-4" />
                       Perfil
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => signOut()} className="flex items-center gap-2 cursor-pointer">
+                    <LogOut className="h-4 w-4" />
+                    Sair
                   </DropdownMenuItem>
                 </>
               ) : (
