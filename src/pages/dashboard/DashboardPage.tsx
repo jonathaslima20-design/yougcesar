@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader as Loader2, ExternalLink, Copy, Check, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader as Loader2, ExternalLink, Copy, Check, ArrowUp, ArrowDown, ChevronDown, Wallet, ShoppingBag, Eye, MessageSquare } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useDashboardRevenue } from '@/hooks/useDashboardRevenue';
 import { useSalesFunnel } from '@/hooks/useSalesFunnel';
@@ -21,38 +22,43 @@ import { toast } from 'sonner';
 
 const PERIOD_STORAGE_KEY = 'vitrineturbo_dashboard_period';
 
-// Headline indicator: big value, change against the previous period, and a short hint.
+// Headline indicator: icon, big value, change against the previous period, and a hint.
 function KpiCard({
   title,
   value,
   change,
   hint,
   loading,
+  icon: Icon,
 }: {
   title: string;
   value: string;
   change?: number;
   hint: string;
   loading: boolean;
+  icon: LucideIcon;
 }) {
   const up = (change ?? 0) > 0;
   const down = (change ?? 0) < 0;
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="shadow-sm">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground/80">{title}</p>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="h-4 w-4" />
+          </span>
+        </div>
         {loading ? (
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="mt-3 h-7 w-7 animate-spin text-muted-foreground" />
         ) : (
           <>
-            <div className="text-3xl font-bold">{value}</div>
-            <div className="mt-1 flex items-center gap-1.5 text-xs">
+            <div className="mt-3 text-3xl font-bold tracking-tight text-foreground">{value}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               {change !== undefined && (
                 <span
-                  className={`inline-flex items-center gap-0.5 font-medium ${
-                    up ? 'text-emerald-600' : down ? 'text-red-600' : 'text-muted-foreground'
+                  className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-semibold ${
+                    up ? 'bg-emerald-100 text-emerald-800' : down ? 'bg-red-100 text-red-800' : 'bg-muted text-foreground/70'
                   }`}
                 >
                   {up && <ArrowUp className="h-3 w-3" />}
@@ -60,7 +66,7 @@ function KpiCard({
                   {Math.abs(change).toFixed(0)}%
                 </span>
               )}
-              <span className="text-muted-foreground">{hint}</span>
+              <span className="text-foreground/70">{hint}</span>
             </div>
           </>
         )}
@@ -231,28 +237,28 @@ export default function DashboardPage() {
       {/* Headline indicators: what the store owner checks first */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Faturamento"
+          title="Faturamento" icon={Wallet}
           value={formatCurrency(revenue.totalRevenue)}
           change={revenue.revenueChange}
           hint={periodLabel}
           loading={kpiLoading}
         />
         <KpiCard
-          title="Vendas"
+          title="Vendas" icon={ShoppingBag}
           value={String(sales?.value ?? 0)}
           change={sales?.change}
           hint={periodLabel}
           loading={kpiLoading}
         />
         <KpiCard
-          title="Visitantes"
+          title="Visitantes" icon={Eye}
           value={String(visitors?.value ?? 0)}
           change={visitors?.change}
           hint="visitantes únicos"
           loading={kpiLoading}
         />
         <KpiCard
-          title="Contatos"
+          title="Contatos" icon={MessageSquare}
           value={String(contacts?.value ?? 0)}
           change={contacts?.change}
           hint="formulários e pedidos de contato"
