@@ -14,7 +14,7 @@ export function ViewsAndLeadsChart({ days = 7 }: ViewsAndLeadsChartProps) {
   return (
     <Card className="col-span-full">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Visualizações e Leads</CardTitle>
+        <CardTitle className="text-lg font-semibold">Visualizações e contatos</CardTitle>
         <p className="text-sm text-muted-foreground">Últimos {days} dias</p>
       </CardHeader>
       <CardContent>
