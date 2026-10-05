@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, TrendingUp, Users, DollarSign, Loader as Loader2, ExternalLink, ShoppingBag, TriangleAlert as AlertTriangle, Copy, Check } from 'lucide-react';
+import { Package, TrendingUp, Users, DollarSign, Loader as Loader2, ExternalLink, ShoppingBag, TriangleAlert as AlertTriangle, Copy, Check, MessageSquare } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useInventoryEnabled } from '@/hooks/useInventoryEnabled';
 import { useDashboardPeriod } from '@/hooks/useDashboardPeriod';
@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [periodDays, handlePeriodChange] = useDashboardPeriod(PERIOD_STORAGE_KEY);
   const [copiedLink, setCopiedLink] = useState(false);
-  const { totalProducts, totalViews, uniqueVisitors, totalContacts, totalOrders, lowStockCount, outOfStockCount, loading, error } = useDashboardStats(periodDays);
+  const { totalProducts, totalViews, uniqueVisitors, totalContacts, whatsappClicks, totalOrders, totalSales, purchasesPerVisitor, contactsPerVisitor, lowStockCount, outOfStockCount, loading, error } = useDashboardStats(periodDays);
   const { inventoryEnabled } = useInventoryEnabled();
 
   const getMissingProfileFields = () => {
@@ -251,6 +251,77 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
+      </div>
+
+      {/* Sales and engagement, same definitions as the funnel */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Vendas</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{totalSales}</div>
+                <p className="text-xs text-muted-foreground">pedidos confirmados, {periodLabel}</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cliques no WhatsApp</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{whatsappClicks}</div>
+                <p className="text-xs text-muted-foreground">{periodLabel}</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Compras por visitante (%)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{purchasesPerVisitor.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground">vendas ÷ visitantes únicos</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Contatos por visitante (%)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{contactsPerVisitor.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground">contatos ÷ visitantes únicos</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Revenue Cards */}
