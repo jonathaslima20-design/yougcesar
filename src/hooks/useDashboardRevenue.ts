@@ -12,6 +12,9 @@ interface RevenueStats {
   loading: boolean;
 }
 
+// Figures come from get_store_revenue (migration 20261005120000). A venda counts
+// only when confirmed (or later) and, for online orders, paid. Same as the
+// dashboard's Vendas card.
 export function useDashboardRevenue(periodDays: number = 30) {
   const { user } = useAuth();
   const [stats, setStats] = useState<RevenueStats>({
@@ -38,79 +41,32 @@ export function useDashboardRevenue(periodDays: number = 30) {
     try {
       setStats(prev => ({ ...prev, loading: true }));
 
-      const now = new Date();
-      const startDate = new Date();
-      startDate.setDate(now.getDate() - periodDays);
-      const previousStartDate = new Date();
-      previousStartDate.setDate(now.getDate() - periodDays * 2);
+      const { data, error } = await supabase.rpc('get_store_revenue', { p_days: periodDays });
+      if (error) throw error;
 
-      const [currentResponse, previousResponse] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('total, created_at, status')
-          .eq('store_owner_id', user.id)
-          .gte('created_at', startDate.toISOString())
-          .in('status', ['delivered', 'confirmed', 'preparing', 'shipped']),
+      const r = (data ?? {}) as {
+        total_revenue: number;
+        previous_revenue: number;
+        sales: number;
+        delivered: number;
+        weekly: { date: string; revenue: number }[];
+      };
 
-        supabase
-          .from('orders')
-          .select('total')
-          .eq('store_owner_id', user.id)
-          .gte('created_at', previousStartDate.toISOString())
-          .lt('created_at', startDate.toISOString())
-          .in('status', ['delivered', 'confirmed', 'preparing', 'shipped']),
-      ]);
+      const totalRevenue = Number(r.total_revenue ?? 0);
+      const previousRevenue = Number(r.previous_revenue ?? 0);
+      const salesCount = Number(r.sales ?? 0);
 
-      const currentOrders = currentResponse.data || [];
-      const previousOrders = previousResponse.data || [];
-
-      const totalRevenue = currentOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-      const previousRevenue = previousOrders.reduce((sum, o) => sum + (o.total || 0), 0);
       const revenueChange = previousRevenue > 0
         ? ((totalRevenue - previousRevenue) / previousRevenue) * 100
         : totalRevenue > 0 ? 100 : 0;
-      const totalDelivered = currentOrders.filter(o => o.status === 'delivered').length;
-      const averageTicket = currentOrders.length > 0 ? totalRevenue / currentOrders.length : 0;
-
-      // Chart data: show last 7 data points regardless of period
-      const chartDays = Math.min(periodDays, 7);
-      const weeklyRevenue: { date: string; revenue: number }[] = [];
-      const dayStep = Math.max(Math.floor(periodDays / 7), 1);
-
-      for (let i = 6; i >= 0; i--) {
-        const dayOffset = i * dayStep;
-        const day = new Date();
-        day.setDate(now.getDate() - dayOffset);
-        const dayStr = day.toISOString().split('T')[0];
-        const label = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}`;
-
-        if (dayStep === 1) {
-          const dayRevenue = currentOrders
-            .filter(o => o.created_at.startsWith(dayStr))
-            .reduce((sum, o) => sum + (o.total || 0), 0);
-          weeklyRevenue.push({ date: label, revenue: dayRevenue });
-        } else {
-          const rangeStart = new Date(day);
-          rangeStart.setDate(rangeStart.getDate() - dayStep + 1);
-          const rangeStartStr = rangeStart.toISOString().split('T')[0];
-
-          const rangeRevenue = currentOrders
-            .filter(o => {
-              const orderDate = o.created_at.split('T')[0];
-              return orderDate >= rangeStartStr && orderDate <= dayStr;
-            })
-            .reduce((sum, o) => sum + (o.total || 0), 0);
-          weeklyRevenue.push({ date: label, revenue: rangeRevenue });
-        }
-      }
 
       setStats({
         totalRevenue,
         previousRevenue,
         revenueChange,
-        averageTicket,
-        totalDelivered,
-        weeklyRevenue,
+        averageTicket: salesCount > 0 ? totalRevenue / salesCount : 0,
+        totalDelivered: Number(r.delivered ?? 0),
+        weeklyRevenue: (r.weekly ?? []).map(w => ({ date: w.date, revenue: Number(w.revenue) })),
         loading: false,
       });
     } catch {
