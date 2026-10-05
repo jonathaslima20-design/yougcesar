@@ -13,6 +13,7 @@ import {
   LogIn,
   Mail,
   MessageCircle,
+  LogOut,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -112,7 +113,7 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
     return isCustomDomain ? `/produtos/${segment}` : `/${corretor.slug}/produtos/${segment}`;
   };
   const { cart } = useCart();
-  const { customer } = useBuyerAuth();
+  const { customer, signOut } = useBuyerAuth();
   const { appearance } = useStorefrontTheme();
   const chromeStyle = { backgroundColor: appearance.header_bg_color, color: appearance.header_text_color };
   const topBarStyle = { backgroundColor: appearance.topbar_bg_color, color: appearance.topbar_text_color };
@@ -210,6 +211,9 @@ export default function CorretorHeaderEletronicos(props: StorefrontPageBodyProps
               <Link to={`/${corretor.slug}/conta/perfil`} className="flex items-center gap-2 cursor-pointer">
                 <UserIcon className="h-4 w-4" /> Perfil
               </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => signOut()} className="flex items-center gap-2 cursor-pointer">
+              <LogOut className="h-4 w-4" /> Sair
             </DropdownMenuItem>
           </>
         ) : (
