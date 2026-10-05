@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader as Loader2, ExternalLink, Copy, Check, ArrowUp, ArrowDown, ChevronDown, Wallet, ShoppingBag, Eye, MessageSquare } from 'lucide-react';
+import { Loader as Loader2, ExternalLink, Copy, Check, ArrowUp, ArrowDown, ChevronDown, Wallet, ShoppingBag, Eye, MessageSquare, Link2, Globe } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useDashboardRevenue } from '@/hooks/useDashboardRevenue';
@@ -182,21 +182,30 @@ export default function DashboardPage() {
           <p className="text-muted-foreground text-sm mt-1 hidden sm:block">Bem-vindo de volta, {user?.name || 'Usuário'}!</p>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground mb-2">
-              Este é o link do seu catálogo. Copie para compartilhar ou abra para visualizar.
-            </p>
-            <div className="flex items-center gap-2">
-              <Input
-                value={storeUrl || 'Configure seu link em Configurações'}
-                readOnly
-                className="font-mono text-xs"
-              />
+        <Card className="shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Link2 className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground/80">Link do seu catálogo</p>
+                <p className="text-xs text-foreground/70">Copie para compartilhar ou abra para visualizar.</p>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/60" />
+                <Input
+                  value={storeUrl || 'Configure seu link em Configurações'}
+                  readOnly
+                  className="pl-9 font-mono text-xs text-foreground"
+                />
+              </div>
               <Button
                 onClick={handleCopyLink}
                 variant={copiedLink ? 'secondary' : 'outline'}
-                className="shrink-0 min-w-[90px] transition-all duration-200"
+                className="shrink-0 min-w-[100px] transition-all duration-200"
               >
                 {copiedLink ? (
                   <>
