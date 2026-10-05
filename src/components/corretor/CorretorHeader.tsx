@@ -83,7 +83,7 @@ export default function CorretorHeader({
             <DropdownMenuTrigger asChild>
               <button className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border border-border px-3 py-1.5">
                 <UserRound className="h-3.5 w-3.5" />
-                {customer ? 'Minha conta' : 'Entrar'}
+                {customer ? (customer.full_name?.trim().split(' ')[0] || 'Minha conta') : 'Entrar'}
                 <ChevronDown className="h-3 w-3" />
               </button>
             </DropdownMenuTrigger>
