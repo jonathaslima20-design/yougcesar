@@ -36,7 +36,9 @@ export function useCustomColors(userId?: string): UseCustomColorsReturn {
 
       if (error) throw error;
 
-      setCustomColors(data || []);
+      setCustomColors(
+        (data || []).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }))
+      );
     } catch (error) {
       console.error('Error loading custom colors:', error);
     } finally {

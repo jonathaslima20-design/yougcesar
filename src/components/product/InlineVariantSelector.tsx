@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { QuantityStepper } from '@/components/ui/quantity-stepper';
-import { getColorValue } from '@/lib/utils';
+import { getColorValue, sortColorNames } from '@/lib/utils';
 import { getVariantAvailable, type VariantStockInfo } from '@/lib/variantAvailability';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
@@ -53,7 +53,7 @@ export default function InlineVariantSelector({
   const [selectedFlavor, setSelectedFlavor] = useState<string | undefined>();
   const [quantity, setQuantity] = useState(1);
 
-  const colors = product.colors ?? [];
+  const colors = sortColorNames(product.colors);
   const sizes = product.sizes ?? [];
   const flavors = product.flavors ?? [];
   const hasColors = colors.some((c) => c?.trim());

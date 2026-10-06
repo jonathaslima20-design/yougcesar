@@ -20,7 +20,7 @@ import {
 import { useCart } from '@/contexts/CartContext';
 import { formatCurrencyI18n, useTranslation, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
 import { toast } from 'sonner';
-import { getColorValue } from '@/lib/utils';
+import { getColorValue, sortColorNames } from '@/lib/utils';
 import type { Product, PriceTier, WeightVariant } from '@/types';
 import { fetchProductPriceTiers, calculateApplicablePrice, formatPriceTierRange } from '@/lib/tieredPricingUtils';
 import { supabase } from '@/lib/supabase';
@@ -672,7 +672,7 @@ export default function ProductVariantModal({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {product.colors!.map((color: string) => {
+                          {sortColorNames(product.colors).map((color: string) => {
                             const colorAvailable = getVariantAvailable(color, newItemSize, selectedFlavor);
                             const colorOutOfStock = blockZeroStock && colorAvailable !== null && colorAvailable <= 0;
                             return (
@@ -867,7 +867,7 @@ export default function ProductVariantModal({
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {product.colors!.map((color: string) => {
+                  {sortColorNames(product.colors).map((color: string) => {
                     const colorValue = getColorValue(color);
                     const colorAvailable = getVariantAvailable(color, selectedSize, selectedFlavor);
                     const colorOutOfStock = blockZeroStock && colorAvailable !== null && colorAvailable <= 0;
