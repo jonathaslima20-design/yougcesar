@@ -586,6 +586,11 @@ export async function forceRefreshCategorySync(userId: string): Promise<boolean>
   }
 }
 
+// Sort color names alphabetically (pt-BR, accent-insensitive) without mutating the source array
+export function sortColorNames(colors: string[] | null | undefined): string[] {
+  return [...(colors ?? [])].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+}
+
 // Get color value for circle display
 export function getColorValue(colorName: string): string {
   const colorMap: Record<string, string> = {

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, ArrowLeft, Loader, Package, ShoppingCart, MessageCircle, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, getColorValue, getWhatsAppContactUrl } from '@/lib/utils';
+import { formatCurrency, getColorValue, getWhatsAppContactUrl, sortColorNames } from '@/lib/utils';
 import { loadTrackingSettings, injectMetaPixel, injectGoogleAnalytics, trackView } from '@/lib/tracking';
 import { isProductIdSegment } from '@/lib/productLinks';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -700,7 +700,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
                     <div className="space-y-3">
                       <h3 className="text-lg font-semibold text-foreground">Cores Disponíveis</h3>
                       <div className="flex flex-wrap gap-3">
-                        {product.colors.map((color: string) => {
+                        {sortColorNames(product.colors).map((color: string) => {
                           const colorValue = getColorValue(color);
                           const isLightColor = ['branco', 'amarelo', 'bege', 'off-white', 'creme'].includes(color.toLowerCase());
 

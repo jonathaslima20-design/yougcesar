@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/contexts/CartContext';
 import { formatCurrencyI18n, type SupportedLanguage, type SupportedCurrency } from '@/lib/i18n';
-import { getColorValue } from '@/lib/utils';
+import { getColorValue, sortColorNames } from '@/lib/utils';
 import type { Product } from '@/types';
 
 interface ProductVariantSelectorProps {
@@ -96,7 +96,7 @@ export default function ProductVariantSelector({
           <div className="space-y-3">
             <Label className="text-sm font-medium">Cor {hasColors && '*'}</Label>
             <div className="flex flex-wrap gap-2">
-              {product.colors!.map((color: string) => {
+              {sortColorNames(product.colors).map((color: string) => {
                 const colorValue = getColorValue(color);
                 const isLightColor = ['branco', 'amarelo', 'bege', 'off-white', 'creme'].includes(color.toLowerCase());
                 const isSelected = selectedColor === color;
