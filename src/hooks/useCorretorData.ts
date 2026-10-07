@@ -5,7 +5,7 @@ import { logCategoryOperation, sanitizeCategoryName } from '@/lib/categoryUtils'
 import { updateMetaTags, updateFavicon, getCorretorMetaTags, resetMetaTags } from '@/utils/metaTags';
 import { validateSession } from '@/lib/auth/simpleAuth';
 import { loadGoogleFont, type StorefrontAppearance } from '@/lib/appearanceDefaults';
-import { fetchPlatformThemeSettings, resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
+import { fetchPlatformThemeSettings, resolveStorefrontThemeId, CLOSED as CLOSED_THEME_SETTINGS } from '@/lib/platformThemeSettings';
 import { getOwnerPreviewTheme } from '@/lib/storefrontPreview';
 import type { User } from '@/types';
 
@@ -37,6 +37,19 @@ function setCachedAppearance(userId: string, themeId: string, data: StorefrontAp
       JSON.stringify({ data, ts: Date.now() })
     );
   } catch {}
+}
+
+// Caps how long a non-essential call can hold up the storefront: the catalog itself
+// doesn't depend on this result, so a slow/cold backend call shouldn't leave visitors
+// staring at the loading spinner indefinitely. Falls back to `fallback` past `ms`.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      () => { clearTimeout(timer); resolve(fallback); }
+    );
+  });
 }
 
 interface UseCorretorDataProps {
@@ -162,7 +175,7 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
       // hidden theme's appearance row into a store that will render "padrao".
       const activeThemeId = resolveStorefrontThemeId(
         corretorData.active_storefront_theme_id,
-        await fetchPlatformThemeSettings(),
+        await withTimeout(fetchPlatformThemeSettings(), 2500, CLOSED_THEME_SETTINGS),
         corretorData.id,
         getOwnerPreviewTheme(corretorData.id)
       );
@@ -209,22 +222,22 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
         document.documentElement.classList.add(corretorData.theme);
       }
 
-      // Load global Meta Pixel from site settings
-      try {
-        const { data: siteSettings, error: siteSettingsError } = await supabase
-          .from('site_settings')
-          .select('setting_value')
-          .eq('setting_name', 'global_meta_pixel_id')
-          .maybeSingle();
-
-        if (!siteSettingsError && siteSettings?.setting_value) {
-          console.log('Injecting global Meta Pixel:', siteSettings.setting_value);
-          injectMetaPixel(siteSettings.setting_value);
-        }
-      } catch (globalPixelError) {
-        console.warn('Error loading global Meta Pixel:', globalPixelError);
-        // Don't fail the page load for global pixel errors
-      }
+      // Load global Meta Pixel from site settings. Fire-and-forget: tracking is
+      // cosmetic and must never hold up the storefront rendering for visitors.
+      supabase
+        .from('site_settings')
+        .select('setting_value')
+        .eq('setting_name', 'global_meta_pixel_id')
+        .maybeSingle()
+        .then(({ data: siteSettings, error: siteSettingsError }) => {
+          if (!siteSettingsError && siteSettings?.setting_value) {
+            console.log('Injecting global Meta Pixel:', siteSettings.setting_value);
+            injectMetaPixel(siteSettings.setting_value);
+          }
+        })
+        .catch((globalPixelError) => {
+          console.warn('Error loading global Meta Pixel:', globalPixelError);
+        });
 
       // Handle tracking settings result (non-blocking) - only for paid plans
       if (trackingResult.status === 'fulfilled' && corretorData.plan_status === 'active') {

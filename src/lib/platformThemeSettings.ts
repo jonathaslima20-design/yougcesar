@@ -8,7 +8,8 @@ export interface PlatformThemeSettings {
   eletronicosAllowedUserIds: string[];
 }
 
-const CLOSED: PlatformThemeSettings = { eletronicosEnabled: false, eletronicosAllowedUserIds: [] };
+/** Same shape a caller should fall back to if the real fetch is too slow to wait for. */
+export const CLOSED: PlatformThemeSettings = { eletronicosEnabled: false, eletronicosAllowedUserIds: [] };
 
 // One shared request per page load: the storefront, the product page and the
 // dashboard picker all need this, and it almost never changes.
