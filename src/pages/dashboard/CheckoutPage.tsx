@@ -20,7 +20,7 @@ import {
   calculateDiscountedPrice,
   type OfferCheckoutInfo,
 } from '@/lib/offerService';
-import { validateReferralCoupon, calculateReferralDiscount } from '@/lib/referralUtils';
+import { validateReferralCoupon, calculateReferralDiscount, NEVER_PAID_STATUSES } from '@/lib/referralUtils';
 import { logActivity } from '@/lib/activityLogger';
 import { LEGACY_TRIMESTRAL_PLAN } from '@/lib/legacyTrimestralPlan';
 import { toast } from 'sonner';
@@ -644,7 +644,7 @@ export default function CheckoutPage() {
         .limit(1);
 
       if (cancelled) return;
-      const alreadyHadPaidPlan = !!user.plan_status && user.plan_status !== 'free';
+      const alreadyHadPaidPlan = !!user.plan_status && !NEVER_PAID_STATUSES.includes(user.plan_status);
       if ((priorPayments && priorPayments.length > 0) || alreadyHadPaidPlan) {
         // User already paid before - not eligible for referral discount
         setIsFirstPayment(false);

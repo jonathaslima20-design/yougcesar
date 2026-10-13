@@ -1,11 +1,19 @@
 import { Badge } from '@/components/ui/badge';
-import { Gem, CircleAlert as AlertCircle, Ban, Package, Clock } from 'lucide-react';
+import { Gem, CircleAlert as AlertCircle, Ban, Package, Clock, Hourglass } from 'lucide-react';
 import type { BillingCycle, PlanStatus } from '@/types';
 
 interface PlanStatusBadgeProps {
   status?: PlanStatus;
   billingCycle?: BillingCycle;
+  /** Required to render the day countdown while status is 'trial'. */
+  trialEndsAt?: string | null;
   className?: string;
+}
+
+function getTrialDaysLeft(trialEndsAt?: string | null): number {
+  if (!trialEndsAt) return 0;
+  const ms = new Date(trialEndsAt).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
 function getBillingCycleLabel(cycle: BillingCycle): string {
@@ -17,7 +25,7 @@ function getBillingCycleLabel(cycle: BillingCycle): string {
   }
 }
 
-export default function PlanStatusBadge({ status, billingCycle, className }: PlanStatusBadgeProps) {
+export default function PlanStatusBadge({ status, billingCycle, trialEndsAt, className }: PlanStatusBadgeProps) {
   const label = billingCycle ? getBillingCycleLabel(billingCycle) : undefined;
 
   switch (status) {
@@ -33,6 +41,22 @@ export default function PlanStatusBadge({ status, billingCycle, className }: Pla
         <Badge variant="outline" className={className}>
           <Package className="h-3 w-3 mr-1" />
           Free
+        </Badge>
+      );
+    case 'trial': {
+      const daysLeft = getTrialDaysLeft(trialEndsAt);
+      return (
+        <Badge className={`bg-violet-600 text-white hover:bg-violet-600 ${className || ''}`}>
+          <Hourglass className="h-3 w-3 mr-1" />
+          Teste · {daysLeft} {daysLeft === 1 ? 'dia' : 'dias'}
+        </Badge>
+      );
+    }
+    case 'trial_expired':
+      return (
+        <Badge variant="destructive" className={className}>
+          <Hourglass className="h-3 w-3 mr-1" />
+          Teste Expirado
         </Badge>
       );
     case 'expired':

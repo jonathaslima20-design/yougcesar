@@ -101,6 +101,8 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   // Capturar código de indicação da URL ou localStorage
   const referralCode = searchParams.get('ref') || localStorage.getItem('vitrineturbo_ref_code');
+  // 15-day trial referral link (?ref=CODE&teste=15) vs the direct link
+  const isTrialSignup = searchParams.get('teste') === '15' || localStorage.getItem('vitrineturbo_ref_trial') === '1';
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -143,6 +145,7 @@ export default function RegisterPage() {
           whatsapp: cleanedWhatsApp,
           accepted_terms: data.accepted_terms,
           referral_code: referralCode || undefined,
+          trial_signup: isTrialSignup,
           attribution: getStoredAttribution(),
         }
       );
@@ -161,6 +164,7 @@ export default function RegisterPage() {
 
       // Clear referral code and attribution data from localStorage after successful registration
       localStorage.removeItem('vitrineturbo_ref_code');
+      localStorage.removeItem('vitrineturbo_ref_trial');
       clearStoredAttribution();
       trackLead(data.email);
       if (googleAdsConfig) {

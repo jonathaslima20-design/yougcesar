@@ -13,12 +13,14 @@ export default function SubscriptionBlocker() {
 
   const isOnCheckout = location.pathname === '/dashboard/checkout';
 
-  const { isSubscriber: hasActivePlan, isFreePlan, isExpired, isSuspended } = getSubscriberAccess(user?.plan_status);
+  const { isSubscriber: hasActivePlan, isFreePlan, isExpired, isSuspended, isTrial, isTrialExpired } = getSubscriberAccess(user?.plan_status);
   const isAdminOrPartner = user?.role === 'admin' || user?.role === 'parceiro';
+  // Unlocked dashboard: paying subscriber or an active trial (both give full access).
+  const unlocked = hasActivePlan || isTrial;
   // The "boas-vindas" signup offer only makes sense for users who never had a
-  // plan (plan_status = 'inactive') — not for expired/suspended renewals, which
-  // land on the same forced modal but without this offer.
-  const isNewUnsubscribed = !isAdminOrPartner && !isFreePlan && !hasActivePlan && !isExpired && !isSuspended;
+  // plan (plan_status = 'inactive') — not for expired/suspended renewals or an
+  // active/expired trial, which land on the same forced modal but without this offer.
+  const isNewUnsubscribed = !isAdminOrPartner && !isFreePlan && !hasActivePlan && !isExpired && !isSuspended && !isTrial && !isTrialExpired;
 
   useSignupOffer(!loading && !!user && isNewUnsubscribed && !isOnCheckout);
 
@@ -32,20 +34,20 @@ export default function SubscriptionBlocker() {
 
     if (isFreePlan) return;
 
-    if (hasActivePlan) {
+    if (unlocked) {
       if (isForced) forceClose();
       return;
     }
 
-    // User is blocked (expired/suspended) but on checkout — hide modal, keep forced state
-    if ((isSuspended || isExpired || !hasActivePlan) && isOnCheckout) {
+    // User is blocked (expired/suspended/trial ended) but on checkout — hide modal, keep forced state
+    if ((isSuspended || isExpired || isTrialExpired || !unlocked) && isOnCheckout) {
       if (isOpen) closeModal();
       if (!isForced) setForced(true);
       return;
     }
 
     // User is blocked and NOT on checkout — force modal open
-    if ((isSuspended || isExpired || !hasActivePlan) && !isOpen) {
+    if ((isSuspended || isExpired || isTrialExpired || !unlocked) && !isOpen) {
       openModal(true);
       setForced(true);
     }

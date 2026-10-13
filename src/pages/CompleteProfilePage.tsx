@@ -80,6 +80,7 @@ export default function CompleteProfilePage() {
     try {
       const cleanedWhatsApp = cleanWhatsAppNumber(data.whatsapp, data.country_code);
       const referralCode = localStorage.getItem('vitrineturbo_ref_code');
+      const isTrialSignup = localStorage.getItem('vitrineturbo_ref_trial') === '1';
 
       const { error } = await completeGoogleProfile(pendingAuth.id, pendingAuth.email, {
         name: data.name,
@@ -88,6 +89,7 @@ export default function CompleteProfilePage() {
         whatsapp: cleanedWhatsApp,
         accepted_terms: data.accepted_terms,
         referral_code: referralCode || undefined,
+        trial_signup: isTrialSignup,
         attribution: getStoredAttribution(),
       });
 
@@ -97,6 +99,7 @@ export default function CompleteProfilePage() {
       }
 
       localStorage.removeItem('vitrineturbo_ref_code');
+      localStorage.removeItem('vitrineturbo_ref_trial');
       clearStoredAttribution();
       trackLead(pendingAuth.email);
       await refreshUser();

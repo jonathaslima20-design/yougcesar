@@ -122,7 +122,7 @@ export function UserListItem({
             </div>
 
             <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <PlanStatusBadge status={user.plan_status} />
+              <PlanStatusBadge status={user.plan_status} trialEndsAt={user.trial_ends_at} />
 
               {user.whatsapp && (
                 <a

@@ -52,6 +52,17 @@ export function generateReferralLink(referralCode: string): string {
   return `https://vitrineturbo.com/?ref=${referralCode}`;
 }
 
+export const TRIAL_DAYS = 15;
+
+export function generateTrialReferralLink(referralCode: string): string {
+  return `https://vitrineturbo.com/?ref=${referralCode}&teste=${TRIAL_DAYS}`;
+}
+
+// plan_status values that mean "this account never had a paid plan" — the
+// referral discount is only ever valid on the first payment. Also used by
+// CheckoutPage's own first-payment check for the same eligibility rule.
+export const NEVER_PAID_STATUSES = ['free', 'inactive', 'trial', 'trial_expired'];
+
 const REFERRAL_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function generateReferralCode(): string {
@@ -164,7 +175,7 @@ export async function validateReferralCoupon(code: string, currentUserId: string
     .eq('id', currentUserId)
     .maybeSingle();
 
-  const alreadyHadPaidPlan = !!currentUser?.plan_status && currentUser.plan_status !== 'free';
+  const alreadyHadPaidPlan = !!currentUser?.plan_status && !NEVER_PAID_STATUSES.includes(currentUser.plan_status);
   if ((priorPayments && priorPayments.length > 0) || alreadyHadPaidPlan) {
     return { valid: false, error: 'Desconto de indicacao disponivel apenas no primeiro pagamento' };
   }

@@ -1,6 +1,6 @@
 export type UserRole = 'corretor' | 'admin' | 'parceiro' | 'partner';
 export type NicheType = 'diversos';
-export type PlanStatus = 'active' | 'expired' | 'suspended' | 'free' | 'inactive';
+export type PlanStatus = 'active' | 'expired' | 'suspended' | 'free' | 'inactive' | 'trial' | 'trial_expired';
 
 export type BillingCycle = 'monthly' | 'quarterly' | 'semiannually' | 'annually';
 
@@ -68,6 +68,7 @@ export interface User {
   currency?: string;
   language?: string;
   plan_status?: PlanStatus;
+  trial_ends_at?: string | null;
   billing_cycle?: BillingCycle;
   next_payment_date?: string;
   subscription_end_date?: string;

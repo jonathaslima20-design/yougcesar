@@ -294,7 +294,7 @@ export function UserTableMinimal({
 
                   <div className="flex flex-wrap items-center gap-3">
                     {getRoleBadge(user.role)}
-                    <PlanStatusBadge status={user.plan_status} />
+                    <PlanStatusBadge status={user.plan_status} trialEndsAt={user.trial_ends_at} />
                     {user.is_blocked ? (
                       <Badge variant="destructive">Bloqueado</Badge>
                     ) : (

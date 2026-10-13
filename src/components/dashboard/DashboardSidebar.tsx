@@ -225,7 +225,7 @@ export default function DashboardSidebar() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-[15px] truncate leading-tight tracking-tight">{user?.name}</p>
                 <div className="mt-0.5">
-                  <PlanStatusBadge status={user?.plan_status} billingCycle={user?.billing_cycle} />
+                  <PlanStatusBadge status={user?.plan_status} billingCycle={user?.billing_cycle} trialEndsAt={user?.trial_ends_at} />
                 </div>
               </div>
             </button>

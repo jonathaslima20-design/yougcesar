@@ -20,7 +20,7 @@ interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string; attribution?: AttributionData }) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string; trial_signup?: boolean; attribution?: AttributionData }) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<AppUser>) => Promise<{ error: string | null }>;
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string; attribution?: AttributionData }) => {
+  const signUp = async (email: string, password: string, userData: { name: string; owner_name?: string; niche_type?: string; country_code?: string; whatsapp?: string; accepted_terms?: boolean; referral_code?: string; trial_signup?: boolean; attribution?: AttributionData }) => {
     try {
       setLoading(true);
       const { user: registeredUser, error } = await registerUser(email, password, userData);

@@ -420,6 +420,8 @@ const TERMS_VERSION = '2026-05-28';
 const PRIVACY_VERSION = '2026-05-28';
 
 // Register new user
+const TRIAL_DAYS = 15;
+
 export async function registerUser(
   email: string,
   password: string,
@@ -431,6 +433,8 @@ export async function registerUser(
     whatsapp?: string;
     accepted_terms?: boolean;
     referral_code?: string;
+    /** Came through a referrer's 15-day trial link (?ref=CODE&teste=15), not the direct one. */
+    trial_signup?: boolean;
     attribution?: AttributionData;
   }
 ): Promise<{
@@ -504,6 +508,12 @@ export async function registerUser(
     }
 
     const now = new Date().toISOString();
+    // A trial signup only takes effect when the ref code actually resolved to a
+    // referrer above — the ?teste=15 param alone (no valid ref) can't grant a trial.
+    const isTrialSignup = !!referredBy && !!userData.trial_signup;
+    const trialFields = isTrialSignup
+      ? { plan_status: 'trial' as const, trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString() }
+      : { plan_status: 'inactive' as const };
     // insert, not upsert: the existing-email check above already rejected known
     // duplicates, and if a row we can't see (RLS) or a concurrent signup exists, this
     // must fail instead of silently overwriting its plan_status/role/billing.
@@ -519,7 +529,7 @@ export async function registerUser(
         whatsapp: userData.whatsapp || null,
         role: 'corretor',
         is_blocked: false,
-        plan_status: 'inactive',
+        ...trialFields,
         created_at: now,
         ...(referredBy ? { referred_by: referredBy } : {}),
         ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
@@ -687,6 +697,8 @@ export async function completeGoogleProfile(
     whatsapp: string;
     accepted_terms: boolean;
     referral_code?: string;
+    /** Came through a referrer's 15-day trial link (?ref=CODE&teste=15), not the direct one. */
+    trial_signup?: boolean;
     attribution?: AttributionData;
   }
 ): Promise<{ user: StoredUser | null; error: string | null }> {
@@ -744,6 +756,13 @@ export async function completeGoogleProfile(
         .select()
         .single());
     } else {
+      // Same rule as registerUser(): the trial only applies when the ref code
+      // actually resolved to a referrer, never from the ?teste=15 param alone.
+      const isTrialSignup = !!referredBy && !!userData.trial_signup;
+      const trialFields = isTrialSignup
+        ? { plan_status: 'trial' as const, trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString() }
+        : { plan_status: 'inactive' as const };
+
       ({ data: userProfile, error: createError } = await supabase
         .from('users')
         .upsert({
@@ -756,7 +775,7 @@ export async function completeGoogleProfile(
           whatsapp: userData.whatsapp,
           role: 'corretor',
           is_blocked: false,
-          plan_status: 'inactive',
+          ...trialFields,
           created_at: now,
           ...(referredBy ? { referred_by: referredBy } : {}),
           ...(managedByPartnerId ? { managed_by_partner_id: managedByPartnerId } : {}),
