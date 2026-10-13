@@ -1,3 +1,4 @@
+import './lib/inAppBrowserEscape';
 import './lib/earlyBuyerOAuthCapture';
 import './lib/earlyErpOAuthCapture';
 import './lib/earlyMercadoPagoOAuthCapture';
