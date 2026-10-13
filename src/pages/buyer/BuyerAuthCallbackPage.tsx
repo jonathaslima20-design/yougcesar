@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { resolveBuyerOAuthCallback } from '@/lib/auth/buyerAuth';
 import { useBuyerAuth } from '@/contexts/BuyerAuthContext';
 import { joinStore } from '@/lib/buyerStore';
-import { escapeConfirmedBrokenBrowser } from '@/lib/inAppBrowser';
 
 export default function BuyerAuthCallbackPage() {
   const navigate = useNavigate();
@@ -20,16 +19,12 @@ export default function BuyerAuthCallbackPage() {
     let cancelled = false;
 
     const process = async () => {
-      const { error, brokenBrowserContext } = await resolveBuyerOAuthCallback();
+      const { error } = await resolveBuyerOAuthCallback();
       if (cancelled) return;
 
       if (error) {
         toast.error(error);
         const storeSlug = searchParams.get('loja');
-        // Concrete proof this browser's storage didn't survive the OAuth round
-        // trip — try to leave it for a real browser right away, instead of
-        // waiting for the user to notice and tap the escape button themselves.
-        if (brokenBrowserContext) escapeConfirmedBrokenBrowser();
         navigate(storeSlug ? `/conta/entrar?loja=${storeSlug}` : '/conta/entrar', { replace: true });
         return;
       }

@@ -33,6 +33,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import GoogleIcon from '@/components/icons/GoogleIcon';
 import { StoreBrand } from '@/components/corretor/StoreBrand';
 import { joinStore } from '@/lib/buyerStore';
+import { BUYER_GOOGLE_LOGIN_ENABLED } from '@/lib/buyerGoogleAuthFlag';
 
 const formSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -133,29 +134,33 @@ export default function BuyerLoginPage() {
               </Alert>
             )}
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full mb-4"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading || isLoading}
-            >
-              {isGoogleLoading ? (
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <GoogleIcon className="mr-2 h-4 w-4" />
-              )}
-              Entrar com Google
-            </Button>
+            {BUYER_GOOGLE_LOGIN_ENABLED && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full mb-4"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading || isLoading}
+                >
+                  {isGoogleLoading ? (
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <GoogleIcon className="mr-2 h-4 w-4" />
+                  )}
+                  Entrar com Google
+                </Button>
 
-            <div className="relative mb-4">
-              <div className="absolute inset-0 flex items-center">
-                <Separator />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
+                <div className="relative mb-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
