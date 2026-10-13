@@ -211,7 +211,15 @@ export async function resolveBuyerOAuthCallback(): Promise<{ customer: Customer 
   const { data, error: exchangeError } = await supabaseBuyer.auth.exchangeCodeForSession(callbackUrl);
 
   if (exchangeError || !data.session?.user) {
-    return { customer: null, error: exchangeError?.message || 'Não foi possível concluir o login com Google' };
+    // Supabase throws this when the PKCE code_verifier in localStorage doesn't
+    // match the code being exchanged — almost always because Google bounced the
+    // flow out to the system browser from an in-app webview (WhatsApp, Instagram),
+    // which doesn't share localStorage with the webview that started the flow.
+    const isFlowStateError = /flow state|code verifier/i.test(exchangeError?.message || '');
+    const error = isFlowStateError
+      ? 'Não foi possível concluir o login com Google neste navegador. Se você abriu o link pelo WhatsApp, Instagram ou outro aplicativo, toque no menu (⋮) e escolha "Abrir no navegador", depois tente novamente.'
+      : exchangeError?.message || 'Não foi possível concluir o login com Google';
+    return { customer: null, error };
   }
 
   const authUser = data.session.user;

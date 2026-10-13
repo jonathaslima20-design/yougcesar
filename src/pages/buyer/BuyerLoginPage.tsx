@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Loader, CircleAlert as AlertCircle } from 'lucide-react';
+import { Loader, CircleAlert as AlertCircle, TriangleAlert } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +33,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import GoogleIcon from '@/components/icons/GoogleIcon';
 import { StoreBrand } from '@/components/corretor/StoreBrand';
 import { joinStore } from '@/lib/buyerStore';
+import { isInAppBrowser } from '@/lib/inAppBrowser';
 
 const formSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -50,6 +51,7 @@ export default function BuyerLoginPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
+  const inAppBrowser = isInAppBrowser();
   const storeSlug = searchParams.get('loja') || undefined;
   const redirectTo =
     (location.state as { from?: string } | null)?.from ||
@@ -130,6 +132,16 @@ export default function BuyerLoginPage() {
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{loginError}</AlertDescription>
+              </Alert>
+            )}
+
+            {inAppBrowser && (
+              <Alert className="mb-4">
+                <TriangleAlert className="h-4 w-4" />
+                <AlertDescription>
+                  O login com Google pode falhar neste navegador. Toque no menu (⋮) e escolha "Abrir no
+                  navegador" antes de continuar.
+                </AlertDescription>
               </Alert>
             )}
 
