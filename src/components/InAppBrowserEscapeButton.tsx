@@ -1,28 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { isInAppBrowser } from '@/lib/inAppBrowser';
-
-function isIOS(): boolean {
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-function isAndroid(): boolean {
-  return /Android/i.test(navigator.userAgent);
-}
-
-// iOS has no way to escape a webview without a tap (Apple blocks it), and
-// Android's onload attempt in inAppBrowserEscape.ts can be blocked by the
-// webview since it isn't triggered by a user gesture. This anchor tap is one,
-// so it's the one-tap fallback that works everywhere the onload attempt can't.
-function buildEscapeHref(): string | null {
-  const url = window.location.href;
-  const withoutScheme = url.replace(/^https?:\/\//, '');
-  if (isIOS()) return `x-safari-https://${withoutScheme}`;
-  if (isAndroid()) {
-    return `intent://${withoutScheme}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-  }
-  return null;
-}
+import { isInAppBrowser, buildEscapeHref } from '@/lib/inAppBrowser';
 
 export function InAppBrowserEscapeButton() {
   const [href, setHref] = useState<string | null>(null);

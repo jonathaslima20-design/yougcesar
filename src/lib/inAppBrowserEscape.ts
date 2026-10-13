@@ -8,36 +8,22 @@
 // to already be in a real, persistent browser — see buyerAuth.ts/simpleAuth.ts
 // for the PKCE "invalid flow state" error this produces otherwise.
 //
-// Android: jump straight to Chrome via an intent: URL before the page finishes
-// loading. iOS: attempt the same via the x-safari-https: scheme — Apple has no
-// true equivalent, and some webviews block a scheme navigation that isn't a
-// user gesture, so this is best-effort. InAppBrowserEscapeButton.tsx is the
-// guaranteed one-tap fallback for both platforms when the automatic attempt
-// doesn't go through (a real tap is a user gesture, so it isn't blocked).
-import { isInAppBrowser } from './inAppBrowser';
+// This onload attempt only fires when isInAppBrowser() already recognizes the
+// browser (UA tag, or the iOS window-size heuristic) — it can't catch a case
+// that only reveals itself once the OAuth exchange actually fails (see
+// escapeConfirmedBrokenBrowser() in inAppBrowser.ts, triggered reactively from
+// buyerAuth.ts instead). Some webviews also block a scheme navigation that
+// isn't a user gesture, so none of this is guaranteed — InAppBrowserEscapeButton.tsx
+// is the one-tap fallback that works wherever the automatic attempt can't
+// (a real tap is a user gesture, so it isn't blocked).
+import { isInAppBrowser, buildEscapeHref } from './inAppBrowser';
 
 const ESCAPE_ATTEMPTED_KEY = 'vt_in_app_browser_escape_attempted';
 
-function isAndroid(): boolean {
-  return /Android/i.test(navigator.userAgent);
-}
-
-function isIOS(): boolean {
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
 if (isInAppBrowser() && !sessionStorage.getItem(ESCAPE_ATTEMPTED_KEY)) {
   sessionStorage.setItem(ESCAPE_ATTEMPTED_KEY, '1');
-  const target = window.location.href;
-  const withoutScheme = target.replace(/^https?:\/\//, '');
-
-  if (isAndroid()) {
-    window.location.replace(
-      `intent://${withoutScheme}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(target)};end`
-    );
-  } else if (isIOS()) {
-    window.location.replace(`x-safari-https://${withoutScheme}`);
-  }
+  const href = buildEscapeHref();
+  if (href) window.location.replace(href);
 }
 
 export {};

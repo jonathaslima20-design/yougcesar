@@ -197,7 +197,11 @@ export async function signInWithGoogleBuyer(options?: {
 // earlyBuyerOAuthCapture.ts (imported first in main.tsx, before any Supabase
 // client exists) already stripped it and stashed the original URL, so the
 // merchant `supabase` client's own auto-detection doesn't race for it.
-export async function resolveBuyerOAuthCallback(): Promise<{ customer: Customer | null; error: string | null }> {
+export async function resolveBuyerOAuthCallback(): Promise<{
+  customer: Customer | null;
+  error: string | null;
+  brokenBrowserContext?: boolean;
+}> {
   const stashedUrl = sessionStorage.getItem('vitrineturbo_buyer_oauth_url');
   sessionStorage.removeItem('vitrineturbo_buyer_oauth_url');
 
@@ -217,9 +221,9 @@ export async function resolveBuyerOAuthCallback(): Promise<{ customer: Customer 
     // which doesn't share localStorage with the webview that started the flow.
     const isFlowStateError = /flow state|code verifier/i.test(exchangeError?.message || '');
     const error = isFlowStateError
-      ? 'Não foi possível concluir o login com Google neste navegador. Se você abriu o link pelo WhatsApp, Instagram ou outro aplicativo, toque no menu (⋮) e escolha "Abrir no navegador", depois tente novamente.'
+      ? 'Não foi possível concluir o login com Google neste navegador. Redirecionando para o navegador externo...'
       : exchangeError?.message || 'Não foi possível concluir o login com Google';
-    return { customer: null, error };
+    return { customer: null, error, brokenBrowserContext: isFlowStateError };
   }
 
   const authUser = data.session.user;
