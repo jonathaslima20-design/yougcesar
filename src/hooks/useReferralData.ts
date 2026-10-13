@@ -1,14 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getReferralStats, generateReferralLink, generateReferralCode } from '@/lib/referralUtils';
+import { getReferralStats, generateReferralLink, generateTrialReferralLink, generateReferralCode } from '@/lib/referralUtils';
 import type { ReferralStats, ReferralCommission, WithdrawalRequest, UserPixKey } from '@/types';
 
 export interface ReferredUser {
   id: string;
   name: string | null;
   email: string;
-  plan_status: string;
   created_at: string;
+  plan_status: string;
+  trial_ends_at: string | null;
+  /** Days left in the trial — only set while plan_status is 'trial'. */
+  days_left: number | null;
+  referral_type: 'direct' | 'trial';
+  commission_status: string | null;
+  commission_amount: number | null;
 }
 
 interface UseReferralDataReturn {
@@ -17,6 +23,7 @@ interface UseReferralDataReturn {
   withdrawals: WithdrawalRequest[];
   pixKeys: UserPixKey[];
   referralLink: string;
+  trialReferralLink: string;
   clickCount: number;
   referredUsers: ReferredUser[];
   isLoading: boolean;
@@ -30,6 +37,7 @@ export function useReferralData(userId: string | undefined): UseReferralDataRetu
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [pixKeys, setPixKeys] = useState<UserPixKey[]>([]);
   const [referralLink, setReferralLink] = useState('');
+  const [trialReferralLink, setTrialReferralLink] = useState('');
   const [clickCount, setClickCount] = useState(0);
   const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +75,7 @@ export function useReferralData(userId: string | undefined): UseReferralDataRetu
 
       if (referralCode) {
         setReferralLink(generateReferralLink(referralCode));
+        setTrialReferralLink(generateTrialReferralLink(referralCode));
       }
 
       const referralStats = await getReferralStats(userId);
@@ -79,12 +88,9 @@ export function useReferralData(userId: string | undefined): UseReferralDataRetu
         .eq('referrer_id', userId);
       setClickCount(count || 0);
 
-      // Fetch referred users
-      const { data: referred } = await supabase
-        .from('users')
-        .select('id, name, email, plan_status, created_at')
-        .eq('referred_by', userId)
-        .order('created_at', { ascending: false });
+      // Fetch referred users with their trial/commission status in one call
+      const { data: referred, error: referredError } = await supabase.rpc('get_my_referrals');
+      if (referredError) console.error('[ReferralData] get_my_referrals error:', referredError);
       setReferredUsers(referred || []);
 
       // Fetch commissions
@@ -127,6 +133,9 @@ export function useReferralData(userId: string | undefined): UseReferralDataRetu
   useEffect(() => {
     if (!userId) return;
 
+    // Re-run the RPC on any change instead of merging the payload by hand — it's
+    // the only way to keep days_left and commission_status correct, since those
+    // aren't columns on the row the payload carries.
     const channel = supabase
       .channel(`referral-users-${userId}`)
       .on(
@@ -137,22 +146,14 @@ export function useReferralData(userId: string | undefined): UseReferralDataRetu
           table: 'users',
           filter: `referred_by=eq.${userId}`,
         },
-        (payload) => {
-          setReferredUsers((prev) =>
-            prev.map((u) =>
-              u.id === payload.new.id
-                ? { ...u, plan_status: payload.new.plan_status, name: payload.new.name }
-                : u
-            )
-          );
-        }
+        () => { fetchData(); }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, fetchData]);
 
   return {
     stats,
@@ -160,6 +161,7 @@ export function useReferralData(userId: string | undefined): UseReferralDataRetu
     withdrawals,
     pixKeys,
     referralLink,
+    trialReferralLink,
     clickCount,
     referredUsers,
     isLoading,

@@ -125,12 +125,15 @@ export default function SubscriptionManagement({
   const [createForm, setCreateForm] = useState({
     plan_name: 'Plano Basico',
     plan_price: 29.90,
-    billing_cycle: 'monthly' as BillingCycle,
+    billing_cycle: 'monthly' as BillingCycle | 'trial',
     status: 'active' as SubscriptionStatus,
     payment_status: 'paid' as PaymentStatus,
     start_date: format(new Date(), 'yyyy-MM-dd'),
     next_payment_date: format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
   });
+
+  const TRIAL_DAYS = 15;
+  const isTrialSelected = createForm.billing_cycle === 'trial';
 
   const [paymentForm, setPaymentForm] = useState({
     amount: subscription?.plan_price || 0,
@@ -320,6 +323,25 @@ export default function SubscriptionManagement({
 
     setIsUpdating(true);
     try {
+      // Trial: no subscriptions row (no billing, no recurring payment) — just the
+      // same plan_status/trial_ends_at the referral-trial signup flow sets.
+      if (isTrialSelected) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            plan_status: 'trial',
+            trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq('id', userId);
+
+        if (error) throw error;
+
+        toast.success('Usuário colocado em teste de 15 dias');
+        setIsCreateDialogOpen(false);
+        onSubscriptionUpdate();
+        return;
+      }
+
       const { error } = await supabase
         .from('subscriptions')
         .insert({
@@ -509,6 +531,10 @@ export default function SubscriptionManagement({
                   <Select
                     value={createForm.billing_cycle}
                     onValueChange={(value) => {
+                      if (value === 'trial') {
+                        setCreateForm({ ...createForm, billing_cycle: 'trial' });
+                        return;
+                      }
                       const newCycle = value as BillingCycle;
                       setCreateForm({
                         ...createForm,
@@ -521,6 +547,7 @@ export default function SubscriptionManagement({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="trial">Teste (15 dias)</SelectItem>
                       <SelectItem value="monthly">Mensal</SelectItem>
                       <SelectItem value="quarterly">Trimestral (3 meses)</SelectItem>
                       <SelectItem value="semiannually">Semestral (6 meses)</SelectItem>
@@ -529,60 +556,68 @@ export default function SubscriptionManagement({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="create-plan-price">{getPriceLabel(createForm.billing_cycle)}</Label>
-                  <Input
-                    id="create-plan-price"
-                    type="number"
-                    step="0.01"
-                    value={createForm.plan_price}
-                    onChange={(e) => setCreateForm({ ...createForm, plan_price: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
+                {isTrialSelected ? (
+                  <div className="rounded-lg border border-violet-200 bg-violet-50 dark:border-violet-900 dark:bg-violet-950/20 px-3 py-2.5 text-sm text-violet-800 dark:text-violet-300">
+                    Acesso completo por 15 dias, sem cobrança. Ao fim do prazo, se o usuário não contratar um plano, o acesso é bloqueado automaticamente.
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-plan-price">{getPriceLabel(createForm.billing_cycle)}</Label>
+                      <Input
+                        id="create-plan-price"
+                        type="number"
+                        step="0.01"
+                        value={createForm.plan_price}
+                        onChange={(e) => setCreateForm({ ...createForm, plan_price: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="create-status">Status</Label>
-                  <Select
-                    value={createForm.status}
-                    onValueChange={(value) => setCreateForm({ ...createForm, status: value as SubscriptionStatus })}
-                  >
-                    <SelectTrigger id="create-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Ativo</SelectItem>
-                      <SelectItem value="pending">Pendente</SelectItem>
-                      <SelectItem value="suspended">Suspenso</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-status">Status</Label>
+                      <Select
+                        value={createForm.status}
+                        onValueChange={(value) => setCreateForm({ ...createForm, status: value as SubscriptionStatus })}
+                      >
+                        <SelectTrigger id="create-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Ativo</SelectItem>
+                          <SelectItem value="pending">Pendente</SelectItem>
+                          <SelectItem value="suspended">Suspenso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="create-payment-status">Status de Pagamento</Label>
-                  <Select
-                    value={createForm.payment_status}
-                    onValueChange={(value) => setCreateForm({ ...createForm, payment_status: value as PaymentStatus })}
-                  >
-                    <SelectTrigger id="create-payment-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paid">Pago</SelectItem>
-                      <SelectItem value="pending">Pendente</SelectItem>
-                      <SelectItem value="overdue">Vencido</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-payment-status">Status de Pagamento</Label>
+                      <Select
+                        value={createForm.payment_status}
+                        onValueChange={(value) => setCreateForm({ ...createForm, payment_status: value as PaymentStatus })}
+                      >
+                        <SelectTrigger id="create-payment-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paid">Pago</SelectItem>
+                          <SelectItem value="pending">Pendente</SelectItem>
+                          <SelectItem value="overdue">Vencido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="create-next-payment">Proximo Pagamento</Label>
-                  <Input
-                    id="create-next-payment"
-                    type="date"
-                    value={createForm.next_payment_date}
-                    onChange={(e) => setCreateForm({ ...createForm, next_payment_date: e.target.value })}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-next-payment">Proximo Pagamento</Label>
+                      <Input
+                        id="create-next-payment"
+                        type="date"
+                        value={createForm.next_payment_date}
+                        onChange={(e) => setCreateForm({ ...createForm, next_payment_date: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               <DialogFooter>
@@ -590,7 +625,7 @@ export default function SubscriptionManagement({
                   Cancelar
                 </Button>
                 <Button onClick={handleCreateSubscription} disabled={isUpdating}>
-                  {isUpdating ? 'Criando...' : 'Criar Assinatura'}
+                  {isUpdating ? 'Criando...' : isTrialSelected ? 'Iniciar Teste' : 'Criar Assinatura'}
                 </Button>
               </DialogFooter>
             </DialogContent>

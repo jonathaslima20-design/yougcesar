@@ -45,7 +45,7 @@ export default function PartnersUsersPage() {
       setLoading(true);
       const { data } = await supabase
         .from('users')
-        .select('id, name, email, whatsapp, is_blocked, plan_status, billing_cycle, slug, created_at, referred_by')
+        .select('id, name, email, whatsapp, is_blocked, plan_status, billing_cycle, trial_ends_at, slug, created_at, referred_by')
         .eq('managed_by_partner_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -139,6 +139,7 @@ export default function PartnersUsersPage() {
                         <PlanStatusBadge
                           status={u.plan_status as PlanStatus}
                           billingCycle={u.billing_cycle as BillingCycle | undefined}
+                          trialEndsAt={u.trial_ends_at}
                         />
                         {pendingPaymentIds.has(u.id) && (
                           <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-800">

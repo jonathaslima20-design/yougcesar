@@ -159,7 +159,7 @@ export default function AccountPage() {
               </h2>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
               <div className="mt-2 flex justify-center sm:justify-start">
-                <PlanStatusBadge status={user?.plan_status} billingCycle={user?.billing_cycle} />
+                <PlanStatusBadge status={user?.plan_status} billingCycle={user?.billing_cycle} trialEndsAt={user?.trial_ends_at} />
               </div>
               {user?.plan_status === 'free' && (
                 <div className="mt-3 flex items-center justify-center sm:justify-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2">

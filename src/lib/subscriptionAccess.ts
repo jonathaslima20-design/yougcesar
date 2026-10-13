@@ -6,7 +6,11 @@ export interface SubscriberAccess {
   isFreePlan: boolean;
   isExpired: boolean;
   isSuspended: boolean;
-  /** Allowed to use the dashboard at all — paying or on the free tier. */
+  /** On an active 15-day trial (referral-trial signup or admin-created trial user). */
+  isTrial: boolean;
+  /** Trial ended without converting to a paid plan — blocked, distinct message from isExpired. */
+  isTrialExpired: boolean;
+  /** Allowed to use the dashboard at all — paying, free tier, or in an active trial. */
   hasAccess: boolean;
 }
 
@@ -24,12 +28,16 @@ export function getSubscriberAccess(planStatus: PlanStatus | undefined): Subscri
   const isFreePlan = planStatus === 'free';
   const isExpired = planStatus === 'expired';
   const isSuspended = planStatus === 'suspended';
+  const isTrial = planStatus === 'trial';
+  const isTrialExpired = planStatus === 'trial_expired';
 
   return {
     isSubscriber,
     isFreePlan,
     isExpired,
     isSuspended,
-    hasAccess: isSubscriber || isFreePlan,
+    isTrial,
+    isTrialExpired,
+    hasAccess: isSubscriber || isFreePlan || isTrial,
   };
 }

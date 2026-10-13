@@ -490,17 +490,12 @@ export default function UserDetailPage() {
                       ? 'Parceiro (Partners)'
                       : 'Vendedor'}
                   </Badge>
-                  <Badge
-                    variant={user.plan_status === 'active' ? 'default' : 'secondary'}
-                    className={`text-xs gap-1 ${user.plan_status === 'free' ? 'border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:bg-blue-950' : ''}`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      user.plan_status === 'active' ? 'bg-green-500' :
-                      user.plan_status === 'free' ? 'bg-blue-400' :
-                      user.plan_status === 'suspended' ? 'bg-orange-400' : 'bg-gray-400'
-                    }`} />
-                    {user.plan_status === 'active' ? 'Ativo' : user.plan_status === 'free' ? 'Free' : user.plan_status === 'suspended' ? 'Suspenso' : 'Inativo'}
-                  </Badge>
+                  <PlanStatusBadge
+                    status={user.plan_status}
+                    billingCycle={user.billing_cycle}
+                    trialEndsAt={user.trial_ends_at}
+                    className="text-xs"
+                  />
                   {user.is_blocked && (
                     <Badge variant="destructive" className="text-xs gap-1">
                       <Ban className="h-3 w-3" /> Bloqueado
@@ -1117,7 +1112,7 @@ function PartnerManagedUsersTab({ partnerId }: { partnerId: string }) {
       setLoading(true);
       const { data } = await supabase
         .from('users')
-        .select('id, name, email, whatsapp, is_blocked, plan_status, billing_cycle, slug, created_at')
+        .select('id, name, email, whatsapp, is_blocked, plan_status, billing_cycle, trial_ends_at, slug, created_at')
         .eq('managed_by_partner_id', partnerId)
         .order('created_at', { ascending: false });
       setUsers(data || []);
@@ -1166,7 +1161,7 @@ function PartnerManagedUsersTab({ partnerId }: { partnerId: string }) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <PlanStatusBadge status={u.plan_status as PlanStatus} billingCycle={u.billing_cycle as BillingCycle | undefined} />
+                      <PlanStatusBadge status={u.plan_status as PlanStatus} billingCycle={u.billing_cycle as BillingCycle | undefined} trialEndsAt={u.trial_ends_at} />
                       {pendingPaymentIds.has(u.id) && (
                         <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-800">Pagamento Pendente</Badge>
                       )}

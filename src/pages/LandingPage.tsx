@@ -112,12 +112,20 @@ function useReferralTracking() {
     const ref = searchParams.get('ref') || localStorage.getItem('vitrineturbo_ref_code');
     if (!ref) return;
 
+    // 15-day trial referral link (?ref=CODE&teste=15), as opposed to the direct
+    // link — only trusted when it's present on this visit's URL, same scoping
+    // as the referral code itself below.
+    const isTrialLink = searchParams.get('teste') === '15';
+
     setRefCode(ref);
     // Only persist referral code if user is not already authenticated
     const session = supabase.auth.getSession();
     session.then(({ data }) => {
       if (!data.session) {
         localStorage.setItem('vitrineturbo_ref_code', ref);
+        if (isTrialLink) {
+          localStorage.setItem('vitrineturbo_ref_trial', '1');
+        }
       }
     });
 

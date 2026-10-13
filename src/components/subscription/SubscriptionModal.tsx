@@ -161,12 +161,13 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
   ];
 
   const { isFreePlan: isUserOnFree, isSubscriber: isUserActive } = getSubscriberAccess(user?.plan_status);
-  const { isExpired, isSuspended } = getSubscriberAccess(planStatus);
+  const { isExpired, isSuspended, isTrialExpired } = getSubscriberAccess(planStatus);
 
   const getModalTitle = () => {
     if (signupOffer) return 'Escolha seu Plano';
     if (offerDiscount) return 'Oferta Exclusiva';
     if (isSuspended) return 'Conta Suspensa';
+    if (isTrialExpired) return 'Período de Teste Encerrado';
     if (isExpired) return 'Plano Expirado';
     if (isUserActive) return 'Gerenciar Plano';
     if (limitReason) return 'Faça Upgrade do seu Plano';
@@ -182,6 +183,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
       return `${offerDiscount.offer_title} — ${discLabel} em qualquer plano. Aproveite!`;
     }
     if (isSuspended) return 'Sua conta foi suspensa pelo administrador. Entre em contato com o suporte para mais informações.';
+    if (isTrialExpired) return 'Seu período de teste de 15 dias acabou. Escolha um plano abaixo para continuar usando sua vitrine.';
     if (isExpired) return 'Seu plano venceu. Renove agora para recuperar o acesso completo à sua vitrine e ao painel.';
     if (isUserActive) return 'Seu plano está ativo. Você tem acesso completo à plataforma VitrineTurbo.';
     if (limitReason) return 'Você atingiu um limite do plano Free. Escolha um plano pago para continuar crescendo.';
@@ -285,6 +287,19 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
               <AlertDescription className="text-red-800">
                 Sua conta foi suspensa. Você não pode realizar alterações. Entre em contato com o suporte para resolver esta situação.
               </AlertDescription>
+            </div>
+          </Alert>
+        )}
+
+        {isTrialExpired && (
+          <Alert className="bg-amber-50 border-amber-200">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <AlertDescription className="text-amber-800">
+                  Seu período de teste de 15 dias acabou. Escolha um plano abaixo para continuar usando sua vitrine.
+                </AlertDescription>
+              </div>
             </div>
           </Alert>
         )}

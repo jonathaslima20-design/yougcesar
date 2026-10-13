@@ -231,6 +231,37 @@ Deno.serve(async (req: Request) => {
       notificationsCreated++;
     }
 
+    // 4. Expire 15-day trials (referral-trial signups and admin-created trial
+    // users) once trial_ends_at has passed. No grace period — a trial is a hard
+    // cutoff by design, unlike a paid subscription.
+    const { data: expiredTrials } = await supabase
+      .from("users")
+      .select("id, name")
+      .eq("plan_status", "trial")
+      .not("trial_ends_at", "is", null)
+      .lt("trial_ends_at", now.toISOString());
+
+    let trialsExpired = 0;
+
+    for (const user of expiredTrials || []) {
+      await supabase
+        .from("users")
+        .update({ plan_status: "trial_expired" })
+        .eq("id", user.id);
+
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        type: "trial_expired",
+        title: "Período de teste encerrado",
+        message:
+          "Seu período de teste de 15 dias acabou. Escolha um plano para continuar usando sua vitrine.",
+        related_entity_type: "subscription",
+      });
+
+      trialsExpired++;
+      notificationsCreated++;
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -239,6 +270,7 @@ Deno.serve(async (req: Request) => {
         recently_expired_in_grace: recentlyExpiredUsers?.length || 0,
         users_blocked: usersBlocked,
         users_synced: usersSynced,
+        trials_expired: trialsExpired,
         notifications_created: notificationsCreated,
         notifications_skipped: notificationsSkipped,
       }),
