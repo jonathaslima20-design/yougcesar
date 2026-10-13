@@ -10,7 +10,6 @@ const MARKETING_PATH_PREFIXES = [
   '/planos',
   '/blog',
   '/help',
-  '/catalogo-digital-gratis',
   '/catalogo-para-whatsapp',
   '/loja-virtual-sem-taxa',
   '/dominio-proprio',

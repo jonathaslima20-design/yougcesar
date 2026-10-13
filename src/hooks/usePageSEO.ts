@@ -11,11 +11,11 @@ interface PageSEO {
 const PAGE_SEO: Record<string, PageSEO> = {
   '/': {
     title: 'VitrineTurbo: Catálogo Digital para WhatsApp | Crie sua Loja Online',
-    description: 'Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, plano grátis, pagamento online via Pix e cartão. Comece agora.',
+    description: 'Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, pagamento online via Pix e cartão. Comece agora.',
   },
   '/planos': {
-    title: 'Planos e Preços | VitrineTurbo — Catálogo Digital Grátis',
-    description: 'Compare os planos do VitrineTurbo: Free, Mensal, Semestral e Anual. Produtos ilimitados, domínio próprio, API REST e pagamento online integrado.',
+    title: 'Planos e Preços | VitrineTurbo — Catálogo Digital para WhatsApp',
+    description: 'Compare os planos do VitrineTurbo: Mensal, Semestral e Anual. Produtos ilimitados, domínio próprio, API REST e pagamento online integrado.',
   },
   '/funcionalidades': {
     title: 'Funcionalidades | Catálogo Digital com WhatsApp, Estoque e Pedidos',

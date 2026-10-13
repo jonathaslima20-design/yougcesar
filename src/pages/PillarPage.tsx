@@ -62,7 +62,7 @@ export default function PillarPage({ slug }: { slug: string }) {
               </Link>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
-              {['+3.000 lojas ativas', '0% taxas em vendas', 'Plano free inicial'].map(label => (
+              {['+3.000 lojas ativas', '0% comissão da VitrineTurbo', 'Mensalidade fixa'].map(label => (
                 <div key={label} className="inline-flex items-center gap-1.5 border hairline bg-white rounded-full px-3 py-1.5">
                   <span className="font-mono-label uppercase text-[11px] text-ink-700">{label}</span>
                 </div>
@@ -120,10 +120,10 @@ export default function PillarPage({ slug }: { slug: string }) {
       <section className="py-20 lg:py-24 bg-ink-900">
         <div className="max-w-3xl mx-auto px-6 lg:px-10 text-center">
           <h2 className="font-display font-semibold text-[28px] sm:text-[36px] leading-[1.1] tracking-[-0.03em] text-white">
-            Comece agora, de graça.
+            Comece a vender hoje.
           </h2>
           <p className="text-ink-300 text-[15px] mt-4">
-            Sem cartão de crédito. Cancele quando quiser.
+            Mensalidade fixa, sem comissão sobre suas vendas.
           </p>
           <Link
             to="/register"

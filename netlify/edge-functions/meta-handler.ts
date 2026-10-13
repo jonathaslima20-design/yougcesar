@@ -462,11 +462,6 @@ interface PublicPageSEO {
 }
 
 const PUBLIC_PAGE_SEO: Record<string, PublicPageSEO> = {
-  'catalogo-digital-gratis': {
-    title: 'Catálogo Digital Grátis para Vender Online | VitrineTurbo',
-    description: 'Crie seu catálogo digital grátis, sem taxa sobre vendas. Produtos, categorias, estoque e cupom no plano gratuito. Comece agora.',
-    canonical: 'https://vitrineturbo.com/catalogo-digital-gratis',
-  },
   'catalogo-para-whatsapp': {
     title: 'Catálogo de Produtos para WhatsApp | VitrineTurbo',
     description: 'Catálogo de produtos digital feito pra vender pelo WhatsApp: categorias, estoque por variação e pedido fechando direto na conversa.',
@@ -474,7 +469,7 @@ const PUBLIC_PAGE_SEO: Record<string, PublicPageSEO> = {
   },
   'loja-virtual-sem-taxa': {
     title: 'Loja Virtual sem Taxa sobre Vendas | VitrineTurbo',
-    description: 'Loja virtual sem taxa sobre vendas: assinatura fixa e previsível, plano grátis pra começar. Veja quanto você deixa de pagar em taxa por venda.',
+    description: 'Loja virtual sem taxa de comissão da plataforma: assinatura fixa e previsível. Veja quanto você deixa de pagar em comissão por venda.',
     canonical: 'https://vitrineturbo.com/loja-virtual-sem-taxa',
   },
   'dominio-proprio': {
@@ -519,6 +514,12 @@ function generatePublicPageHTML(seo: PublicPageSEO): string {
 export default async (request: Request, context: Context) => {
   const userAgent = request.headers.get('user-agent') || '';
   const url = new URL(request.url);
+
+  // Retired page: no free plan to support its premise anymore. 301 for every
+  // visitor (real users, Googlebot, social bots) regardless of crawler detection below.
+  if (url.pathname === '/catalogo-digital-gratis') {
+    return Response.redirect(`${url.origin}/catalogo-para-whatsapp`, 301);
+  }
 
   console.log('🔍 Edge Function - Netlify Meta Handler Started:', {
     path: url.pathname,

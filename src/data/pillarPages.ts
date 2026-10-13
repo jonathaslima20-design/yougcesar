@@ -18,25 +18,6 @@ export interface PillarPageData {
 }
 
 export const PILLAR_PAGES: Record<string, PillarPageData> = {
-  'catalogo-digital-gratis': {
-    slug: 'catalogo-digital-gratis',
-    kicker: '/ catálogo digital grátis',
-    h1: 'Catálogo Digital Grátis para Vender Online',
-    subhead: 'Crie seu catálogo profissional sem custo inicial, compartilhe pelo WhatsApp e comece a vender hoje — sem cartão de crédito.',
-    metaDescription: 'Crie seu catálogo digital grátis. Produtos, categorias, estoque e cupom no plano gratuito. Comece agora.',
-    ctaLabel: 'Criar Catálogo Grátis',
-    features: [
-      { icon: Zap, title: 'Plano grátis de verdade', description: 'Sem cartão de crédito, sem período de teste que expira — o plano free é permanente enquanto você usar.' },
-      { icon: MessageCircle, title: 'Pedido direto no WhatsApp', description: 'O cliente monta o pedido no catálogo e fecha a compra falando com você, sem sair da conversa.' },
-      { icon: Package, title: 'Estoque, categorias e cupom', description: 'Recursos que catálogo genérico não tem, disponíveis desde o primeiro produto cadastrado.' },
-      { icon: Globe, title: 'Domínio próprio quando crescer', description: 'Comece com o link padrão e conecte seu próprio domínio no momento que fizer sentido pro seu negócio.' },
-    ],
-    relatedSlugs: [
-      'melhores-plataformas-catalogo-digital-gratis-2026',
-      'taxa-por-venda-catalogo-digital-quanto-custa',
-      'como-controlar-estoque-loja-pequena-sem-planilha',
-    ],
-  },
   'catalogo-para-whatsapp': {
     slug: 'catalogo-para-whatsapp',
     kicker: '/ catálogo para whatsapp',
@@ -60,18 +41,17 @@ export const PILLAR_PAGES: Record<string, PillarPageData> = {
     slug: 'loja-virtual-sem-taxa',
     kicker: '/ loja virtual sem taxa',
     h1: 'Loja Virtual sem Taxa sobre Vendas',
-    subhead: 'Venda o quanto quiser sem entregar uma porcentagem de cada pedido. Assinatura fixa e previsível — não uma comissão que cresce junto com seu faturamento.',
-    metaDescription: 'Loja virtual sem taxa sobre vendas: assinatura fixa e previsível, plano grátis pra começar. Veja quanto você deixa de pagar em taxa por venda.',
-    ctaLabel: 'Vender sem Taxa',
+    subhead: 'Venda o quanto quiser sem entregar uma porcentagem de cada pedido pra plataforma. Assinatura fixa e previsível — não uma comissão da VitrineTurbo que cresce junto com seu faturamento.',
+    metaDescription: 'Loja virtual sem taxa de comissão da plataforma: assinatura fixa e previsível. Veja quanto você deixa de pagar em comissão por venda.',
+    ctaLabel: 'Quero Mensalidade Fixa',
     features: [
-      { icon: Wallet, title: '0% de taxa na assinatura', description: 'Em nenhum plano — free ou pago — uma porcentagem da sua venda vai pra plataforma.' },
-      { icon: ShieldCheck, title: 'Mensalidade previsível', description: 'Você sabe exatamente quanto paga todo mês, independente de quanto vender.' },
-      { icon: Zap, title: 'Plano grátis pra começar', description: 'Teste sem compromisso antes de decidir se quer um plano com mais recursos.' },
-      { icon: Tag, title: 'Sem letra miúda', description: 'Sem taxa escondida em nenhuma etapa da assinatura — o que você vê no plano é o que você paga.' },
+      { icon: Wallet, title: '0% de comissão da VitrineTurbo', description: 'A VitrineTurbo não fica com uma porcentagem da sua venda — sua mensalidade é a mesma, venda pouco ou venda muito.' },
+      { icon: ShieldCheck, title: 'Mensalidade previsível', description: 'Você sabe exatamente quanto paga todo mês de assinatura, independente de quanto vender.' },
+      { icon: Zap, title: 'Sem comissão por fora', description: 'Nada de porcentagem extra sobre o pedido só porque seu faturamento cresceu.' },
+      { icon: Tag, title: 'Preço do plano é o preço final', description: 'O valor da sua assinatura é exatamente o que está no plano escolhido — sem mensalidade escondida.' },
     ],
     relatedSlugs: [
       'taxa-por-venda-catalogo-digital-quanto-custa',
-      'melhores-plataformas-catalogo-digital-gratis-2026',
       'como-precificar-produtos-revenda-guia-rapido',
     ],
   },

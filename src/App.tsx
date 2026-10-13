@@ -326,7 +326,8 @@ function AppContent() {
           <Route path="/blog/:postSlug" element={<BlogPostPage />} />
 
           {/* Pillar SEO Landing Pages */}
-          <Route path="/catalogo-digital-gratis" element={<PillarPage slug="catalogo-digital-gratis" />} />
+          {/* Retired: no free plan to support this page's premise anymore. 301s at the edge (meta-handler.ts); this client-side redirect covers in-app navigation. */}
+          <Route path="/catalogo-digital-gratis" element={<Navigate to="/catalogo-para-whatsapp" replace />} />
           <Route path="/catalogo-para-whatsapp" element={<PillarPage slug="catalogo-para-whatsapp" />} />
           <Route path="/loja-virtual-sem-taxa" element={<PillarPage slug="loja-virtual-sem-taxa" />} />
           <Route path="/dominio-proprio" element={<PillarPage slug="dominio-proprio" />} />
