@@ -29,6 +29,15 @@ export function isInAppBrowser(): boolean {
   const ua = navigator.userAgent || navigator.vendor || '';
   if (IN_APP_BROWSER_PATTERN.test(ua)) return true;
   if (isIOS() && window.outerWidth === 0 && window.outerHeight === 0) return true;
+
+  // Apps that embed a WKWebView commonly inject a native bridge the host app
+  // uses to talk to the page (closing the view, sharing, etc.) — something a
+  // real standalone Safari/Chrome never has, since no arbitrary website gets
+  // one. Unlike outerWidth, which this same WhatsApp build fakes convincingly,
+  // there's no reason for a webview to fake not having this.
+  const w = window as unknown as { webkit?: { messageHandlers?: Record<string, unknown> } };
+  if (isIOS() && w.webkit?.messageHandlers && Object.keys(w.webkit.messageHandlers).length > 0) return true;
+
   if (sessionStorage.getItem(CONFIRMED_BROKEN_BROWSER_KEY) === '1') return true;
   return false;
 }
