@@ -60,7 +60,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const GOOGLE_AUTH_ENABLED = true;
+// Disabled: Google sign-up through WhatsApp/Instagram's embedded browser
+// breaks with "invalid flow state" (see buyerGoogleAuthFlag.ts for the same
+// issue on the buyer side) and was creating auth.users rows for merchants who
+// never got past that screen. Flip back once in-app-browser detection is solved.
+const GOOGLE_AUTH_ENABLED = false;
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
