@@ -1,4 +1,9 @@
-import './lib/inAppBrowserEscape';
+// In-app-browser auto-escape paused until detection is reliable (it kept
+// missing real WhatsApp builds — see inAppBrowser.ts/inAppBrowserEscape.ts).
+// Google login for buyers is disabled instead for now (BuyerLoginPage.tsx /
+// BuyerRegisterPage.tsx), which sidesteps the whole problem. Re-add this
+// import to resume the escape attempt once detection is solved.
+// import './lib/inAppBrowserEscape';
 import './lib/earlyBuyerOAuthCapture';
 import './lib/earlyErpOAuthCapture';
 import './lib/earlyMercadoPagoOAuthCapture';
