@@ -24,6 +24,7 @@ import GtmSnippet from '@/components/GtmSnippet';
 import GoogleAdsSnippet from '@/components/GoogleAdsSnippet';
 import FloatingWhatsAppButton from '@/components/FloatingWhatsAppButton';
 import CookieConsentBanner from '@/components/CookieConsentBanner';
+import { InAppBrowserEscapeButton } from '@/components/InAppBrowserEscapeButton';
 import { OfferDisplayManager } from '@/components/offers/OfferDisplayManager';
 import { captureAttributionParams } from '@/lib/attribution';
 
@@ -271,6 +272,7 @@ function AppContent() {
       <MetaPixel />
       <GtmSnippet />
       <GoogleAdsSnippet />
+      <InAppBrowserEscapeButton />
       <Routes>
         {/* Custom Domain Routes - when accessed via user's own domain */}
         {isCustomDomain && customDomainSlug && (
