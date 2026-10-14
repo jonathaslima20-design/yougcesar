@@ -161,6 +161,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
   ];
 
   const { isFreePlan: isUserOnFree, isSubscriber: isUserActive } = getSubscriberAccess(user?.plan_status);
+  const isNewUser = planStatus === 'inactive';
   const { isExpired, isSuspended } = getSubscriberAccess(planStatus);
 
   const getModalTitle = () => {
@@ -313,7 +314,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
           </div>
         )}
 
-        {isUserOnFree && !isExpired && <BannerClients />}
+        {(isUserOnFree || isNewUser) && !isExpired && <BannerClients />}
 
         {isSuspended ? (
           <div className="mt-4 p-6 text-center bg-muted/30 rounded-lg border">
