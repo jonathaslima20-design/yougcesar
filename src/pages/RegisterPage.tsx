@@ -349,8 +349,8 @@ export default function RegisterPage() {
 
                 <FormField
                   control={form.control}
-                  name="country_code"
-                  render={({ field }) => (
+                  name="whatsapp"
+                  render={() => (
                     <FormItem>
                       <FormLabel>País e WhatsApp</FormLabel>
                       <FormControl>
@@ -358,9 +358,8 @@ export default function RegisterPage() {
                           defaultCountry="BR"
                           onChange={(data) => {
                             form.setValue('country_code', data.ddi.replace('+', ''));
-                            form.setValue('whatsapp', data.phone);
+                            form.setValue('whatsapp', data.phone, { shouldValidate: true });
                           }}
-                          placeholder="(11) 99999-9999"
                         />
                       </FormControl>
                       <FormMessage />
