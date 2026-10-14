@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { findDeliveryConflicts, getClaimedRegionUFs, isNationalPricingOption } from '@/lib/localDelivery';
 import { geocodeCep } from '@/lib/geocoding';
-import type { CheckoutSettings, DeliveryOption, DistanceTier, WeightTier } from '@/types';
+import type { CheckoutSettings, DeliveryOption, DistanceTier, WeightTier, ValueTier } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function formatCurrency(value: number): string {
@@ -33,13 +33,14 @@ const BR_STATES = [
 // merchant likes (that's what let "Moto Entrega" end up scoped to all of
 // Brazil). Once created, an option's type never changes; to switch type the
 // merchant deletes and creates a new one.
-type NewOptionKind = 'pickup' | 'local_distance' | 'national_flat' | 'national_weight' | 'national_region' | 'quote';
+type NewOptionKind = 'pickup' | 'local_distance' | 'national_flat' | 'national_weight' | 'national_value' | 'national_region' | 'quote';
 
 const NEW_OPTION_KINDS: { kind: NewOptionKind; label: string; icon: typeof Store; description: string }[] = [
   { kind: 'pickup', label: 'Retirada no Local', icon: Store, description: 'Cliente busca o pedido na sua loja' },
   { kind: 'local_distance', label: 'Entrega Local por Distância', icon: Bike, description: 'Preço por faixa de km, calculado a partir do CEP da loja e do comprador' },
   { kind: 'national_flat', label: 'Frete Nacional — Valor Fixo', icon: Globe, description: 'Uma taxa única pra qualquer lugar do Brasil' },
   { kind: 'national_weight', label: 'Frete Nacional por Peso', icon: Package, description: 'Preço por faixa de peso total do pedido' },
+  { kind: 'national_value', label: 'Frete Nacional por Valor da Compra', icon: Percent, description: 'Ex: acima de R$ 200 o frete é R$ 20, acima de R$ 500 é R$ 15' },
   { kind: 'national_region', label: 'Frete por Região/UF', icon: MapPin, description: 'Mesmo valor, mas só aparece pros estados escolhidos' },
   { kind: 'quote', label: 'Frete a Combinar', icon: Handshake, description: 'Valor combinado com o cliente depois, mesmo em pagamento online — o cliente paga só o produto agora' },
 ];
@@ -49,6 +50,7 @@ function describeOptionKind(option: DeliveryOption): string {
   if (option.quoteOnRequest) return 'Frete a Combinar';
   if (option.calculationType === 'distance_tier') return 'Entrega Local por Distância';
   if (option.calculationType === 'weight_tier') return 'Frete Nacional por Peso';
+  if (option.calculationType === 'value_tier') return 'Frete Nacional por Valor da Compra';
   if (option.calculationType === 'region') return 'Frete por Região/UF';
   if (option.scope === 'local') return 'Entrega Local';
   return 'Frete Nacional';
@@ -179,6 +181,49 @@ function WeightTierEditor({ tiers, onChange }: { tiers: WeightTier[]; onChange: 
   );
 }
 
+function ValueTierEditor({ tiers, onChange }: { tiers: ValueTier[]; onChange: (tiers: ValueTier[]) => void }) {
+  const addTier = () => {
+    const last = tiers[tiers.length - 1];
+    onChange([...tiers, { id: nextTierId(), minOrderValue: (last?.minOrderValue ?? 0) + 100, fee: 0 }]);
+  };
+  const removeTier = (id: string) => onChange(tiers.filter((t) => t.id !== id));
+  const updateTier = (id: string, patch: Partial<ValueTier>) =>
+    onChange(tiers.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+
+  return (
+    <div className="space-y-2">
+      {tiers.map((t) => (
+        <div key={t.id} className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground shrink-0">A partir de</span>
+          <CurrencyInput
+            value={t.minOrderValue}
+            onChange={(minOrderValue) => updateTier(t.id, { minOrderValue })}
+            className="h-8 w-28 text-xs"
+          />
+          <span className="text-xs text-muted-foreground shrink-0">frete:</span>
+          <CurrencyInput value={t.fee} onChange={(fee) => updateTier(t.id, { fee })} className="h-8 w-28 text-xs" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive shrink-0"
+            onClick={() => removeTier(t.id)}
+            disabled={tiers.length <= 1}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addTier}>
+        <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar faixa
+      </Button>
+      <p className="text-xs text-muted-foreground pt-1">
+        Vale a faixa de maior valor que o pedido ainda atinge. Inclua uma faixa "A partir de R$ 0" pra cobrir compras abaixo do primeiro valor — senão elas pagam o frete da faixa mais baixa configurada.
+      </p>
+    </div>
+  );
+}
+
 export default function DeliveryOptionsSettingsContent() {
   const { settings, loading, saving, updateSettings, insuranceGateEnabled } = useCheckoutSettings();
   const { user, updateUser } = useAuth();
@@ -194,6 +239,7 @@ export default function DeliveryOptionsSettingsContent() {
   const [newDistanceTiers, setNewDistanceTiers] = useState<DistanceTier[]>([{ id: nextTierId(), maxDistanceKm: 3, fee: 0 }]);
   const [newLocalFallbackFee, setNewLocalFallbackFee] = useState(0);
   const [newWeightTiers, setNewWeightTiers] = useState<WeightTier[]>([{ id: nextTierId(), maxWeightKg: 1, fee: 0 }]);
+  const [newValueTiers, setNewValueTiers] = useState<ValueTier[]>([{ id: nextTierId(), minOrderValue: 0, fee: 0 }]);
 
   // A store gets ONE national price (flat or by weight) and each UF can belong
   // to only one region option — otherwise the buyer would be choosing between
@@ -201,7 +247,8 @@ export default function DeliveryOptionsSettingsContent() {
   const hasNationalPricing = settings.deliveryOptions.some(isNationalPricingOption);
   const claimedRegionUFs = getClaimedRegionUFs(settings.deliveryOptions);
   const conflicts = findDeliveryConflicts(settings.deliveryOptions);
-  const isKindBlocked = (kind: NewOptionKind) => hasNationalPricing && (kind === 'national_flat' || kind === 'national_weight');
+  const isKindBlocked = (kind: NewOptionKind) =>
+    hasNationalPricing && (kind === 'national_flat' || kind === 'national_weight' || kind === 'national_value');
 
   useEffect(() => {
     setStoreZipCode(user?.store_zip_code || '');
@@ -289,6 +336,14 @@ export default function DeliveryOptionsSettingsContent() {
     });
   };
 
+  const updateDeliveryValueTiers = (id: string, valueTiers: ValueTier[]) => {
+    const lowestFee = [...valueTiers].sort((a, b) => a.minOrderValue - b.minOrderValue)[0]?.fee ?? 0;
+    save({
+      ...settings,
+      deliveryOptions: settings.deliveryOptions.map(d => (d.id === id ? { ...d, valueTiers, fee: lowestFee } : d)),
+    });
+  };
+
   const toggleRequireDelivery = (checked: boolean) => save({ ...settings, requireDeliveryOption: checked });
 
   const toggleShippingInsurance = (enabled: boolean) => {
@@ -319,6 +374,7 @@ export default function DeliveryOptionsSettingsContent() {
     setNewDistanceTiers([{ id: nextTierId(), maxDistanceKm: 3, fee: 0 }]);
     setNewLocalFallbackFee(0);
     setNewWeightTiers([{ id: nextTierId(), maxWeightKg: 1, fee: 0 }]);
+    setNewValueTiers([{ id: nextTierId(), minOrderValue: 0, fee: 0 }]);
   };
 
   const handleCreateOption = () => {
@@ -327,7 +383,7 @@ export default function DeliveryOptionsSettingsContent() {
       toast.error('Dê um nome pra essa opção');
       return;
     }
-    if ((newOptionKind === 'national_flat' || newOptionKind === 'national_weight') && hasNationalPricing) {
+    if ((newOptionKind === 'national_flat' || newOptionKind === 'national_weight' || newOptionKind === 'national_value') && hasNationalPricing) {
       toast.error('Você já tem um frete nacional. Remova ele para criar outro.');
       return;
     }
@@ -383,6 +439,19 @@ export default function DeliveryOptionsSettingsContent() {
           scope: 'national',
           calculationType: 'weight_tier',
           weightTiers: tiers,
+        };
+        break;
+      }
+      case 'national_value': {
+        const tiers = [...newValueTiers].sort((a, b) => a.minOrderValue - b.minOrderValue);
+        option = {
+          id: uuidv4(),
+          name,
+          fee: tiers[0]?.fee ?? 0,
+          enabled: true,
+          scope: 'national',
+          calculationType: 'value_tier',
+          valueTiers: tiers,
         };
         break;
       }
@@ -512,6 +581,7 @@ export default function DeliveryOptionsSettingsContent() {
                   onUpdatePickupMapUrl={(val) => updateDeliveryPickupMapUrl(option.id, val)}
                   onUpdateDistanceTiers={(tiers, fallbackFee) => updateDeliveryDistanceTiers(option.id, tiers, fallbackFee)}
                   onUpdateWeightTiers={(tiers) => updateDeliveryWeightTiers(option.id, tiers)}
+                  onUpdateValueTiers={(tiers) => updateDeliveryValueTiers(option.id, tiers)}
                   onRemove={() => removeDeliveryOption(option.id)}
                   blockedRegions={getClaimedRegionUFs(settings.deliveryOptions, option.id)}
                 />
@@ -607,6 +677,10 @@ export default function DeliveryOptionsSettingsContent() {
                 <WeightTierEditor tiers={newWeightTiers} onChange={setNewWeightTiers} />
               )}
 
+              {newOptionKind === 'national_value' && (
+                <ValueTierEditor tiers={newValueTiers} onChange={setNewValueTiers} />
+              )}
+
               <div className="flex gap-2 pt-1">
                 <Button size="sm" onClick={handleCreateOption} disabled={!newName.trim() || saving}>
                   <Plus className="h-4 w-4 mr-1" /> Criar opção
@@ -684,6 +758,7 @@ interface DeliveryOptionRowProps {
   onUpdatePickupMapUrl: (pickupMapUrl: string) => void;
   onUpdateDistanceTiers: (tiers: DistanceTier[], fallbackFee: number) => void;
   onUpdateWeightTiers: (tiers: WeightTier[]) => void;
+  onUpdateValueTiers: (tiers: ValueTier[]) => void;
   onRemove: () => void;
   // UFs already used by OTHER region options — can't be toggled on here.
   blockedRegions: Set<string>;
@@ -701,6 +776,7 @@ function DeliveryOptionRow({
   onUpdatePickupMapUrl,
   onUpdateDistanceTiers,
   onUpdateWeightTiers,
+  onUpdateValueTiers,
   onRemove,
   blockedRegions,
 }: DeliveryOptionRowProps) {
@@ -713,11 +789,13 @@ function DeliveryOptionRow({
   const [distanceTiersValue, setDistanceTiersValue] = useState<DistanceTier[]>(option.distanceTiers || []);
   const [localFallbackFeeValue, setLocalFallbackFeeValue] = useState(option.localFallbackFee ?? option.fee ?? 0);
   const [weightTiersValue, setWeightTiersValue] = useState<WeightTier[]>(option.weightTiers || []);
+  const [valueTiersValue, setValueTiersValue] = useState<ValueTier[]>(option.valueTiers || []);
   const calculationType = option.calculationType || 'flat';
   const selectedRegions = option.regions || [];
   const scope = option.scope === 'local' ? 'local' : option.scope === 'pickup' ? 'pickup' : 'national';
   const isDistanceTier = calculationType === 'distance_tier';
   const isWeightTier = calculationType === 'weight_tier';
+  const isValueTier = calculationType === 'value_tier';
 
   const toggleRegion = (uf: string) => {
     onUpdateRegions(selectedRegions.includes(uf) ? selectedRegions.filter((r) => r !== uf) : [...selectedRegions, uf]);
@@ -728,6 +806,8 @@ function DeliveryOptionRow({
       onUpdateDistanceTiers([...distanceTiersValue].sort((a, b) => a.maxDistanceKm - b.maxDistanceKm), localFallbackFeeValue);
     } else if (isWeightTier) {
       onUpdateWeightTiers([...weightTiersValue].sort((a, b) => a.maxWeightKg - b.maxWeightKg));
+    } else if (isValueTier) {
+      onUpdateValueTiers([...valueTiersValue].sort((a, b) => a.minOrderValue - b.minOrderValue));
     } else {
       onUpdatePrice(feeValue, freeAboveValue > 0 ? freeAboveValue : null);
     }
@@ -736,6 +816,7 @@ function DeliveryOptionRow({
 
   const sortedDistanceTiers = [...(option.distanceTiers || [])].sort((a, b) => a.maxDistanceKm - b.maxDistanceKm);
   const sortedWeightTiers = [...(option.weightTiers || [])].sort((a, b) => a.maxWeightKg - b.maxWeightKg);
+  const sortedValueTiers = [...(option.valueTiers || [])].sort((a, b) => a.minOrderValue - b.minOrderValue);
 
   return (
     <div className="rounded-lg border p-4 space-y-3">
@@ -760,6 +841,14 @@ function DeliveryOptionRow({
               sortedWeightTiers.length > 0 ? (
                 <span className="text-xs text-muted-foreground">
                   {formatCurrency(sortedWeightTiers[0].fee)} até {formatCurrency(sortedWeightTiers[sortedWeightTiers.length - 1].fee)} · por peso
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">Sem faixas configuradas</span>
+              )
+            ) : isValueTier ? (
+              sortedValueTiers.length > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  A partir de {formatCurrency(sortedValueTiers[0].minOrderValue)}: {formatCurrency(sortedValueTiers[0].fee)} · por valor da compra
                 </span>
               ) : (
                 <span className="text-xs text-muted-foreground">Sem faixas configuradas</span>
@@ -804,6 +893,14 @@ function DeliveryOptionRow({
           ) : isWeightTier ? (
             <div className="space-y-2">
               <WeightTierEditor tiers={weightTiersValue} onChange={setWeightTiersValue} />
+              <div className="flex gap-2">
+                <Button size="sm" className="h-8 text-xs" onClick={handleSavePrice}>Salvar</Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingPrice(false)}>Cancelar</Button>
+              </div>
+            </div>
+          ) : isValueTier ? (
+            <div className="space-y-2">
+              <ValueTierEditor tiers={valueTiersValue} onChange={setValueTiersValue} />
               <div className="flex gap-2">
                 <Button size="sm" className="h-8 text-xs" onClick={handleSavePrice}>Salvar</Button>
                 <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingPrice(false)}>Cancelar</Button>
@@ -903,7 +1000,7 @@ function DeliveryOptionRow({
         </div>
       )}
 
-      {option.enabled && scope !== 'pickup' && !isDistanceTier && !isWeightTier && (
+      {option.enabled && scope !== 'pickup' && !isDistanceTier && !isWeightTier && !isValueTier && (
         <div className="flex flex-row items-center justify-between rounded-lg border p-3 mt-1">
           <Label htmlFor={`quote-${option.id}`} className="text-xs flex items-center gap-1.5">
             Frete a Consultar

@@ -253,7 +253,32 @@ function resolveWeightTierFee(option: WeightTierOptionLike, totalWeightKg: numbe
   return match ? match.fee : tiers[tiers.length - 1].fee;
 }
 
-interface DeliveryFeeOptionLike extends DistanceTierOptionLike, WeightTierOptionLike {
+interface ValueTierOptionLike {
+  calculationType?: string;
+  valueTiers?: { id: string; minOrderValue: number; fee: number }[];
+  fee: number;
+}
+
+// The inverse of resolveWeightTierFee: tiers are sorted ascending by
+// minOrderValue, and the applicable one is the LAST tier whose threshold the
+// subtotal still clears (highest minOrderValue <= subtotal), not the first
+// tier it fits under. A subtotal below every tier's threshold uses the
+// lowest tier's fee instead of being left unpriced.
+function resolveValueTierFee(option: ValueTierOptionLike, subtotalAfterDiscount: number): number {
+  const tiers = sortedTiers(option.valueTiers, 'minOrderValue');
+  if (tiers.length === 0) return option.fee ?? 0;
+  let applicable = tiers[0];
+  for (const tier of tiers) {
+    if (subtotalAfterDiscount >= tier.minOrderValue) {
+      applicable = tier;
+    } else {
+      break;
+    }
+  }
+  return applicable.fee;
+}
+
+interface DeliveryFeeOptionLike extends DistanceTierOptionLike, WeightTierOptionLike, ValueTierOptionLike {
   freeAbove?: number | null;
   quoteOnRequest?: boolean;
 }
@@ -278,6 +303,9 @@ export function computeDeliveryFee(option: DeliveryFeeOptionLike | null | undefi
   }
   if (option.calculationType === 'weight_tier') {
     return resolveWeightTierFee(option, ctx.totalWeightKg ?? 0);
+  }
+  if (option.calculationType === 'value_tier') {
+    return resolveValueTierFee(option, ctx.subtotalAfterDiscount);
   }
   if (option.freeAbove && ctx.subtotalAfterDiscount >= option.freeAbove) return 0;
   return option.fee;

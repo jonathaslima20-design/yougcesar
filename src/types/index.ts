@@ -755,7 +755,7 @@ export interface PaymentMethodConfig {
   discountValue?: number;
 }
 
-export type ShippingCalculationType = 'flat' | 'free_above' | 'region' | 'carrier' | 'distance_tier' | 'weight_tier';
+export type ShippingCalculationType = 'flat' | 'free_above' | 'region' | 'carrier' | 'distance_tier' | 'weight_tier' | 'value_tier';
 
 export type DeliveryScope = 'local' | 'national' | 'pickup';
 
@@ -772,6 +772,18 @@ export interface DistanceTier {
 export interface WeightTier {
   id: string;
   maxWeightKg: number;
+  fee: number;
+}
+
+// A price band keyed the other way around from Distance/WeightTier: "for
+// orders worth at least minOrderValue, charge fee". Tiers are kept sorted
+// ascending by minOrderValue; the one with the highest minOrderValue that
+// the subtotal still clears wins — see resolveValueTierFee in
+// lib/localDelivery.ts. A tier at minOrderValue 0 covers every order so
+// pricing never has an undefined gap below the first configured threshold.
+export interface ValueTier {
+  id: string;
+  minOrderValue: number;
   fee: number;
 }
 
@@ -819,6 +831,12 @@ export interface DeliveryOption {
   // ineligible — it's simply charged the last tier's fee (merchant's own
   // choice: simplicity over precision for outlier bulk orders).
   weightTiers?: WeightTier[];
+  // calculationType === 'value_tier' (scope === 'national' only): priced by
+  // the order's subtotal after discount instead of one flat fee regardless
+  // of cart size — e.g. "orders over R$500 ship for R$15". Sorted ascending
+  // by minOrderValue; a subtotal below every tier's threshold falls back to
+  // the lowest tier's fee.
+  valueTiers?: ValueTier[];
 }
 
 export interface MinimumPurchaseConfig {
