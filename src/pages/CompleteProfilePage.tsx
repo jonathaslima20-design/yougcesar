@@ -168,7 +168,7 @@ export default function CompleteProfilePage() {
 
                 <FormField
                   control={form.control}
-                  name="country_code"
+                  name="whatsapp"
                   render={() => (
                     <FormItem>
                       <FormLabel>País e WhatsApp</FormLabel>
@@ -177,9 +177,8 @@ export default function CompleteProfilePage() {
                           defaultCountry="BR"
                           onChange={(data) => {
                             form.setValue('country_code', data.ddi.replace('+', ''));
-                            form.setValue('whatsapp', data.phone);
+                            form.setValue('whatsapp', data.phone, { shouldValidate: true });
                           }}
-                          placeholder="(11) 99999-9999"
                         />
                       </FormControl>
                       <FormMessage />
