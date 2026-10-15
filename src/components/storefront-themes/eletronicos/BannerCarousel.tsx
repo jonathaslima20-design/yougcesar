@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorefrontBanners } from '@/hooks/useStorefrontBanners';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { cn } from '@/lib/utils';
-import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import BannerLinkWrapper, { hasBannerLink, type BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
 import { BannerPlaceholder } from '@/components/storefront-themes/eletronicos/BannerPlaceholder';
 import {
@@ -81,21 +80,11 @@ export default function BannerCarousel({ userId, linkContext }: BannerCarouselPr
             const clickable = hasBannerLink(banner.link_url);
             const content = (
               <picture>
-                <source
-                  media="(max-width: 767px)"
-                  srcSet={getImageSrcSet(banner.image_url_mobile, [480, 768, 960]) ?? banner.image_url_mobile}
-                  sizes="100vw"
-                />
+                <source media="(max-width: 767px)" srcSet={banner.image_url_mobile} />
                 <img
-                  src={getResizedImageUrl(desktopUrl, 1440)}
-                  srcSet={getImageSrcSet(desktopUrl, [960, 1440, 1920])}
-                  sizes="100vw"
+                  src={desktopUrl}
                   alt=""
-                  // The first banner is the page's largest image: load it right away and
-                  // at high priority. The rest of the carousel can wait.
                   loading={index === 0 ? 'eager' : 'lazy'}
-                  fetchPriority={index === 0 ? 'high' : undefined}
-                  decoding="async"
                   // Phones show the 960x425 image, desktops the 1920x650 one — each in a box
                   // with its own ratio so neither gets cropped by `object-cover`.
                   className={cn(

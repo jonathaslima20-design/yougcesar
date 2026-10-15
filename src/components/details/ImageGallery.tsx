@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import 'photoswipe/dist/photoswipe.css';
 import { Gallery, Item } from 'react-photoswipe-gallery';
 import { getYouTubeThumbnailUrl, extractYouTubeVideoId } from '@/utils/youtubeUtils';
-import { getResizedImageUrl, getImageSrcSet } from '@/lib/imageUrl';
 import type { ProductImage } from '@/types';
 
 interface ImageGalleryProps {
@@ -114,14 +113,10 @@ export default function ImageGallery({ media, title, selectedColor, onColorSelec
                   </>
                 ) : (
                   <img
-                    src={getResizedImageUrl(currentMainItem.url, 1000)}
-                    srcSet={getImageSrcSet(currentMainItem.url, [480, 800, 1200, 1600])}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 600px, 1200px"
+                    src={currentMainItem.url}
                     alt={`${title} - Imagem principal`}
                     className="w-full h-full object-cover"
                     loading="eager"
-                    fetchPriority="high"
-                    decoding="async"
                   />
                 )}
               </motion.div>
@@ -160,13 +155,10 @@ export default function ImageGallery({ media, title, selectedColor, onColorSelec
                           transition={{ duration: 0.2 }}
                         >
                           <img
-                            src={getResizedImageUrl(image.url, 200)}
-                            srcSet={getImageSrcSet(image.url, [150, 200, 300])}
-                            sizes="150px"
+                            src={image.url}
                             alt={`${title} - Imagem ${index + 1}`}
                             className="w-full h-full object-cover"
                             loading="lazy"
-                            decoding="async"
                           />
                         </motion.div>
                       );
