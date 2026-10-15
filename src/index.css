@@ -1110,6 +1110,17 @@ body {
   background: hsl(var(--muted-foreground) / 0.15);
 }
 
+/* Hides the native scrollbar on a scrollable container — used where dragging
+   the content itself (click-and-drag) replaces the scrollbar as the affordance. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes shimmer {
   0% {
     background-position: -1000px 0;
