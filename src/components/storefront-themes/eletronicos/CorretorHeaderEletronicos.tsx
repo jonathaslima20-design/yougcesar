@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
@@ -52,16 +52,66 @@ function useCategoryNav({ categories, filters, onFiltersChange }: Pick<CategoryN
   return { categories, activeCategory, selectCategory };
 }
 
+// Lets a horizontally-scrollable element be scrolled by clicking and dragging
+// its content, not just its scrollbar — used so the category nav bar can hide
+// its scrollbar entirely and still be draggable when it overflows.
+function useDragToScroll<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const drag = useRef({ isDown: false, dragged: false, startX: 0, scrollLeft: 0 });
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    drag.current = { isDown: true, dragged: false, startX: e.pageX, scrollLeft: el.scrollLeft };
+  };
+
+  const endDrag = () => {
+    drag.current.isDown = false;
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el || !drag.current.isDown) return;
+    const walk = e.pageX - drag.current.startX;
+    // A small threshold keeps an ordinary click from being read as a drag.
+    if (Math.abs(walk) > 5) drag.current.dragged = true;
+    if (drag.current.dragged) {
+      e.preventDefault();
+      el.scrollLeft = drag.current.scrollLeft - walk;
+    }
+  };
+
+  // Swallows the click a drag ends on, so dragging across a category button
+  // doesn't also select it.
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (drag.current.dragged) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  return { ref, onMouseDown, onMouseMove, onMouseUp: endDrag, onMouseLeave: endDrag, onClickCapture };
+}
+
 // "Todas Categorias" opens the category list (EletronicosCategoryDrawer); the full
 // filter panel is reached from that drawer and from the toolbar above the product
 // grid (see CorretorPageEletronicos.tsx).
 function CategoryNavBar({ categories, filters, onFiltersChange, onOpenAllCategories, navStyle }: CategoryNavProps) {
   const { activeCategory, selectCategory } = useCategoryNav({ categories, filters, onFiltersChange });
+  const drag = useDragToScroll<HTMLDivElement>();
 
   return (
     <nav className="hidden md:block" style={navStyle}>
       <div className="container mx-auto px-4">
-        <div className="flex items-center gap-8 overflow-x-auto py-2 text-sm">
+        <div
+          ref={drag.ref}
+          onMouseDown={drag.onMouseDown}
+          onMouseMove={drag.onMouseMove}
+          onMouseUp={drag.onMouseUp}
+          onMouseLeave={drag.onMouseLeave}
+          onClickCapture={drag.onClickCapture}
+          className="flex items-center gap-8 overflow-x-auto py-2 text-sm scrollbar-hide cursor-grab active:cursor-grabbing select-none"
+        >
           <button
             type="button"
             onClick={onOpenAllCategories}
