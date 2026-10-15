@@ -39,11 +39,17 @@ export function groupProductsByCategory(
 ): ProductsByCategory {
   const grouped: ProductsByCategory = {};
 
+  // categorySettings can contain duplicate entries for the same category name
+  // (e.g. re-synced after a rename) with conflicting enabled flags. Only treat
+  // a category as disabled if none of its entries say otherwise.
   const disabledCategoriesSet = new Set(
     categorySettings
       .filter(setting => !setting.enabled)
       .map(setting => setting.category)
   );
+  categorySettings
+    .filter(setting => setting.enabled)
+    .forEach(setting => disabledCategoriesSet.delete(setting.category));
 
   const categoryOrderMap = new Map(
     categorySettings.map(setting => [setting.category, setting.order])
