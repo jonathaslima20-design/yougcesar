@@ -1,5 +1,4 @@
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
-import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import { cn } from '@/lib/utils';
 import BannerLinkWrapper, { hasBannerLink, type BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
 import { BannerPlaceholder } from '@/components/storefront-themes/eletronicos/BannerPlaceholder';
@@ -41,16 +40,11 @@ export default function FeatureBanner({ linkContext }: { linkContext: BannerLink
         )}
       >
         <picture>
-          {mobile && (
-            <source media="(max-width: 767px)" srcSet={getImageSrcSet(mobile, [480, 768, 960]) ?? mobile} sizes="100vw" />
-          )}
+          {mobile && <source media="(max-width: 767px)" srcSet={mobile} />}
           <img
-            src={getResizedImageUrl(desktop || mobile || '', 1440)}
-            srcSet={getImageSrcSet(desktop || mobile, [960, 1440, 1920])}
-            sizes="(min-width: 1280px) 1248px, 100vw"
+            src={desktop || mobile || ''}
             alt=""
             loading="lazy"
-            decoding="async"
             className="w-full aspect-[4/3] md:aspect-[1290/300] object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
         </picture>

@@ -1,6 +1,5 @@
 import { useStorefrontMiniBanners } from '@/hooks/useStorefrontMiniBanners';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
-import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import { cn } from '@/lib/utils';
 import BannerLinkWrapper, { hasBannerLink, type BannerLinkContext } from '@/components/storefront-themes/eletronicos/BannerLinkWrapper';
 import { BannerPlaceholder } from '@/components/storefront-themes/eletronicos/BannerPlaceholder';
@@ -53,12 +52,9 @@ export default function MiniBannerGrid({ userId, linkContext }: MiniBannerGridPr
                 )}
               >
                 <img
-                  src={getResizedImageUrl(banner.image_url, 640)}
-                  srcSet={getImageSrcSet(banner.image_url, [320, 640, 960])}
-                  sizes="(min-width: 640px) 33vw, 100vw"
+                  src={banner.image_url}
                   alt=""
                   loading="lazy"
-                  decoding="async"
                   className="w-full aspect-[832/960] object-cover transition-transform duration-500 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                 />
               </BannerLinkWrapper>

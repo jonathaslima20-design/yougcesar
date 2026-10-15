@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import { useStorefrontCategoryImages } from '@/hooks/useStorefrontCategoryImages';
-import { getImageSrcSet, getResizedImageUrl } from '@/lib/imageUrl';
 import {
   Carousel,
   CarouselContent,
@@ -99,9 +98,7 @@ export default function CategoryShowcase({ corretor, covers, filterMetadata, fil
                     <span className="h-20 w-20 rounded-full overflow-hidden bg-muted border flex items-center justify-center pointer-events-none shadow-sm transition-all duration-200 ease-out group-hover:shadow-md group-hover:scale-105 group-hover:border-primary/50 group-active:scale-95 motion-reduce:transition-none motion-reduce:group-hover:scale-100">
                       {image ? (
                         <img
-                          src={getResizedImageUrl(image, 160)}
-                          srcSet={getImageSrcSet(image, [80, 160, 240])}
-                          sizes="80px"
+                          src={image}
                           alt={category}
                           width={80}
                           height={80}

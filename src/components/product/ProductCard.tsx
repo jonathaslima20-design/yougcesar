@@ -15,7 +15,6 @@ import type { PriceTier } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { getStockStatus } from '@/lib/stockUtils';
 import { getAvailableVariantStock } from '@/lib/stockReservationService';
-import { getResizedImageUrl, getImageSrcSet, isTransformableImage } from '@/lib/imageUrl';
 
 interface ProductCardProps {
   product: Product;
@@ -56,9 +55,6 @@ function ProductCardComponent({
   const [displayImageUrl, setDisplayImageUrl] = useState<string | null>(product.featured_image_url || null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  // If the resized variant ever fails to load (transformation quota, unsupported
-  // file), fall back to the original upload once before showing the placeholder.
-  const [useOriginalImage, setUseOriginalImage] = useState(false);
 
   useEffect(() => {
     if (product.has_tiered_pricing) {
@@ -232,7 +228,7 @@ function ProductCardComponent({
                 {displayImageUrl && !imageError ? (
                   <>
                     <img
-                      src={useOriginalImage ? displayImageUrl : getResizedImageUrl(displayImageUrl, 480)}
+                      src={displayImageUrl}
                       alt={product.title}
                       className={`w-full h-full object-cover transition-opacity duration-500 ${
                         imageLoaded ? 'opacity-100' : 'opacity-0'
@@ -240,16 +236,12 @@ function ProductCardComponent({
                       loading="lazy"
                       onLoad={() => setImageLoaded(true)}
                       onError={() => {
-                        if (!useOriginalImage && isTransformableImage(displayImageUrl)) {
-                          setUseOriginalImage(true);
-                          return;
-                        }
                         setImageError(true);
                         setImageLoaded(true);
                       }}
                       decoding="async"
-                      srcSet={useOriginalImage ? undefined : getImageSrcSet(displayImageUrl, [240, 480, 720])}
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      srcSet={`${displayImageUrl} 1x, ${displayImageUrl} 2x`}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       style={{
                         backgroundColor: '#ffffff',
                         backgroundImage: imageLoaded ? 'none' : 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',

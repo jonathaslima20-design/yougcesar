@@ -4,7 +4,6 @@ import { Search, LayoutGrid } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { formatCurrencyI18n } from '@/lib/i18n';
-import { getResizedImageUrl } from '@/lib/imageUrl';
 import { suggestProducts, suggestCategories, type CatalogRow } from '@/components/storefront-themes/eletronicos/eletronicosCatalog';
 
 interface SearchBoxProps {
@@ -150,7 +149,7 @@ export default function EletronicosSearchBox({
               >
                 <span className="h-10 w-10 shrink-0 rounded border bg-white overflow-hidden">
                   {product.image && (
-                    <img src={getResizedImageUrl(product.image, 96)} alt="" className="h-full w-full object-contain" loading="lazy" />
+                    <img src={product.image} alt="" className="h-full w-full object-contain" loading="lazy" />
                   )}
                 </span>
                 <span className="flex-1 min-w-0">
