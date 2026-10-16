@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { isCustomDomainHostname } from '@/lib/customDomain';
 
 interface CustomDomainState {
   isCustomDomain: boolean;
@@ -16,20 +17,6 @@ const CustomDomainContext = createContext<CustomDomainState>({
   domain: null,
   loading: true,
 });
-
-const KNOWN_HOSTS = [
-  'vitrineturbo.com', 'www.vitrineturbo.com',
-  'vitrineturbo.com.br', 'www.vitrineturbo.com.br',
-  'localhost', '127.0.0.1',
-];
-
-function isCustomDomainHostname(hostname: string): boolean {
-  if (KNOWN_HOSTS.includes(hostname)) return false;
-  if (hostname.endsWith('.netlify.app')) return false;
-  if (hostname.endsWith('.vercel.app')) return false;
-  if (hostname.endsWith('.bolt.host')) return false;
-  return true;
-}
 
 function getDomainVariants(hostname: string): string[] {
   if (hostname.startsWith('www.')) {
