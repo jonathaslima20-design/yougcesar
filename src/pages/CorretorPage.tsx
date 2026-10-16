@@ -85,12 +85,13 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
 
   // Remember this store's resolved theme (see lib/storefrontThemeHint.ts) so the
   // platform footer knows what to guess on the very next visit, before this same
-  // fetch resolves again.
+  // fetch resolves again. Keyed by hostname on a custom domain, so this covers
+  // those too (no need to exclude them: see storefrontHintKey).
   useEffect(() => {
-    if (corretor && !platformThemeLoading && !customDomainSlug) {
-      rememberStorefrontTheme(slug, activeThemeId);
+    if (corretor && !platformThemeLoading) {
+      rememberStorefrontTheme(location.pathname, activeThemeId);
     }
-  }, [corretor, platformThemeLoading, customDomainSlug, slug, activeThemeId]);
+  }, [corretor, platformThemeLoading, location.pathname, activeThemeId]);
 
   const isPaidPlan = corretor?.plan_status === 'active';
   const { inventoryEnabled, showStockOnStorefront, blockZeroStock } = useInventoryEnabledForStore(corretor?.id);
