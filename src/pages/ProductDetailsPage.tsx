@@ -86,6 +86,17 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
       rememberStorefrontTheme(location.pathname, storefrontThemeId);
     }
   }, [corretor, platformThemeLoading, location.pathname, storefrontThemeId]);
+
+  // ─── Footer legal links (admin-gated per store, see UserDetailPage) ────────
+  useEffect(() => {
+    if (corretor?.id) {
+      document.documentElement.setAttribute('data-footer-legal-links', String(corretor.show_footer_legal_links !== false));
+    }
+    return () => {
+      document.documentElement.removeAttribute('data-footer-legal-links');
+    };
+  }, [corretor?.id, corretor?.show_footer_legal_links]);
+
   const { metadata: eletronicosFilterMetadata } = useProductFilterMetadata({
     userId: corretor?.id || '',
     enabled: isEletronicos && !!corretor?.id,
@@ -177,6 +188,24 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
         if (corretorError) throw corretorError;
         setCorretor(corretorData);
+
+        // Load the per-store footer legal-links flag separately (fire-and-forget,
+        // merged in once it resolves) rather than in the select above: a column
+        // this new can't be allowed to break the entire product page for every
+        // store the moment it's referenced, only before its migration has
+        // actually been applied. Missing/failed fetch just keeps the default
+        // (links shown), same as before this flag existed.
+        supabase
+          .from('users')
+          .select('show_footer_legal_links')
+          .eq('id', corretorData.id)
+          .maybeSingle()
+          .then(({ data, error: footerLinksError }) => {
+            if (!footerLinksError && data) {
+              setCorretor((prev: any) => prev ? { ...prev, show_footer_legal_links: data.show_footer_legal_links } : prev);
+            }
+          })
+          .catch(() => {});
 
         // Update meta tags for social media previews
         const currentLanguage = corretorData.language || 'pt-BR';

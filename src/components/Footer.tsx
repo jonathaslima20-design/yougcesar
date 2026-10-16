@@ -2,16 +2,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Logo from '@/components/Logo';
 import { getRememberedStorefrontTheme, getRememberedFooterLogoHint } from '@/lib/storefrontThemeHint';
-import { supabase } from '@/lib/supabase';
 
 interface FooterProps {
   hideLogo?: boolean;
   hideBlogLink?: boolean;
 }
-
-// Module-level cache: Footer persists across route changes inside PublicLayout,
-// so this normally fires once per page session rather than once per navigation.
-let cachedShowLegalLinks: boolean | null = null;
 
 export default function Footer({ hideLogo = false, hideBlogLink = false }: FooterProps) {
   const location = useLocation();
@@ -30,23 +25,10 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
   const [hidePlatformFooter, setHidePlatformFooter] = useState(
     () => getRememberedStorefrontTheme(location.pathname) === 'eletronicos'
   );
-  // Admin-controlled, platform-wide (Central Legal, /admin/legal). Defaults to
-  // shown (current/original behavior) until the setting is confirmed off.
-  const [showLegalLinks, setShowLegalLinks] = useState(cachedShowLegalLinks ?? true);
-
-  useEffect(() => {
-    if (cachedShowLegalLinks !== null) return;
-    supabase
-      .from('site_settings')
-      .select('setting_value')
-      .eq('setting_name', 'show_footer_legal_links')
-      .maybeSingle()
-      .then(({ data }) => {
-        const enabled = data?.setting_value !== 'false';
-        cachedShowLegalLinks = enabled;
-        setShowLegalLinks(enabled);
-      });
-  }, []);
+  // Admin-controlled, per store (UserDetailPage, same level as "Pagamento
+  // online"/"Programa de afiliados"). Defaults to shown until the store's own
+  // data says otherwise — current/original behavior, and also the DB default.
+  const [showLegalLinks, setShowLegalLinks] = useState(true);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -74,6 +56,9 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
         setFooterLogoMode(root.getAttribute('data-footer-logo-mode') || 'default');
         setFooterLogoFormat(root.getAttribute('data-footer-logo-format') || 'rectangular');
       }
+      if (root.hasAttribute('data-footer-legal-links')) {
+        setShowLegalLinks(root.getAttribute('data-footer-legal-links') !== 'false');
+      }
     };
 
     readState();
@@ -81,7 +66,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
     const observer = new MutationObserver(readState);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format', 'data-referral-link', 'data-hide-platform-footer', 'data-theme-resolved'],
+      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format', 'data-referral-link', 'data-hide-platform-footer', 'data-theme-resolved', 'data-footer-legal-links'],
     });
 
     return () => observer.disconnect();
