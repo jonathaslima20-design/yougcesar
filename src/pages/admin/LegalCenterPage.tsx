@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Cookie, ShieldCheck, Gift, ExternalLink, Copy, Check, RefreshCw, Loader as Loader2, Clock, Tag, Pencil } from 'lucide-react';
+import { FileText, Cookie, ShieldCheck, Gift, ExternalLink, Copy, Check, RefreshCw, Loader as Loader2, Clock, Tag, Pencil, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/lib/supabase';
 import { LegalDocumentEditorDialog } from '@/components/admin/LegalDocumentEditorDialog';
+
+const FOOTER_LINKS_SETTING = 'show_footer_legal_links';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -203,6 +207,9 @@ export default function LegalCenterPage() {
   const [loading, setLoading] = useState(true);
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const [editingType, setEditingType] = useState<string | null>(null);
+  const [footerLinksEnabled, setFooterLinksEnabled] = useState(true);
+  const [footerToggleLoading, setFooterToggleLoading] = useState(true);
+  const [footerToggleSaving, setFooterToggleSaving] = useState(false);
 
   async function loadDocuments() {
     setLoading(true);
@@ -214,7 +221,37 @@ export default function LegalCenterPage() {
     setLoading(false);
   }
 
-  useEffect(() => { loadDocuments(); }, []);
+  async function loadFooterLinksSetting() {
+    setFooterToggleLoading(true);
+    const { data } = await supabase
+      .from('site_settings')
+      .select('setting_value')
+      .eq('setting_name', FOOTER_LINKS_SETTING)
+      .maybeSingle();
+    // Missing row (migration not applied yet) defaults to the current/original
+    // behavior: links shown.
+    setFooterLinksEnabled(data?.setting_value !== 'false');
+    setFooterToggleLoading(false);
+  }
+
+  useEffect(() => { loadDocuments(); loadFooterLinksSetting(); }, []);
+
+  async function handleFooterLinksToggle(enabled: boolean) {
+    setFooterToggleSaving(true);
+    const previous = footerLinksEnabled;
+    setFooterLinksEnabled(enabled);
+    const { error } = await supabase
+      .from('site_settings')
+      .update({ setting_value: String(enabled) })
+      .eq('setting_name', FOOTER_LINKS_SETTING);
+    if (error) {
+      setFooterLinksEnabled(previous);
+      toast.error('Erro ao salvar configuracao');
+    } else {
+      toast.success(enabled ? 'Links legais exibidos no rodape das vitrines' : 'Links legais ocultos no rodape das vitrines');
+    }
+    setFooterToggleSaving(false);
+  }
 
   function getActiveDoc(type: string): LegalDocument | null {
     const active = documents.find((d) => d.document_type === type && d.is_active);
@@ -260,6 +297,26 @@ export default function LegalCenterPage() {
           Atualizar
         </Button>
       </div>
+
+      {/* Footer links visibility toggle */}
+      <Card>
+        <CardContent className="flex items-center gap-4 py-4 px-5">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-muted">
+            <EyeOff className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Links legais no rodape das vitrines</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Controla se "Privacidade", "Cookies" e "Termos de Uso" aparecem no rodape exibido nas vitrines dos usuarios.
+            </p>
+          </div>
+          <Switch
+            checked={footerLinksEnabled}
+            disabled={footerToggleLoading || footerToggleSaving}
+            onCheckedChange={handleFooterLinksToggle}
+          />
+        </CardContent>
+      </Card>
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
