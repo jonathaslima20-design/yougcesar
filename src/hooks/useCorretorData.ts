@@ -180,6 +180,24 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
         document.documentElement.classList.add(corretorData.theme);
       }
 
+      // Load the per-store footer legal-links flag separately (fire-and-forget,
+      // merged in once it resolves) rather than in the main select above: a
+      // column this new can't be allowed to break the entire storefront load
+      // for every store the moment it's referenced, only before its migration
+      // has actually been applied. Missing/failed fetch just keeps the default
+      // (links shown), same as before this flag existed.
+      supabase
+        .from('users')
+        .select('show_footer_legal_links')
+        .eq('id', corretorData.id)
+        .maybeSingle()
+        .then(({ data, error: footerLinksError }) => {
+          if (!footerLinksError && data) {
+            setCorretor(prev => prev ? { ...prev, show_footer_legal_links: data.show_footer_legal_links } : prev);
+          }
+        })
+        .catch(() => {});
+
       // Load global Meta Pixel from site settings
       try {
         const { data: siteSettings, error: siteSettingsError } = await supabase

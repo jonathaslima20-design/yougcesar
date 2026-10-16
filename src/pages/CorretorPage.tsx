@@ -291,6 +291,16 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     };
   }, [corretor?.referral_code]);
 
+  // ─── Footer legal links (admin-gated per store, see UserDetailPage) ────────
+  useEffect(() => {
+    if (corretor?.id) {
+      document.documentElement.setAttribute('data-footer-legal-links', String(corretor.show_footer_legal_links !== false));
+    }
+    return () => {
+      document.documentElement.removeAttribute('data-footer-legal-links');
+    };
+  }, [corretor?.id, corretor?.show_footer_legal_links]);
+
   // ─── Cleanup ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {

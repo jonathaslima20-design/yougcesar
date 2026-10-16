@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award, MessageCircle, ShieldCheck, Handshake, Truck } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Ban, Phone, Calendar, Key, Lock, Trash2, Eye, DollarSign, Image as ImageIcon, Gift, Copy, Package, ShoppingCart, ChartBar as BarChart3, Users, TrendingUp, Globe, ChevronRight, ClipboardCopy, LogIn, Loader as Loader2, Activity, Monitor, FileCheck, Megaphone, Link2, MousePointerClick, Wallet, UserPlus, Award, MessageCircle, ShieldCheck, Handshake, Truck, ScrollText } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditImageLimitDialog } from '@/components/admin/EditImageLimitDialog';
@@ -382,6 +382,22 @@ export default function UserDetailPage() {
     }
   };
 
+
+  const handleToggleShowFooterLegalLinks = async (enabled: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ show_footer_legal_links: enabled })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, show_footer_legal_links: enabled });
+      toast.success(enabled ? 'Links legais exibidos no rodapé desta vitrine' : 'Links legais ocultos no rodapé desta vitrine');
+    } catch (error) {
+      console.error('Error toggling show_footer_legal_links:', error);
+      toast.error('Erro ao atualizar links legais do rodapé');
+    }
+  };
 
   const handleImageLimitUpdate = async (maxImages: number) => {
     if (!user) return;
@@ -763,6 +779,22 @@ export default function UserDetailPage() {
                     </p>
                   </div>
 
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ScrollText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">Links legais no rodapé</span>
+                      </div>
+                      <Switch
+                        checked={user.show_footer_legal_links !== false}
+                        onCheckedChange={handleToggleShowFooterLegalLinks}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Controla se "Privacidade", "Cookies" e "Termos de Uso" aparecem no rodapé da vitrine desse usuário. Desative para lojas em domínio próprio que não querem esses links da plataforma aparecendo pros compradores.
+                    </p>
+                  </div>
 
                   <Separator />
                   <div className="space-y-2">

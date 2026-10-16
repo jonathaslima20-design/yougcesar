@@ -87,6 +87,7 @@ export interface User {
   insurance_enabled?: boolean;
   affiliate_program_enabled?: boolean;
   affiliate_teaser_hidden?: boolean;
+  show_footer_legal_links?: boolean;
   last_login_at?: string;
   login_count?: number;
   onboarding_completed_steps?: string[];
