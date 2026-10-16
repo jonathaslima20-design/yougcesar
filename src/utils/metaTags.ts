@@ -3,6 +3,7 @@
  */
 import { getPageTitle, type SupportedLanguage } from '@/lib/i18n';
 import { productUrlSegment } from '@/lib/productLinks';
+import { isCustomDomainHostname } from '@/lib/customDomain';
 
 export interface MetaTagsConfig {
   title: string;
@@ -109,11 +110,18 @@ export function updateFavicon(iconUrl: string) {
 }
 
 /**
- * Resets meta tags to default VitrineTurbo values
+ * Resets meta tags to default VitrineTurbo values.
+ *
+ * On a merchant's custom domain, this runs between storefront/product pages
+ * (e.g. while navigating from the store to a product) and must not flash the
+ * "VitrineTurbo" brand in the tab — the next page sets the real title/favicon
+ * moments later, so the title and favicon are simply left untouched there.
  */
 export function resetMetaTags() {
+  const onCustomDomain = isCustomDomainHostname(window.location.hostname);
+
   const defaultConfig: MetaTagsConfig = {
-    title: 'VitrineTurbo | Plataforma de Catálogos Digitais',
+    title: onCustomDomain ? document.title : 'VitrineTurbo | Plataforma de Catálogos Digitais',
     description: 'VitrineTurbo | Plataforma de Catálogos Digitais',
     image: 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png',
     url: window.location.origin,
@@ -121,9 +129,11 @@ export function resetMetaTags() {
   };
 
   updateMetaTags(defaultConfig);
-  
-  // Reset favicon to default
-  updateFavicon('https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png');
+
+  if (!onCustomDomain) {
+    // Reset favicon to default
+    updateFavicon('https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png');
+  }
 }
 
 /**

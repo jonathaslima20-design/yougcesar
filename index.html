@@ -10,6 +10,29 @@
 
     <!-- Primary SEO Meta Tags -->
     <title>VitrineTurbo: Catálogo Digital para WhatsApp | Crie sua Loja Online</title>
+    <!--
+      On a merchant's custom domain (e.g. bioove.com), blank out the title above
+      immediately so visitors never see the "VitrineTurbo" brand flash before the
+      store's own name loads. Mirrors isCustomDomainHostname() in
+      src/lib/customDomain.ts — update both if that list changes. Runs inline,
+      before any other tag, so it executes before first paint.
+    -->
+    <script>
+      (function () {
+        var hostname = window.location.hostname;
+        var knownHosts = ['vitrineturbo.com', 'www.vitrineturbo.com', 'vitrineturbo.com.br', 'www.vitrineturbo.com.br', 'localhost', '127.0.0.1'];
+        function endsWith(str, suffix) {
+          return str.slice(-suffix.length) === suffix;
+        }
+        var isCustomDomain = knownHosts.indexOf(hostname) === -1 &&
+          !endsWith(hostname, '.netlify.app') &&
+          !endsWith(hostname, '.vercel.app') &&
+          !endsWith(hostname, '.bolt.host');
+        if (isCustomDomain) {
+          document.title = '';
+        }
+      })();
+    </script>
     <meta name="description" content="Crie seu catálogo digital profissional e compartilhe pelo WhatsApp. Mais de 3.000 lojas ativas, pagamento online via Pix e cartão. Comece agora." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://vitrineturbo.com/" />
