@@ -32,6 +32,7 @@ import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
 import { usePlatformThemeSettings } from '@/hooks/usePlatformThemeSettings';
 import { resolveStorefrontThemeId } from '@/lib/platformThemeSettings';
 import { rememberStorefrontTheme } from '@/lib/storefrontThemeHint';
+import { getCachedAppearance } from '@/lib/storefrontAppearanceCache';
 import { useProductFilterMetadata } from '@/hooks/useProductFilterMetadata';
 import ProductDetailsHeaderEletronicos from '@/components/storefront-themes/eletronicos/ProductDetailsHeaderEletronicos';
 import ProductBreadcrumbEletronicos from '@/components/storefront-themes/eletronicos/ProductBreadcrumbEletronicos';
@@ -78,13 +79,13 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
 
   // Remember this store's resolved theme (see lib/storefrontThemeHint.ts) so the
   // platform footer knows what to guess on the very next visit, before this same
-  // fetch resolves again. Custom domains aren't covered (Footer can't tell those
-  // apart by pathname alone) — they just keep the one-time flash this replaces.
+  // fetch resolves again. Keyed by hostname on a custom domain, so this covers
+  // those too (no need to exclude them: see storefrontHintKey).
   useEffect(() => {
-    if (corretor && !platformThemeLoading && !customDomainSlug) {
-      rememberStorefrontTheme(slug, storefrontThemeId);
+    if (corretor && !platformThemeLoading) {
+      rememberStorefrontTheme(location.pathname, storefrontThemeId);
     }
-  }, [corretor, platformThemeLoading, customDomainSlug, slug, storefrontThemeId]);
+  }, [corretor, platformThemeLoading, location.pathname, storefrontThemeId]);
   const { metadata: eletronicosFilterMetadata } = useProductFilterMetadata({
     userId: corretor?.id || '',
     enabled: isEletronicos && !!corretor?.id,
@@ -454,6 +455,12 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const scrollToCtaArea = () => ctaArea?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   const isPaidPlan = corretor?.plan_status !== 'free';
+  // Unlike CorretorPage, this page has no appearance fetch of its own to cache —
+  // reuse the same cache (see lib/storefrontAppearanceCache.ts) so a product page
+  // doesn't start every mount from DEFAULT_APPEARANCE while the real one loads,
+  // which otherwise briefly flashes the platform's default footer logo on a store
+  // that customized it.
+  const preloadedAppearance = corretor?.id ? getCachedAppearance(corretor.id, storefrontThemeId) : null;
 
   // Same message the "Fale conosco agora" sidebar sends (mentions this product by
   // name/ref, with a link back to it) — the Eletrônicos theme uses this for its own,
@@ -465,7 +472,7 @@ export default function ProductDetailsPage({ customDomainSlug }: ProductDetailsP
   const hasProductWhatsApp = !!productWhatsAppUrl && productWhatsAppUrl !== '#';
 
   return (
-    <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan} themeId={storefrontThemeId}>
+    <StorefrontThemeProvider userId={corretor?.id} isPaidPlan={isPaidPlan} themeId={storefrontThemeId} preloadedAppearance={preloadedAppearance}>
       <div className="flex-1">
         {isEletronicos ? (
           <>

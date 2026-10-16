@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useStorefrontAppearance } from '@/hooks/useStorefrontAppearance';
 import { useSystemAppearance } from '@/hooks/useSystemAppearance';
+import { rememberFooterLogoHint } from '@/lib/storefrontThemeHint';
+import { setCachedAppearance } from '@/lib/storefrontAppearanceCache';
 import {
   StorefrontAppearance,
   StorefrontThemeId,
@@ -75,6 +78,7 @@ function buildSfStyles(app: StorefrontAppearance): React.CSSProperties {
 }
 
 export function StorefrontThemeProvider({ userId, isPaidPlan, themeId, preloadedAppearance, children }: StorefrontThemeProviderProps) {
+  const location = useLocation();
   const { appearance: userAppearance, isCustomized, loading: userLoading } = useStorefrontAppearance(
     userId,
     themeId,
@@ -168,6 +172,22 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, themeId, preloaded
       } else {
         root.removeAttribute('data-custom-logo-url');
       }
+      // Persist the same values as a hint (see lib/storefrontThemeHint.ts) so
+      // Footer can guess them correctly on the next page, before this effect
+      // runs again.
+      rememberFooterLogoHint(location.pathname, {
+        mode: activeAppearance.footer_logo_mode,
+        format: activeAppearance.footer_logo_format ?? 'rectangular',
+        logoUrl: activeAppearance.custom_logo_url ?? null,
+      });
+      // Also warm the appearance cache (see lib/storefrontAppearanceCache.ts) so a
+      // page that doesn't preload its own appearance (ProductDetailsPage has no
+      // equivalent of CorretorPage's useCorretorData cache) can still pass a
+      // `preloadedAppearance` and skip its own DEFAULT_APPEARANCE-while-loading
+      // flash the next time this store is visited.
+      if (userId) {
+        setCachedAppearance(userId, themeId, activeAppearance);
+      }
 
       return () => {
         root.classList.remove('sf-themed');
@@ -177,7 +197,7 @@ export function StorefrontThemeProvider({ userId, isPaidPlan, themeId, preloaded
         root.removeAttribute('data-custom-logo-url');
       };
     }
-  }, [isActive, sfStyles, activeAppearance.footer_logo_mode, activeAppearance.footer_logo_format, activeAppearance.custom_logo_url]);
+  }, [isActive, sfStyles, activeAppearance.footer_logo_mode, activeAppearance.footer_logo_format, activeAppearance.custom_logo_url, location.pathname, userId, themeId]);
 
   const value = useMemo(
     () => ({ appearance: activeAppearance, isActive, sfStyles, themeId }),

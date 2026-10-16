@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Logo from '@/components/Logo';
-import { getRememberedStorefrontTheme, slugFromPathname } from '@/lib/storefrontThemeHint';
+import { getRememberedStorefrontTheme, getRememberedFooterLogoHint } from '@/lib/storefrontThemeHint';
 import { supabase } from '@/lib/supabase';
 
 interface FooterProps {
@@ -16,16 +16,19 @@ let cachedShowLegalLinks: boolean | null = null;
 export default function Footer({ hideLogo = false, hideBlogLink = false }: FooterProps) {
   const location = useLocation();
   const [bgColor, setBgColor] = useState<string | undefined>(undefined);
-  const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
-  const [footerLogoMode, setFooterLogoMode] = useState<string>('default');
-  const [footerLogoFormat, setFooterLogoFormat] = useState<string>('rectangular');
-  const [referralLink, setReferralLink] = useState<string | null>(null);
   // Lazy-initialized from a remembered hint (see lib/storefrontThemeHint.ts) so a
-  // RETURNING visit to an eletrônicos store never shows this footer at all, even
-  // for the one frame before StorefrontThemeContext's own effect runs and sets the
-  // authoritative data-hide-platform-footer attribute the effect below reads.
+  // RETURNING visit to this same store — including a plain in-session navigation
+  // from the storefront into a product page — never flashes the platform's own
+  // logo/tagline under the next page's loading spinner, even for the one frame
+  // before StorefrontThemeContext's own effect runs and sets the authoritative
+  // data-* attributes the effect below reads.
+  const [footerLogoHint] = useState(() => getRememberedFooterLogoHint(location.pathname));
+  const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(footerLogoHint?.logoUrl ?? null);
+  const [footerLogoMode, setFooterLogoMode] = useState<string>(footerLogoHint?.mode ?? 'default');
+  const [footerLogoFormat, setFooterLogoFormat] = useState<string>(footerLogoHint?.format ?? 'rectangular');
+  const [referralLink, setReferralLink] = useState<string | null>(null);
   const [hidePlatformFooter, setHidePlatformFooter] = useState(
-    () => getRememberedStorefrontTheme(slugFromPathname(location.pathname)) === 'eletronicos'
+    () => getRememberedStorefrontTheme(location.pathname) === 'eletronicos'
   );
   // Admin-controlled, platform-wide (Central Legal, /admin/legal). Defaults to
   // shown (current/original behavior) until the setting is confirmed off.
@@ -55,18 +58,21 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
       } else {
         setBgColor(undefined);
       }
-      setCustomLogoUrl(root.getAttribute('data-custom-logo-url'));
-      setFooterLogoMode(root.getAttribute('data-footer-logo-mode') || 'default');
-      setFooterLogoFormat(root.getAttribute('data-footer-logo-format') || 'rectangular');
       setReferralLink(root.getAttribute('data-referral-link'));
-      // Only the presence of `data-theme-resolved` means "the real theme is now
-      // known for sure" (StorefrontThemeProvider only mounts once corretor data has
-      // loaded). Before that — e.g. right after a hard reload, while the page is
-      // still showing its own loading spinner — leave hidePlatformFooter exactly as
-      // the lazy initializer guessed instead of forcing it to false, or the guess
-      // (the whole point of remembering the theme) gets wiped out immediately.
+      // Only the presence of `data-theme-resolved` means "the real theme/appearance
+      // is now known for sure" (StorefrontThemeProvider only mounts once corretor
+      // data has loaded). Before that — e.g. right after a hard reload, or while
+      // the next page's own loading spinner is still up — leave these exactly as
+      // the lazy initializer guessed instead of forcing them back to the platform
+      // defaults, or the guess (the whole point of remembering the hint) gets
+      // wiped out immediately.
       if (root.hasAttribute('data-theme-resolved')) {
         setHidePlatformFooter(root.hasAttribute('data-hide-platform-footer'));
+      }
+      if (root.hasAttribute('data-footer-logo-mode')) {
+        setCustomLogoUrl(root.getAttribute('data-custom-logo-url'));
+        setFooterLogoMode(root.getAttribute('data-footer-logo-mode') || 'default');
+        setFooterLogoFormat(root.getAttribute('data-footer-logo-format') || 'rectangular');
       }
     };
 
