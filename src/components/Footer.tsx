@@ -2,11 +2,16 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Logo from '@/components/Logo';
 import { getRememberedStorefrontTheme, slugFromPathname } from '@/lib/storefrontThemeHint';
+import { supabase } from '@/lib/supabase';
 
 interface FooterProps {
   hideLogo?: boolean;
   hideBlogLink?: boolean;
 }
+
+// Module-level cache: Footer persists across route changes inside PublicLayout,
+// so this normally fires once per page session rather than once per navigation.
+let cachedShowLegalLinks: boolean | null = null;
 
 export default function Footer({ hideLogo = false, hideBlogLink = false }: FooterProps) {
   const location = useLocation();
@@ -22,6 +27,23 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
   const [hidePlatformFooter, setHidePlatformFooter] = useState(
     () => getRememberedStorefrontTheme(slugFromPathname(location.pathname)) === 'eletronicos'
   );
+  // Admin-controlled, platform-wide (Central Legal, /admin/legal). Defaults to
+  // shown (current/original behavior) until the setting is confirmed off.
+  const [showLegalLinks, setShowLegalLinks] = useState(cachedShowLegalLinks ?? true);
+
+  useEffect(() => {
+    if (cachedShowLegalLinks !== null) return;
+    supabase
+      .from('site_settings')
+      .select('setting_value')
+      .eq('setting_name', 'show_footer_legal_links')
+      .maybeSingle()
+      .then(({ data }) => {
+        const enabled = data?.setting_value !== 'false';
+        cachedShowLegalLinks = enabled;
+        setShowLegalLinks(enabled);
+      });
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -115,15 +137,19 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
               Blog
             </Link>
           )}
-          <Link to="/politica-de-privacidade" className="hover:text-muted-foreground transition-colors py-2">
-            Privacidade
-          </Link>
-          <Link to="/politica-de-cookies" className="hover:text-muted-foreground transition-colors py-2">
-            Cookies
-          </Link>
-          <Link to="/termos-de-uso" className="hover:text-muted-foreground transition-colors py-2">
-            Termos de Uso
-          </Link>
+          {showLegalLinks && (
+            <>
+              <Link to="/politica-de-privacidade" className="hover:text-muted-foreground transition-colors py-2">
+                Privacidade
+              </Link>
+              <Link to="/politica-de-cookies" className="hover:text-muted-foreground transition-colors py-2">
+                Cookies
+              </Link>
+              <Link to="/termos-de-uso" className="hover:text-muted-foreground transition-colors py-2">
+                Termos de Uso
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </footer>
