@@ -46,6 +46,8 @@ export interface AdminDashboardStats {
   error: string | null;
 }
 
+const SUBSCRIPTION_GRACE_DAYS = 2;
+
 export function useAdminDashboardStats() {
   const [stats, setStats] = useState<AdminDashboardStats>({
     totalUsers: 0,
@@ -75,6 +77,9 @@ export function useAdminDashboardStats() {
       const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      // Same 2-day grace period used to block stores (simpleAuth / CorretorPage / check-expiring-subscriptions):
+      // past it, a subscription still flagged 'active' is no longer operational.
+      const graceCutoff = new Date(now.getTime() - SUBSCRIPTION_GRACE_DAYS * 24 * 60 * 60 * 1000);
 
       const [
         usersRes,
@@ -94,12 +99,12 @@ export function useAdminDashboardStats() {
         supabase.from('users').select('id', { count: 'exact', head: true }),
         supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
         supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', sixtyDaysAgo.toISOString()).lt('created_at', thirtyDaysAgo.toISOString()),
-        supabase.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'active').gte('next_payment_date', graceCutoff.toISOString()),
         supabase.from('users').select('id', { count: 'exact', head: true }).eq('plan_status', 'expired').eq('role', 'corretor'),
         supabase.from('users').select('id', { count: 'exact', head: true }).eq('plan_status', 'suspended').eq('role', 'corretor'),
         supabase.from('users').select('id', { count: 'exact', head: true }).eq('plan_status', 'free').eq('role', 'corretor'),
         supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
-        supabase.from('subscriptions').select('plan_price').eq('status', 'active'),
+        supabase.from('subscriptions').select('plan_price').eq('status', 'active').gte('next_payment_date', graceCutoff.toISOString()),
         supabase.from('users').select('id, name, email, plan_status, created_at, avatar_url').order('created_at', { ascending: false }).limit(10),
         supabase.from('subscriptions').select('user_id, next_payment_date, billing_cycle, users!inner(name, email)').eq('status', 'active').gte('next_payment_date', now.toISOString()).lte('next_payment_date', sevenDaysFromNow.toISOString()).order('next_payment_date', { ascending: true }).limit(5),
         supabase.from('users').select('created_at').gte('created_at', threeMonthsAgo.toISOString()).order('created_at', { ascending: true }),
