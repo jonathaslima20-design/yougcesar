@@ -13,7 +13,7 @@ import { NotificationProvider } from '@/contexts/NotificationContext';
 import { PromotionalOffersProvider } from '@/contexts/PromotionalOffersContext';
 import { useCustomDomain } from '@/contexts/CustomDomainContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useEffect, useState, Suspense } from 'react';
+import { lazy, useEffect, useState, Suspense } from 'react';
 import { CircleAlert as AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -132,6 +132,10 @@ import SignupDiscountPage from '@/pages/admin/SignupDiscountPage.tsx';
 import NotificationSettingsPage from '@/pages/admin/NotificationSettingsPage.tsx';
 import AdminTrackingPage from '@/pages/admin/TrackingPage.tsx';
 import AffiliateTeaserMonitoringPage from '@/pages/admin/AffiliateTeaserMonitoringPage.tsx';
+const LiveChatInboxPage = lazy(() => import('@/pages/admin/liveChat/LiveChatInboxPage.tsx'));
+const LiveVisitorsPage = lazy(() => import('@/pages/admin/liveChat/LiveVisitorsPage.tsx'));
+const LiveChatOperatorsPage = lazy(() => import('@/pages/admin/liveChat/LiveChatOperatorsPage.tsx'));
+const LiveChatSettingsPage = lazy(() => import('@/pages/admin/liveChat/LiveChatSettingsPage.tsx'));
 
 // Partners Pages
 import PartnersDashboardPage from '@/pages/partners/PartnersDashboardPage.tsx';
@@ -399,6 +403,10 @@ function AppContent() {
             <Route path="/admin/notifications" element={<NotificationSettingsPage />} />
             <Route path="/admin/tracking" element={<AdminTrackingPage />} />
             <Route path="/admin/monitoring" element={<AffiliateTeaserMonitoringPage />} />
+            <Route path="/admin/live-chat" element={<LiveChatInboxPage />} />
+            <Route path="/admin/live-chat/operators" element={<LiveChatOperatorsPage />} />
+            <Route path="/admin/live-chat/settings" element={<LiveChatSettingsPage />} />
+            <Route path="/admin/live-visitors" element={<LiveVisitorsPage />} />
             <Route path="/admin/netlify" element={<NetlifyIntegrationPage />} />
             <Route path="/admin/integrations" element={<IntegrationProvidersPage />} />
             <Route path="/admin/help" element={<HelpManagementPage />} />

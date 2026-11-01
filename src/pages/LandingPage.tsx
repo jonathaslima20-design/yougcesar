@@ -10,6 +10,7 @@ import { useDetectedCountry } from '@/lib/billing/useDetectedCountry';
 import { PUBLIC_PRICING_BY_CURRENCY, formatPublicPrice, annualMonthlyEquivalent, annualSavingsPercent, type PublicCurrency } from '@/lib/billing/publicPricing';
 import { useReveal } from '@/hooks/useReveal';
 import { supabase } from '@/lib/supabase';
+import LiveChatLoader from '@/components/liveChat/LiveChatLoader';
 
 const LandingSocialProof = lazy(() => import('@/components/landing/LandingSocialProof'));
 const LandingTestimonials = lazy(() => import('@/components/landing/LandingTestimonials'));
@@ -1030,6 +1031,7 @@ export default function LandingPage() {
   useReveal();
   useLandingTracking();
   const refCode = useReferralTracking();
+  const { i18n } = useTranslation();
   return (
     <div className="vt-root min-h-screen bg-white text-ink-900">
       <Header refCode={refCode} />
@@ -1046,6 +1048,7 @@ export default function LandingPage() {
       <FinalCTA refCode={refCode} />
       <MemoizedFooterLanding />
       <MobileStickyCTA refCode={refCode} />
+      {i18n.language === 'pt-BR' && <LiveChatLoader />}
     </div>
   );
 }

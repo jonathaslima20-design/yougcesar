@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Palette, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Palette, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt, MessageCircle, Radio, UserRound, SlidersHorizontal } from 'lucide-react';
+import { useLiveChatUnreadCount } from '@/hooks/useLiveChatUnreadCount';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +17,8 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: string[];
+  end?: boolean;
+  badge?: number;
 }
 
 interface NavGroup {
@@ -25,6 +28,7 @@ interface NavGroup {
 
 export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: AdminSidebarProps) {
   const { signOut, user } = useAuth();
+  const liveChatUnread = useLiveChatUnreadCount(user?.role === 'admin');
 
   const navigationGroups: NavGroup[] = [
     {
@@ -32,6 +36,15 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
       items: [
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['admin', 'parceiro'] },
         { name: 'Usuarios', href: '/admin/users', icon: Users, roles: ['admin', 'parceiro'] },
+      ],
+    },
+    {
+      label: 'Atendimento',
+      items: [
+        { name: 'Conversas', href: '/admin/live-chat', icon: MessageCircle, roles: ['admin'], end: true, badge: liveChatUnread },
+        { name: 'Visitantes ao vivo', href: '/admin/live-visitors', icon: Radio, roles: ['admin'] },
+        { name: 'Operadores', href: '/admin/live-chat/operators', icon: UserRound, roles: ['admin'] },
+        { name: 'Config. do Chat', href: '/admin/live-chat/settings', icon: SlidersHorizontal, roles: ['admin'] },
       ],
     },
     {
@@ -127,7 +140,8 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
                     name={item.name}
                     href={item.href}
                     icon={item.icon}
-                    end={item.href === '/admin'}
+                    end={item.href === '/admin' || item.end}
+                    badge={item.badge}
                     onClick={() => isMobile && onMobileToggle?.()}
                   />
                 ))}
@@ -212,10 +226,11 @@ interface AdminNavItemProps {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   end?: boolean;
+  badge?: number;
   onClick?: () => void;
 }
 
-function AdminNavItem({ name, href, icon: Icon, end, onClick }: AdminNavItemProps) {
+function AdminNavItem({ name, href, icon: Icon, end, badge, onClick }: AdminNavItemProps) {
   const location = useLocation();
   const isActive = end
     ? location.pathname === href
@@ -238,6 +253,11 @@ function AdminNavItem({ name, href, icon: Icon, end, onClick }: AdminNavItemProp
       )}
       <Icon className="h-[19px] w-[19px] shrink-0" />
       <span className="whitespace-nowrap">{name}</span>
+      {!!badge && (
+        <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center">
+          {badge}
+        </span>
+      )}
     </NavLink>
   );
 }
