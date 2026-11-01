@@ -5,12 +5,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { deleteOperator, fetchOperators, saveOperator, uploadOperatorAvatar } from '@/lib/liveChat/adminService';
-import { buildGreeting } from '@/lib/liveChat/format';
+import { deleteOperator, fetchLiveChatSettings, fetchOperators, saveOperator, uploadOperatorAvatar } from '@/lib/liveChat/adminService';
+import { buildGreeting, DEFAULT_GREETING_TEMPLATE, GREETING_VARIABLES } from '@/lib/liveChat/format';
 import type { LiveChatOperatorRow } from '@/lib/liveChat/types';
 
 type Draft = Partial<LiveChatOperatorRow> & { display_name: string; role_title: string };
@@ -25,6 +26,8 @@ export default function LiveChatOperatorsPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const greetingRef = useRef<HTMLTextAreaElement>(null);
+  const [cta, setCta] = useState('Posso te ajudar a montar sua loja online?');
 
   const load = () =>
     fetchOperators()
@@ -37,7 +40,25 @@ export default function LiveChatOperatorsPage() {
 
   useEffect(() => {
     load();
+    fetchLiveChatSettings()
+      .then((s) => setCta(s.greeting_cta))
+      .catch(() => undefined);
   }, []);
+
+  // insere a variável onde está o cursor
+  const insertVariable = (key: string) => {
+    if (!draft) return;
+    const current = draft.greeting_template ?? '';
+    const el = greetingRef.current;
+    const start = el?.selectionStart ?? current.length;
+    const end = el?.selectionEnd ?? current.length;
+    const next = current.slice(0, start) + key + current.slice(end);
+    setDraft({ ...draft, greeting_template: next });
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(start + key.length, start + key.length);
+    });
+  };
 
   const onFile = async (file: File | undefined) => {
     if (!file || !draft) return;
@@ -170,7 +191,7 @@ export default function LiveChatOperatorsPage() {
       )}
 
       <Dialog open={!!draft} onOpenChange={(open) => !open && setDraft(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{draft?.id ? 'Editar operador' : 'Novo operador'}</DialogTitle>
           </DialogHeader>
@@ -238,9 +259,49 @@ export default function LiveChatOperatorsPage() {
                   />
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="op-greeting">Saudação</Label>
+                  {draft.greeting_template && (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline"
+                      onClick={() => setDraft({ ...draft, greeting_template: null })}
+                    >
+                      Usar a padrão
+                    </button>
+                  )}
+                </div>
+                <Textarea
+                  id="op-greeting"
+                  ref={greetingRef}
+                  rows={3}
+                  maxLength={500}
+                  placeholder={DEFAULT_GREETING_TEMPLATE}
+                  value={draft.greeting_template ?? ''}
+                  onChange={(e) => setDraft({ ...draft, greeting_template: e.target.value })}
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {GREETING_VARIABLES.map((v) => (
+                    <button
+                      key={v.key}
+                      type="button"
+                      title={v.label}
+                      onClick={() => insertVariable(v.key)}
+                      className="text-[11px] font-mono px-2 py-0.5 rounded border hover:bg-muted"
+                    >
+                      {v.key}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Deixe vazio para usar a padrão. {'{saudacao}'} vira Bom dia, Boa tarde ou Boa noite conforme o horário, e{' '}
+                  {'{chamada}'} é o texto definido em Configurações do Chat.
+                </p>
+              </div>
               <div className="rounded-lg bg-muted/50 p-3 text-sm">
                 <p className="text-xs text-muted-foreground mb-1">Prévia da saudação</p>
-                {buildGreeting(draft.display_name || 'Nome', draft.role_title, 'Posso te ajudar a montar sua loja online?')}
+                {buildGreeting(draft.display_name || 'Nome', draft.role_title, cta, undefined, draft.greeting_template)}
               </div>
             </div>
           )}

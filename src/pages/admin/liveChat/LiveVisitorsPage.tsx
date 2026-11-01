@@ -42,6 +42,7 @@ export default function LiveVisitorsPage() {
   const [target, setTarget] = useState<LiveVisitor | null>(null);
   const [opening, setOpening] = useState('');
   const [starting, setStarting] = useState(false);
+  const [forceOpenChat, setForceOpenChat] = useState(false);
   const navigate = useNavigate();
 
   const openStart = (v: LiveVisitor) => {
@@ -53,7 +54,7 @@ export default function LiveVisitorsPage() {
     if (!target || !opening.trim()) return;
     setStarting(true);
     try {
-      const res = await startConversation(target.id, opening);
+      const res = await startConversation(target.id, opening, forceOpenChat);
       toast.success(res.existing ? 'Esse visitante já tem uma conversa aberta' : 'Mensagem enviada. O visitante vê em até 30 s.');
       setTarget(null);
       navigate(`/admin/live-chat?c=${res.conversation_id}`);
@@ -215,6 +216,15 @@ export default function LiveVisitorsPage() {
             </DialogDescription>
           </DialogHeader>
           <Textarea rows={4} maxLength={2000} value={opening} onChange={(e) => setOpening(e.target.value)} />
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={forceOpenChat} onChange={(e) => setForceOpenChat(e.target.checked)} />
+            <span>
+              Abrir a janela do chat na tela do visitante
+              <span className="block text-xs text-muted-foreground">
+                Desmarcado: aparece o balão com a mensagem, ou só o número no botão se ele já tinha fechado o chat.
+              </span>
+            </span>
+          </label>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTarget(null)}>Cancelar</Button>
             <Button onClick={start} disabled={starting || !opening.trim()}>

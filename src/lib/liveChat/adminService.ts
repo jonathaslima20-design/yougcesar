@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type {
   AdminChatMessageRow,
   CannedReply,
+  LandingVisitMetrics,
   LiveChatAdminStatus,
   LiveChatMetrics,
   ChatConversationRow,
@@ -44,7 +45,7 @@ export async function runCleanupNow() {
 export async function fetchOperators(): Promise<LiveChatOperatorRow[]> {
   const { data, error } = await supabase
     .from('live_chat_operators')
-    .select('id, display_name, role_title, avatar_url, is_active, weight, created_at')
+    .select('id, display_name, role_title, avatar_url, greeting_template, is_active, weight, created_at')
     .order('created_at');
   if (error) throw error;
   return (data ?? []) as LiveChatOperatorRow[];
@@ -55,6 +56,7 @@ export async function saveOperator(op: Partial<LiveChatOperatorRow> & { display_
     display_name: op.display_name,
     role_title: op.role_title,
     avatar_url: op.avatar_url ?? null,
+    greeting_template: op.greeting_template?.trim() || null,
     is_active: op.is_active ?? true,
     weight: op.weight ?? 1,
     updated_at: new Date().toISOString(),
@@ -361,8 +363,16 @@ export async function setConversationContacted(conversationId: string, contacted
   if (error) throw error;
 }
 
-export async function startConversation(sessionId: string, message: string): Promise<{ conversation_id: string; existing: boolean }> {
-  const { data, error } = await supabase.rpc('admin_start_conversation', { p_session_id: sessionId, p_message: message });
+export async function startConversation(
+  sessionId: string,
+  message: string,
+  forceOpen = false,
+): Promise<{ conversation_id: string; existing: boolean }> {
+  const { data, error } = await supabase.rpc('admin_start_conversation', {
+    p_session_id: sessionId,
+    p_message: message,
+    p_force_open: forceOpen,
+  });
   if (error) throw error;
   return data as { conversation_id: string; existing: boolean };
 }
@@ -411,4 +421,10 @@ export async function exportWhatsappLeadsCsv(): Promise<number> {
   a.click();
   URL.revokeObjectURL(url);
   return rows.length;
+}
+
+export async function fetchLandingVisitMetrics(days: number): Promise<LandingVisitMetrics> {
+  const { data, error } = await supabase.rpc('admin_landing_visit_metrics', { p_days: days });
+  if (error) throw error;
+  return data as LandingVisitMetrics;
 }

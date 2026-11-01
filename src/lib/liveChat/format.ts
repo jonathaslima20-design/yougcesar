@@ -16,7 +16,39 @@ export function greetingFor(timeZone = DEFAULT_TZ, date = new Date()): string {
   return 'Boa noite';
 }
 
-export function buildGreeting(operatorName: string | undefined, roleTitle: string | undefined, cta: string, timeZone?: string): string {
+/** Variáveis aceitas na saudação personalizada do operador. */
+export const GREETING_VARIABLES = [
+  { key: '{saudacao}', label: 'Bom dia / Boa tarde / Boa noite' },
+  { key: '{nome}', label: 'Nome do operador' },
+  { key: '{cargo}', label: 'Cargo do operador' },
+  { key: '{chamada}', label: 'Chamada das configurações' },
+] as const;
+
+export const DEFAULT_GREETING_TEMPLATE = '{saudacao}! Sou {nome}, {cargo} da VitrineTurbo. {chamada}';
+
+export function renderGreetingTemplate(
+  template: string,
+  vars: { name?: string; role?: string; cta: string; timeZone?: string },
+): string {
+  return template
+    .replace(/\{saudacao\}/gi, greetingFor(vars.timeZone))
+    .replace(/\{nome\}/gi, vars.name ?? '')
+    .replace(/\{cargo\}/gi, (vars.role ?? '').toLowerCase())
+    .replace(/\{chamada\}/gi, vars.cta)
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+export function buildGreeting(
+  operatorName: string | undefined,
+  roleTitle: string | undefined,
+  cta: string,
+  timeZone?: string,
+  customTemplate?: string | null,
+): string {
+  if (customTemplate?.trim()) {
+    return renderGreetingTemplate(customTemplate, { name: operatorName, role: roleTitle, cta, timeZone });
+  }
   const hello = greetingFor(timeZone);
   if (!operatorName) return `${hello}! ${cta}`;
   const role = roleTitle ? `, ${roleTitle.toLowerCase()} da VitrineTurbo` : ' da VitrineTurbo';

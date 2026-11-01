@@ -188,10 +188,11 @@ export default function LiveChatLoader() {
         if (res.chat_enabled !== undefined) setChatEnabled(res.chat_enabled);
         if (res.operator_online !== undefined) setOperatorOnline(res.operator_online);
         if (res.proactive) {
-          const conv: StoredConversation = { ...res.proactive, saved_at: Date.now() };
+          const { force_open, ...delivered } = res.proactive;
+          const conv: StoredConversation = { ...delivered, saved_at: Date.now() };
           storeConversation(conv);
           setHasConversation(true);
-          setProactive(conv);
+          setProactive({ ...conv, force_open });
         }
       } catch {
         // rede instável: tenta no próximo ciclo

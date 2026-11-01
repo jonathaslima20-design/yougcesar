@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { AlarmClock, ArrowLeft, Ban, BarChart3, Bell, BellOff, CheckCheck, Copy, Download, MessageCircle, MessageSquareText, RotateCcw, Send, Settings, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { AlarmClock, ArrowLeft, Ban, Maximize2, BarChart3, Bell, BellOff, CheckCheck, Copy, Download, MessageCircle, MessageSquareText, RotateCcw, Send, Settings, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { isLiveChatSoundEnabled, notifyLiveChatRead, playLiveChatChime, setLiveChatSoundEnabled } from '@/hooks/useLiveChatUnreadCount';
@@ -170,14 +170,14 @@ export default function LiveChatInboxPage() {
     };
   }, [selected?.session_id]);
 
-  // canal público da conversa: só para "digitando…" nos dois sentidos
+  // canal público da conversa: "digitando…" nos dois sentidos e abrir à força
   const channelKey = selected?.channel_key;
   useEffect(() => {
-    if (!channelKey || !typingEnabled) return;
+    if (!channelKey) return;
     const channel = supabase
       .channel(`chat:${channelKey}`, { config: { broadcast: { self: false } } })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload?.from !== 'visitor') return;
+        if (!typingEnabled || payload?.from !== 'visitor') return;
         setVisitorTyping(true);
         clearTimeout(typingTimer.current);
         typingTimer.current = setTimeout(() => setVisitorTyping(false), TYPING_SHOW_MS);
@@ -218,9 +218,17 @@ export default function LiveChatInboxPage() {
     }
   };
 
+  const forceOpen = async () => {
+    const channel = typingChannel.current;
+    if (!channel) return;
+    const res = await channel.send({ type: 'broadcast', event: 'force_open', payload: {} });
+    if (res === 'ok') toast.success('Pedido enviado: a conversa abre na tela do visitante se ele estiver com a página aberta.');
+    else toast.error('Não foi possível enviar agora. Tente de novo.');
+  };
+
   const onDraftChange = (value: string) => {
     setDraft(value);
-    if (!typingChannel.current) return;
+    if (!typingChannel.current || !typingEnabled) return;
     const now = Date.now();
     if (now - lastTypingSent.current < TYPING_THROTTLE_MS) return;
     lastTypingSent.current = now;
@@ -474,6 +482,12 @@ export default function LiveChatInboxPage() {
                   </p>
                 </div>
                 <StatusBadge status={selected.status} />
+                {selected.status !== 'closed' && (
+                  <Button variant="outline" size="sm" onClick={forceOpen} title="Abre a janela do chat na tela do visitante">
+                    <Maximize2 className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Abrir no visitante</span>
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="xl:hidden" onClick={() => setShowDetails(true)}>
                   Detalhes
                 </Button>

@@ -101,6 +101,21 @@ export function storeConversation(conv: StoredConversation | null) {
 }
 
 const DISMISSED_AT_KEY = 'vt_chat_dismissed_at';
+const READ_KEY = 'vt_chat_read';
+
+/** Última mensagem do operador que o visitante viu (para o contador do botão). */
+export function getLastReadId(conversationId: string): number {
+  try {
+    const raw = JSON.parse(safeGet(localStorage, READ_KEY) ?? 'null') as { c: string; id: number } | null;
+    return raw && raw.c === conversationId ? raw.id : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function setLastReadId(conversationId: string, id: number) {
+  safeSet(localStorage, READ_KEY, JSON.stringify({ c: conversationId, id }));
+}
 
 /** Fechou o pop-up recentemente? cooldown 0 = só vale para esta aba. */
 export function isChatDismissed(cooldownDays = 0): boolean {

@@ -6,10 +6,13 @@ import {
   fetchConversationOperator,
   forgetConversation,
   getRealtimeEndpoint,
+  getLastReadId,
   getStoredConversation,
+  isChatDismissed,
   openConversation,
   sendVisitorMessage,
   setChatDismissed,
+  setLastReadId,
   storeConversation,
   submitWhatsapp,
 } from '@/lib/liveChat/visitorApi';
@@ -89,8 +92,8 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
     const cta = config.greeting_cta ?? '';
     if (!online) return `${greetingFor(config.timezone)}! ${config.away_message ?? ''}`.trim();
     if (!session.operator && operator) return `${greetingFor(config.timezone)}! Você está falando com ${operator.name}. ${cta}`;
-    return buildGreeting(operator?.name, operator?.role, cta, config.timezone);
-  }, [online, operator?.name, operator?.role, session.operator, config.greeting_cta, config.away_message, config.timezone]);
+    return buildGreeting(operator?.name, operator?.role, cta, config.timezone, operator?.greeting);
+  }, [online, operator?.name, operator?.role, operator?.greeting, session.operator, config.greeting_cta, config.away_message, config.timezone]);
   const greetingAt = useRef(new Date().toISOString());
 
   const [conv, setConv] = useState<StoredConversation | null>(() => getStoredConversation());
@@ -101,7 +104,10 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [operatorTyping, setOperatorTyping] = useState(false);
-  const [unread, setUnread] = useState(0);
+  const [lastReadId, setLastReadIdState] = useState(() => {
+    const stored = getStoredConversation();
+    return stored ? getLastReadId(stored.conversation_id) : 0;
+  });
   // ausente: já oferece o WhatsApp em vez de deixar o visitante esperando
   const [showWhatsapp, setShowWhatsapp] = useState(() => !online && !getStoredConversation());
   const [phone, setPhone] = useState('');
@@ -124,11 +130,18 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
     onConversationChange?.(!!conv);
   }, [conv, onConversationChange]);
 
+  // conversa iniciada pelo admin: abre à força, ou mostra o balão, ou (se o
+  // visitante já tinha fechado o chat) fica só o número no botão
   useEffect(() => {
     if (!proactive) return;
-    setConv((c) => (c?.conversation_id === proactive.conversation_id ? c : proactive));
-    setView((v) => (v === 'open' ? v : 'teaser'));
-  }, [proactive]);
+    const { force_open, ...delivered } = proactive;
+    setConv((c) => (c?.conversation_id === delivered.conversation_id ? c : delivered));
+    setView((v) => {
+      if (force_open) return 'open';
+      if (v === 'open') return v;
+      return isChatDismissed(config.reopen_cooldown_days ?? 1) ? 'closed' : 'teaser';
+    });
+  }, [proactive, config.reopen_cooldown_days]);
 
   // "digitando…" curto antes da saudação aparecer
   useEffect(() => {
@@ -143,10 +156,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
   const receive = useCallback((incoming: ChatMessage[]) => {
     if (!incoming.length) return;
     setMessages((cur) => mergeMessages(cur, incoming));
-    if (incoming.some((m) => m.sender === 'operator')) {
-      setOperatorTyping(false);
-      if (viewRef.current !== 'open') setUnread((n) => n + incoming.filter((m) => m.sender === 'operator').length);
-    }
+    if (incoming.some((m) => m.sender === 'operator')) setOperatorTyping(false);
   }, []);
 
   const lastIdRef = useRef(0);
@@ -185,9 +195,27 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
     };
   }, [conversationId]);
 
-  // socket só existe depois que há conversa
+  // contador do botão: lê o que já foi visto nesta conversa
   useEffect(() => {
-    if (!conv) return;
+    if (conversationId) setLastReadIdState(getLastReadId(conversationId));
+  }, [conversationId]);
+
+  const lastOperatorId = messages.reduce((max, m) => (m.sender === 'operator' && !m.pending && m.id > max ? m.id : max), 0);
+  useEffect(() => {
+    if (view !== 'open' || !conversationId || lastOperatorId <= lastReadId) return;
+    setLastReadIdState(lastOperatorId);
+    setLastReadId(conversationId, lastOperatorId);
+  }, [view, conversationId, lastOperatorId, lastReadId]);
+
+  const unread = view === 'open' ? 0 : messages.filter((m) => m.sender === 'operator' && !m.pending && m.id > lastReadId).length;
+
+  // socket só existe depois que há conversa (não reconecta quando só a persona muda)
+  const convRef = useRef(conv);
+  convRef.current = conv;
+  const channelKey = conv?.channel_key;
+  useEffect(() => {
+    const conv = convRef.current;
+    if (!conv || !channelKey) return;
     const { url, apiKey } = getRealtimeEndpoint();
     const client = new RealtimeClient(url, { params: { apikey: apiKey } });
     clientRef.current = client;
@@ -200,6 +228,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
         clearTimeout(typingTimer.current);
         typingTimer.current = setTimeout(() => setOperatorTyping(false), TYPING_SHOW_MS);
       })
+      .on('broadcast', { event: 'force_open' }, () => setView('open'))
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') catchUp(conv);
       });
@@ -218,11 +247,10 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
       channelRef.current = null;
       clientRef.current = null;
     };
-  }, [conv, receive, catchUp]);
+  }, [channelKey, receive, catchUp]);
 
   useEffect(() => {
     if (view === 'open') {
-      setUnread(0);
       requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }));
     }
   }, [view, messages.length, operatorTyping, showWhatsapp]);
@@ -329,7 +357,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
   const lastOperatorMessage = [...messages].reverse().find((m) => m.sender === 'operator');
   const teaserText = lastOperatorMessage?.body ?? greeting;
 
-  const launcherBadge = view !== 'open' && (unread > 0 || (view === 'teaser' && greetingReady)) ? unread || 1 : 0;
+  const launcherBadge = view === 'open' ? 0 : unread > 0 ? unread : view === 'teaser' && greetingReady && !conv ? 1 : 0;
 
   return (
     <div className="vt-live-chat fixed z-[60] right-4 bottom-24 md:bottom-6 md:right-6 flex flex-col items-end gap-3 font-sans">

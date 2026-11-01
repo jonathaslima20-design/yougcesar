@@ -3,6 +3,8 @@ export interface LiveChatOperator {
   name: string;
   role: string;
   avatar_url: string | null;
+  /** saudação personalizada (com variáveis); vazio = padrão */
+  greeting?: string | null;
 }
 
 export interface LiveChatPublicConfig {
@@ -32,7 +34,7 @@ export interface HeartbeatResult {
   chat_enabled?: boolean;
   chat_available: boolean;
   operator_online?: boolean;
-  proactive?: { conversation_id: string; channel_key: string; token: string; operator: LiveChatOperator | null } | null;
+  proactive?: { conversation_id: string; channel_key: string; token: string; operator: LiveChatOperator | null; force_open?: boolean } | null;
 }
 
 export interface VisitorSession {
@@ -42,6 +44,8 @@ export interface VisitorSession {
 }
 
 export interface StoredConversation {
+  /** só na entrega de conversa iniciada pelo admin; não é guardado */
+  force_open?: boolean;
   conversation_id: string;
   channel_key: string;
   token: string;
@@ -143,6 +147,7 @@ export interface LiveChatOperatorRow {
   display_name: string;
   role_title: string;
   avatar_url: string | null;
+  greeting_template: string | null;
   is_active: boolean;
   weight: number;
   created_at: string;
@@ -194,4 +199,27 @@ export interface ChatConversationRow {
 export interface AdminChatMessageRow extends ChatMessage {
   conversation_id: string;
   admin_user_id: string | null;
+}
+
+export interface LandingVisitMetrics {
+  days: number;
+  timezone: string;
+  tracking_enabled: boolean;
+  session_retention_days: number;
+  first_day: string | null;
+  live_now: number;
+  sessions: number;
+  unique_visitors: number;
+  unique_is_partial: boolean;
+  new_visitors: number;
+  mobile: number;
+  desktop: number;
+  avg_duration_seconds: number | null;
+  bounces: number;
+  conversations: number;
+  whatsapp_leads: number;
+  section_reach: Record<string, number>;
+  sources: { source: string; sessions: number }[];
+  hours: { hour: number; sessions: number }[];
+  by_day: { day: string; sessions: number; unique_visitors: number; conversations: number; whatsapp: number }[];
 }
