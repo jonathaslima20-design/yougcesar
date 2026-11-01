@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Monitor, Smartphone, MessageCircle, RefreshCw } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Monitor, Smartphone, MessageCircle, RefreshCw, MessageSquarePlus, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { fetchLiveChatSettings, fetchLiveVisitors, type LiveVisitor } from '@/lib/liveChat/adminService';
+import { fetchLiveChatSettings, fetchLiveVisitors, startConversation, type LiveVisitor } from '@/lib/liveChat/adminService';
 import { formatDuration, sectionLabel } from '@/lib/liveChat/format';
 
 const POLL_MS = 10_000;
@@ -15,6 +18,14 @@ type VisitorStatus = 'active' | 'idle';
 
 function statusOf(v: LiveVisitor, now: number): VisitorStatus {
   return now - new Date(v.last_interaction_at).getTime() < ACTIVE_SECONDS * 1000 ? 'active' : 'idle';
+}
+
+function openingMessage(v: LiveVisitor): string {
+  const name = v.operator?.display_name;
+  const intro = name ? `Oi! Aqui é ${name}, da VitrineTurbo.` : 'Oi! Aqui é da equipe VitrineTurbo.';
+  if (v.current_section === 'precos') return `${intro} Vi que você está olhando os planos. Posso te ajudar a escolher o ideal para a sua loja?`;
+  if (v.current_section === 'faq') return `${intro} Ficou alguma dúvida que eu possa responder?`;
+  return `${intro} Posso te ajudar a montar sua loja online?`;
 }
 
 function origin(v: LiveVisitor): string {
@@ -28,6 +39,31 @@ export default function LiveVisitorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [target, setTarget] = useState<LiveVisitor | null>(null);
+  const [opening, setOpening] = useState('');
+  const [starting, setStarting] = useState(false);
+  const navigate = useNavigate();
+
+  const openStart = (v: LiveVisitor) => {
+    setTarget(v);
+    setOpening(openingMessage(v));
+  };
+
+  const start = async () => {
+    if (!target || !opening.trim()) return;
+    setStarting(true);
+    try {
+      const res = await startConversation(target.id, opening);
+      toast.success(res.existing ? 'Esse visitante já tem uma conversa aberta' : 'Mensagem enviada. O visitante vê em até 30 s.');
+      setTarget(null);
+      navigate(`/admin/live-chat?c=${res.conversation_id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg.includes('session_not_found') ? 'O visitante saiu da página.' : msg.includes('blocked') ? 'Visitante bloqueado.' : 'Não foi possível iniciar a conversa.');
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const load = async () => {
     try {
@@ -155,7 +191,9 @@ export default function LiveVisitorsPage() {
                             </Link>
                           </Button>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <Button size="sm" variant="ghost" onClick={() => openStart(v)} disabled={!trackingEnabled}>
+                            <MessageSquarePlus className="h-4 w-4 mr-1" /> Iniciar
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
@@ -166,6 +204,26 @@ export default function LiveVisitorsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Iniciar conversa</DialogTitle>
+            <DialogDescription>
+              O visitante #{target?.visitor_id.slice(0, 6)} recebe o balão do chat com esta mensagem em até 30 segundos, se continuar na
+              página com a aba aberta.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea rows={4} maxLength={2000} value={opening} onChange={(e) => setOpening(e.target.value)} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTarget(null)}>Cancelar</Button>
+            <Button onClick={start} disabled={starting || !opening.trim()}>
+              {starting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

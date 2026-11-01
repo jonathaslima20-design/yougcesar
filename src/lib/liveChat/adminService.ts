@@ -2,6 +2,9 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type {
   AdminChatMessageRow,
+  CannedReply,
+  LiveChatAdminStatus,
+  LiveChatMetrics,
   ChatConversationRow,
   LiveChatOperatorRow,
   LiveChatPublicConfig,
@@ -246,4 +249,166 @@ export function subscribeAdminLiveChat(listener: Listener): () => void {
       }
     }
   };
+}
+
+// ─── Status, presença e controles ───────────────────────────────────────────
+
+export async function fetchAdminStatus(): Promise<LiveChatAdminStatus> {
+  // quem está olhando o status está no painel: registra a presença antes,
+  // senão a tela abre mostrando "ausente" até o próximo ping
+  await pingAdminPresence().catch(() => undefined);
+  const { data, error } = await supabase.rpc('admin_live_chat_status');
+  if (error) throw error;
+  return data as LiveChatAdminStatus;
+}
+
+/** "Visto por último" do atendente; sem ping há 3 min o chat fica como ausente. */
+export async function pingAdminPresence() {
+  const { error } = await supabase.rpc('admin_live_chat_ping');
+  if (error) throw error;
+}
+
+export const STATE_LABELS: Record<LiveChatAdminStatus['state'], string> = {
+  off: 'Chat desligado',
+  paused: 'Pausado',
+  holiday: 'Feriado (fechado)',
+  closed_hours: 'Fora do horário',
+  away: 'Atendente ausente',
+  online: 'Online',
+};
+
+export function describeStatus(status: LiveChatAdminStatus): string {
+  const when = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
+  switch (status.state) {
+    case 'off':
+      return 'Visitantes não veem o chat. Ligue em "Chat na landing page".';
+    case 'paused':
+      return `Pausado até ${when(status.paused_until)}. Conversas em andamento continuam.`;
+    case 'holiday':
+    case 'closed_hours':
+      return status.next_open_at ? `Abre ${when(status.next_open_at)}. Conversas em andamento continuam.` : 'Nenhum horário de abertura nos próximos 14 dias.';
+    case 'away':
+      return status.away_behavior === 'hide'
+        ? 'Você está ausente: o chat está escondido para novos visitantes.'
+        : 'Você está ausente: o chat pede o WhatsApp do visitante em vez de prometer resposta.';
+    default:
+      return 'Visitantes veem o chat e você aparece como online.';
+  }
+}
+
+// ─── Respostas prontas ──────────────────────────────────────────────────────
+
+export async function fetchCannedReplies(): Promise<CannedReply[]> {
+  const { data, error } = await supabase
+    .from('live_chat_canned_replies')
+    .select('id, title, body, sort_order')
+    .order('sort_order')
+    .order('created_at');
+  if (error) throw error;
+  return (data ?? []) as CannedReply[];
+}
+
+export async function saveCannedReply(reply: Partial<CannedReply> & { title: string; body: string }) {
+  const payload = { title: reply.title.trim(), body: reply.body.trim(), sort_order: reply.sort_order ?? 0 };
+  const query = reply.id
+    ? supabase.from('live_chat_canned_replies').update(payload).eq('id', reply.id)
+    : supabase.from('live_chat_canned_replies').insert(payload);
+  const { error } = await query;
+  if (error) throw error;
+}
+
+export async function deleteCannedReply(id: string) {
+  const { error } = await supabase.from('live_chat_canned_replies').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Bloqueio, contato e conversa proativa ──────────────────────────────────
+
+export interface BlockedVisitor {
+  visitor_id: string;
+  reason: string | null;
+  blocked_at: string;
+}
+
+export async function fetchBlockedVisitors(): Promise<BlockedVisitor[]> {
+  const { data, error } = await supabase
+    .from('live_chat_blocked_visitors')
+    .select('visitor_id, reason, blocked_at')
+    .order('blocked_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as BlockedVisitor[];
+}
+
+export async function blockVisitor(visitorId: string, adminUserId: string, reason: string | null, conversationId?: string) {
+  const { error } = await supabase
+    .from('live_chat_blocked_visitors')
+    .upsert({ visitor_id: visitorId, blocked_by: adminUserId, reason });
+  if (error) throw error;
+  if (conversationId) await setConversationStatus(conversationId, 'closed');
+}
+
+export async function unblockVisitor(visitorId: string) {
+  const { error } = await supabase.from('live_chat_blocked_visitors').delete().eq('visitor_id', visitorId);
+  if (error) throw error;
+}
+
+export async function setConversationContacted(conversationId: string, contacted: boolean) {
+  const { error } = await supabase
+    .from('chat_conversations')
+    .update({ contacted_at: contacted ? new Date().toISOString() : null })
+    .eq('id', conversationId);
+  if (error) throw error;
+}
+
+export async function startConversation(sessionId: string, message: string): Promise<{ conversation_id: string; existing: boolean }> {
+  const { data, error } = await supabase.rpc('admin_start_conversation', { p_session_id: sessionId, p_message: message });
+  if (error) throw error;
+  return data as { conversation_id: string; existing: boolean };
+}
+
+// ─── Métricas e exportação ──────────────────────────────────────────────────
+
+export async function fetchMetrics(days: number): Promise<LiveChatMetrics> {
+  const { data, error } = await supabase.rpc('admin_live_chat_metrics', { p_days: days });
+  if (error) throw error;
+  return data as LiveChatMetrics;
+}
+
+export async function exportWhatsappLeadsCsv(): Promise<number> {
+  const { data, error } = await supabase
+    .from('chat_conversations')
+    .select('whatsapp_e164, whatsapp_consent_at, contacted_at, status, source, utm_campaign, created_at, operator:live_chat_operators(display_name)')
+    .not('whatsapp_e164', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(5000);
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as {
+    whatsapp_e164: string;
+    whatsapp_consent_at: string | null;
+    contacted_at: string | null;
+    status: string;
+    source: string | null;
+    utm_campaign: string | null;
+    created_at: string;
+    operator: { display_name: string } | null;
+  }[];
+  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString('pt-BR') : '');
+  const lines = [
+    ['WhatsApp', 'Data da conversa', 'Consentimento', 'Contatado em', 'Status', 'Origem', 'Campanha', 'Persona'].map(esc).join(';'),
+    ...rows.map((r) =>
+      [r.whatsapp_e164, fmt(r.created_at), fmt(r.whatsapp_consent_at), fmt(r.contacted_at), r.status, r.source, r.utm_campaign, r.operator?.display_name]
+        .map(esc)
+        .join(';'),
+    ),
+  ];
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `leads-whatsapp-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  return rows.length;
 }

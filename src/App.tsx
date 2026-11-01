@@ -136,6 +136,7 @@ const LiveChatInboxPage = lazy(() => import('@/pages/admin/liveChat/LiveChatInbo
 const LiveVisitorsPage = lazy(() => import('@/pages/admin/liveChat/LiveVisitorsPage.tsx'));
 const LiveChatOperatorsPage = lazy(() => import('@/pages/admin/liveChat/LiveChatOperatorsPage.tsx'));
 const LiveChatSettingsPage = lazy(() => import('@/pages/admin/liveChat/LiveChatSettingsPage.tsx'));
+const LiveChatMetricsPage = lazy(() => import('@/pages/admin/liveChat/LiveChatMetricsPage.tsx'));
 
 // Partners Pages
 import PartnersDashboardPage from '@/pages/partners/PartnersDashboardPage.tsx';
@@ -406,6 +407,7 @@ function AppContent() {
             <Route path="/admin/live-chat" element={<LiveChatInboxPage />} />
             <Route path="/admin/live-chat/operators" element={<LiveChatOperatorsPage />} />
             <Route path="/admin/live-chat/settings" element={<LiveChatSettingsPage />} />
+            <Route path="/admin/live-chat/metrics" element={<LiveChatMetricsPage />} />
             <Route path="/admin/live-visitors" element={<LiveVisitorsPage />} />
             <Route path="/admin/netlify" element={<NetlifyIntegrationPage />} />
             <Route path="/admin/integrations" element={<IntegrationProvidersPage />} />

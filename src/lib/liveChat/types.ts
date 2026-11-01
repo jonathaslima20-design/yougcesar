@@ -8,12 +8,31 @@ export interface LiveChatOperator {
 export interface LiveChatPublicConfig {
   tracking_enabled: boolean;
   chat_available: boolean;
+  chat_enabled?: boolean;
+  operator_online?: boolean;
+  away_message?: string;
+  fallback_operator?: { name: string; avatar_url: string | null };
   typing_indicator_enabled?: boolean;
   open_delay_seconds?: number;
   show_on_mobile?: boolean;
   greeting_cta?: string;
   quick_replies?: string[];
   timezone?: string;
+  hide_for_active_customers?: boolean;
+  auto_open?: boolean;
+  delay_trigger_enabled?: boolean;
+  trigger_section?: string | null;
+  trigger_scroll_percent?: number | null;
+  trigger_exit_intent?: boolean;
+  reopen_cooldown_days?: number;
+}
+
+export interface HeartbeatResult {
+  tracking_enabled: boolean;
+  chat_enabled?: boolean;
+  chat_available: boolean;
+  operator_online?: boolean;
+  proactive?: { conversation_id: string; channel_key: string; token: string; operator: LiveChatOperator | null } | null;
 }
 
 export interface VisitorSession {
@@ -62,7 +81,61 @@ export interface LiveChatSettings {
   quick_replies: string[];
   retention_session_days: number;
   retention_conversation_days: number;
+  fallback_operator_name: string;
+  fallback_avatar_url: string | null;
+  admin_available: boolean;
+  admin_last_seen_at: string | null;
+  away_behavior: 'ask_whatsapp' | 'hide';
+  away_message: string;
+  hide_for_active_customers: boolean;
+  auto_open: boolean;
+  delay_trigger_enabled: boolean;
+  trigger_section: string | null;
+  trigger_scroll_percent: number | null;
+  trigger_exit_intent: boolean;
+  reopen_cooldown_days: number;
+  paused_until: string | null;
+  holidays: string[];
+  auto_close_idle_hours: number;
+  unanswered_alert_minutes: number;
   updated_at: string;
+}
+
+export type LiveChatState = 'off' | 'paused' | 'holiday' | 'closed_hours' | 'away' | 'online';
+
+export interface LiveChatAdminStatus {
+  state: LiveChatState;
+  chat_available: boolean;
+  operator_online: boolean;
+  admin_available: boolean;
+  admin_last_seen_at: string | null;
+  away_behavior: 'ask_whatsapp' | 'hide';
+  paused_until: string | null;
+  next_open_at: string | null;
+  active_operators: number;
+}
+
+export interface CannedReply {
+  id: string;
+  title: string;
+  body: string;
+  sort_order: number;
+}
+
+export interface LiveChatMetrics {
+  days: number;
+  session_retention_days: number;
+  sessions: number;
+  conversations: number;
+  visitor_started: number;
+  operator_started: number;
+  whatsapp_leads: number;
+  contacted: number;
+  unanswered: number;
+  avg_first_response_seconds: number | null;
+  by_operator: { name: string; conversations: number; whatsapp: number }[];
+  by_source: { source: string; conversations: number; whatsapp: number }[];
+  by_day: { day: string; sessions: number; conversations: number; whatsapp: number }[];
 }
 
 export interface LiveChatOperatorRow {
@@ -111,6 +184,11 @@ export interface ChatConversationRow {
   last_message_sender: ChatSender | null;
   created_at: string;
   closed_at: string | null;
+  first_response_at?: string | null;
+  contacted_at?: string | null;
+  started_by?: 'visitor' | 'operator';
+  source?: string | null;
+  utm_campaign?: string | null;
 }
 
 export interface AdminChatMessageRow extends ChatMessage {

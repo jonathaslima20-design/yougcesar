@@ -1,4 +1,4 @@
-import type { ChatMessage, LiveChatPublicConfig, StoredConversation, VisitorSession } from './types';
+import type { ChatMessage, HeartbeatResult, LiveChatOperator, LiveChatPublicConfig, StoredConversation, VisitorSession } from './types';
 
 // O visitante fala com o banco por fetch puro com a anon key: não toca nos
 // clientes Supabase autenticados (merchant/buyer) e permite `keepalive` no
@@ -100,12 +100,19 @@ export function storeConversation(conv: StoredConversation | null) {
   safeSet(localStorage, CONVERSATION_KEY, conv ? JSON.stringify(conv) : null);
 }
 
-export function isChatDismissed(): boolean {
-  return safeGet(sessionStorage, DISMISSED_KEY) === '1';
+const DISMISSED_AT_KEY = 'vt_chat_dismissed_at';
+
+/** Fechou o pop-up recentemente? cooldown 0 = só vale para esta aba. */
+export function isChatDismissed(cooldownDays = 0): boolean {
+  if (safeGet(sessionStorage, DISMISSED_KEY) === '1') return true;
+  if (cooldownDays <= 0) return false;
+  const at = Number(safeGet(localStorage, DISMISSED_AT_KEY));
+  return Number.isFinite(at) && at > 0 && Date.now() - at < cooldownDays * 86_400_000;
 }
 
 export function setChatDismissed() {
   safeSet(sessionStorage, DISMISSED_KEY, '1');
+  safeSet(localStorage, DISMISSED_AT_KEY, String(Date.now()));
 }
 
 // ─── RPCs ───────────────────────────────────────────────────────────────────
@@ -137,7 +144,7 @@ export function sendHeartbeat(
   data: { path: string; section: string | null; idleSeconds: number; ended?: boolean },
   keepalive = false,
 ) {
-  return visitorRpc<{ tracking_enabled: boolean; chat_available: boolean }>(
+  return visitorRpc<HeartbeatResult>(
     'visitor_heartbeat',
     {
       p_session_id: session.session_id,
@@ -151,10 +158,29 @@ export function sendHeartbeat(
   );
 }
 
-export function openConversation(session: VisitorSession) {
-  return visitorRpc<{ conversation_id: string; channel_key: string; token: string }>('chat_open_conversation', {
+/**
+ * Revalida a sessão reaproveitada do sessionStorage e devolve o operador atual
+ * (o servidor atribui um se estava vazio ou inativo). null = sessão não existe
+ * mais no banco.
+ */
+export function resumeVisitorSession(session: VisitorSession) {
+  return visitorRpc<{ operator: LiveChatOperator | null } | null>('visitor_session_resume', {
     p_session_id: session.session_id,
     p_token: session.token,
+  });
+}
+
+export function openConversation(session: VisitorSession) {
+  return visitorRpc<{ conversation_id: string; channel_key: string; token: string; operator?: LiveChatOperator | null }>(
+    'chat_open_conversation',
+    { p_session_id: session.session_id, p_token: session.token },
+  );
+}
+
+export function fetchConversationOperator(conv: StoredConversation) {
+  return visitorRpc<{ operator: LiveChatOperator | null }>('chat_conversation_operator', {
+    p_conversation_id: conv.conversation_id,
+    p_token: conv.token,
   });
 }
 

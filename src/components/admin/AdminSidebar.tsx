@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Palette, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt, MessageCircle, Radio, UserRound, SlidersHorizontal } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Palette, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt, MessageCircle, Radio, UserRound, SlidersHorizontal, BarChart3 } from 'lucide-react';
 import { useLiveChatUnreadCount } from '@/hooks/useLiveChatUnreadCount';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
@@ -43,6 +43,7 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
       items: [
         { name: 'Conversas', href: '/admin/live-chat', icon: MessageCircle, roles: ['admin'], end: true, badge: liveChatUnread },
         { name: 'Visitantes ao vivo', href: '/admin/live-visitors', icon: Radio, roles: ['admin'] },
+        { name: 'Métricas do Chat', href: '/admin/live-chat/metrics', icon: BarChart3, roles: ['admin'] },
         { name: 'Operadores', href: '/admin/live-chat/operators', icon: UserRound, roles: ['admin'] },
         { name: 'Config. do Chat', href: '/admin/live-chat/settings', icon: SlidersHorizontal, roles: ['admin'] },
       ],

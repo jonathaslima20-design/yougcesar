@@ -3,6 +3,7 @@ import { RealtimeClient, type RealtimeChannel } from '@supabase/supabase-js';
 import { Link } from 'react-router-dom';
 import {
   fetchConversationMessages,
+  fetchConversationOperator,
   forgetConversation,
   getRealtimeEndpoint,
   getStoredConversation,
@@ -12,15 +13,19 @@ import {
   storeConversation,
   submitWhatsapp,
 } from '@/lib/liveChat/visitorApi';
-import { buildGreeting, formatClock, formatPhoneBR } from '@/lib/liveChat/format';
-import type { ChatMessage, LiveChatPublicConfig, StoredConversation, VisitorSession } from '@/lib/liveChat/types';
+import { buildGreeting, formatClock, formatPhoneBR, greetingFor } from '@/lib/liveChat/format';
+import type { ChatMessage, LiveChatOperator, LiveChatPublicConfig, StoredConversation, VisitorSession } from '@/lib/liveChat/types';
+
+type View = 'teaser' | 'open' | 'closed';
 
 interface Props {
   config: LiveChatPublicConfig;
   session: VisitorSession;
+  initialView?: View;
+  /** conversa iniciada pelo admin, entregue pelo heartbeat */
+  proactive?: StoredConversation | null;
+  onConversationChange?: (hasConversation: boolean) => void;
 }
-
-type View = 'teaser' | 'open' | 'closed';
 
 const TYPING_SHOW_MS = 4000;
 const TYPING_THROTTLE_MS = 2000;
@@ -73,16 +78,23 @@ function TypingDots() {
   );
 }
 
-export default function LiveChatWidget({ config, session }: Props) {
-  const operator = session.operator;
-  const greeting = useMemo(
-    () => buildGreeting(operator?.name, operator?.role, config.greeting_cta ?? '', config.timezone),
-    [operator?.name, operator?.role, config.greeting_cta, config.timezone],
-  );
+export default function LiveChatWidget({ config, session, initialView = 'teaser', proactive, onConversationChange }: Props) {
+  // sem operador ativo: persona padrão configurada no admin
+  const fallbackOperator: LiveChatOperator | null = config.fallback_operator
+    ? { id: 'fallback', name: config.fallback_operator.name, role: 'Atendimento', avatar_url: config.fallback_operator.avatar_url }
+    : null;
+  const operator = session.operator ?? fallbackOperator;
+  const online = config.operator_online !== false;
+  const greeting = useMemo(() => {
+    const cta = config.greeting_cta ?? '';
+    if (!online) return `${greetingFor(config.timezone)}! ${config.away_message ?? ''}`.trim();
+    if (!session.operator && operator) return `${greetingFor(config.timezone)}! Você está falando com ${operator.name}. ${cta}`;
+    return buildGreeting(operator?.name, operator?.role, cta, config.timezone);
+  }, [online, operator?.name, operator?.role, session.operator, config.greeting_cta, config.away_message, config.timezone]);
   const greetingAt = useRef(new Date().toISOString());
 
   const [conv, setConv] = useState<StoredConversation | null>(() => getStoredConversation());
-  const [view, setView] = useState<View>(() => (getStoredConversation() ? 'closed' : 'teaser'));
+  const [view, setView] = useState<View>(() => (getStoredConversation() ? 'closed' : initialView));
   const [greetingReady, setGreetingReady] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -90,7 +102,8 @@ export default function LiveChatWidget({ config, session }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [operatorTyping, setOperatorTyping] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [showWhatsapp, setShowWhatsapp] = useState(false);
+  // ausente: já oferece o WhatsApp em vez de deixar o visitante esperando
+  const [showWhatsapp, setShowWhatsapp] = useState(() => !online && !getStoredConversation());
   const [phone, setPhone] = useState('');
   const [phoneConsent, setPhoneConsent] = useState(false);
 
@@ -106,6 +119,16 @@ export default function LiveChatWidget({ config, session }: Props) {
   const typingEnabled = config.typing_indicator_enabled !== false;
   const hasVisitorMessage = messages.some((m) => m.sender === 'visitor');
   const whatsappSent = messages.some((m) => m.kind === 'whatsapp');
+
+  useEffect(() => {
+    onConversationChange?.(!!conv);
+  }, [conv, onConversationChange]);
+
+  useEffect(() => {
+    if (!proactive) return;
+    setConv((c) => (c?.conversation_id === proactive.conversation_id ? c : proactive));
+    setView((v) => (v === 'open' ? v : 'teaser'));
+  }, [proactive]);
 
   // "digitando…" curto antes da saudação aparecer
   useEffect(() => {
@@ -142,6 +165,25 @@ export default function LiveChatWidget({ config, session }: Props) {
       }
     }
   }, [receive]);
+
+  // conversa retomada: atualiza a persona (pode ter nascido sem operador)
+  const conversationId = conv?.conversation_id;
+  useEffect(() => {
+    const stored = getStoredConversation();
+    if (!stored || stored.conversation_id !== conversationId) return;
+    let active = true;
+    fetchConversationOperator(stored)
+      .then(({ operator: fresh }) => {
+        if (!active || JSON.stringify(fresh) === JSON.stringify(stored.operator)) return;
+        const updated = { ...stored, operator: fresh };
+        storeConversation(updated);
+        setConv(updated);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [conversationId]);
 
   // socket só existe depois que há conversa
   useEffect(() => {
@@ -188,7 +230,8 @@ export default function LiveChatWidget({ config, session }: Props) {
   const ensureConversation = async (): Promise<StoredConversation> => {
     if (conv) return conv;
     const opened = await openConversation(session);
-    const stored: StoredConversation = { ...opened, operator: operator ?? null, saved_at: Date.now() };
+    const { operator: openedOperator, ...rest } = opened;
+    const stored: StoredConversation = { ...rest, operator: openedOperator ?? operator ?? null, saved_at: Date.now() };
     storeConversation(stored);
     setConv(stored);
     return stored;
@@ -280,8 +323,11 @@ export default function LiveChatWidget({ config, session }: Props) {
     kind: 'text',
     created_at: greetingAt.current,
   };
-  // quando já existe histórico, a saudação vem do servidor
-  const shown = messages.some((m) => m.sender === 'system') ? messages : [greetingMessage, ...messages];
+  // quando já existe histórico, a saudação vem do servidor; conversa aberta pelo admin não tem saudação
+  const shown =
+    messages.some((m) => m.sender === 'system') || messages[0]?.sender === 'operator' ? messages : [greetingMessage, ...messages];
+  const lastOperatorMessage = [...messages].reverse().find((m) => m.sender === 'operator');
+  const teaserText = lastOperatorMessage?.body ?? greeting;
 
   const launcherBadge = view !== 'open' && (unread > 0 || (view === 'teaser' && greetingReady)) ? unread || 1 : 0;
 
@@ -297,12 +343,12 @@ export default function LiveChatWidget({ config, session }: Props) {
           <div className="flex items-center gap-3 px-4 py-3 bg-ink-900 text-white">
             <div className="relative">
               <Avatar url={displayOperator?.avatar_url} name={displayOperator?.name} size={40} />
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-ink-900" />
+              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-ink-900 ${online ? 'bg-emerald-400' : 'bg-ink-300'}`} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-display font-medium text-[15px] leading-tight truncate">{displayOperator?.name ?? 'VitrineTurbo'}</p>
               <p className="text-[12px] text-white/70 truncate">
-                {operatorTyping ? 'digitando…' : displayOperator?.role ?? 'Atendimento'} · online
+                {operatorTyping ? 'digitando…' : displayOperator?.role ?? 'Atendimento'} · {online ? 'online' : 'ausente agora'}
               </p>
             </div>
             <button
@@ -349,7 +395,7 @@ export default function LiveChatWidget({ config, session }: Props) {
               </div>
             )}
 
-            {!hasVisitorMessage && !showWhatsapp && (
+            {online && !hasVisitorMessage && !showWhatsapp && (
               <div className="flex flex-wrap gap-2 pt-2 justify-end">
                 {(config.quick_replies ?? []).map((q) => (
                   <button
@@ -482,7 +528,7 @@ export default function LiveChatWidget({ config, session }: Props) {
             <div className="min-w-0">
               <p className="text-[12px] font-medium text-ink-900">{displayOperator?.name ?? 'VitrineTurbo'}</p>
               {greetingReady ? (
-                <p className="text-[13px] text-ink-700 leading-snug line-clamp-3">{greeting}</p>
+                <p className="text-[13px] text-ink-700 leading-snug line-clamp-3">{teaserText}</p>
               ) : (
                 <TypingDots />
               )}
