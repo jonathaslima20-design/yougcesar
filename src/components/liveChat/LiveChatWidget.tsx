@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RealtimeClient, type RealtimeChannel } from '@supabase/supabase-js';
+import { FocusScope } from '@radix-ui/react-focus-scope';
 import { Link } from 'react-router-dom';
 import {
   fetchConversationMessages,
@@ -8,7 +9,9 @@ import {
   getRealtimeEndpoint,
   getLastReadId,
   getStoredConversation,
+  greetingSeenRecently,
   isChatDismissed,
+  markGreetingSeen,
   openConversation,
   reportGreetingShown,
   sendVisitorMessage,
@@ -29,7 +32,12 @@ interface Props {
   /** conversa iniciada pelo admin, entregue pelo heartbeat */
   proactive?: StoredConversation | null;
   onConversationChange?: (hasConversation: boolean) => void;
+  /** 'plans': modal de escolha de plano (continua o atendimento da landing) */
+  placement?: 'landing' | 'plans';
 }
+
+// no modal de planos, quem já viu a apresentação na landing não recebe outra
+const PLANS_FOLLOW_UP = 'Vi que você já criou sua loja e está escolhendo seu plano. Ficou com alguma dúvida? Estou por aqui para te ajudar!';
 
 const TYPING_SHOW_MS = 4000;
 const TYPING_THROTTLE_MS = 2000;
@@ -82,7 +90,9 @@ function TypingDots() {
   );
 }
 
-export default function LiveChatWidget({ config, session, initialView = 'teaser', proactive, onConversationChange }: Props) {
+export default function LiveChatWidget({ config, session, initialView = 'teaser', proactive, onConversationChange, placement = 'landing' }: Props) {
+  // lido antes do efeito que marca a saudação como vista nesta montagem
+  const [followUp] = useState(() => placement === 'plans' && greetingSeenRecently());
   // sem operador ativo: persona padrão configurada no admin
   const fallbackOperator: LiveChatOperator | null = config.fallback_operator
     ? { id: 'fallback', name: config.fallback_operator.name, role: 'Atendimento', avatar_url: config.fallback_operator.avatar_url }
@@ -92,13 +102,18 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
   const greeting = useMemo(() => {
     const cta = config.greeting_cta ?? '';
     if (!online) return `${greetingFor(config.timezone)}! ${config.away_message ?? ''}`.trim();
+    if (followUp) return PLANS_FOLLOW_UP;
     if (!session.operator && operator) return `${greetingFor(config.timezone)}! Você está falando com ${operator.name}. ${cta}`;
     return buildGreeting(operator?.name, operator?.role, cta, config.timezone, operator?.greeting);
-  }, [online, operator?.name, operator?.role, operator?.greeting, session.operator, config.greeting_cta, config.away_message, config.timezone]);
+  }, [online, followUp, operator?.name, operator?.role, operator?.greeting, session.operator, config.greeting_cta, config.away_message, config.timezone]);
   const greetingAt = useRef(new Date().toISOString());
 
   const [conv, setConv] = useState<StoredConversation | null>(() => getStoredConversation());
-  const [view, setView] = useState<View>(() => (getStoredConversation() ? 'closed' : initialView));
+  // conversa em andamento: na landing fica só o botão; no modal de planos o
+  // balão volta com a última mensagem do histórico
+  const [view, setView] = useState<View>(() =>
+    getStoredConversation() && !(placement === 'plans' && initialView === 'teaser') ? 'closed' : initialView,
+  );
   const [greetingReady, setGreetingReady] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -126,6 +141,10 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
   const typingEnabled = config.typing_indicator_enabled !== false;
   const hasVisitorMessage = messages.some((m) => m.sender === 'visitor');
   const whatsappSent = messages.some((m) => m.kind === 'whatsapp');
+  // respondeu a saudação sem ter deixado o número: pede o WhatsApp e trava o campo de mensagem
+  const whatsappRequired = config.require_whatsapp !== false && hasVisitorMessage && !whatsappSent;
+  const [whatsappAskReady, setWhatsappAskReady] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onConversationChange?.(!!conv);
@@ -148,8 +167,31 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
   // que uma conversa iniciada depois pelo admin continue a partir dela
   const greetingVisible = !conv && greetingReady && (view === 'teaser' || view === 'open');
   useEffect(() => {
-    if (greetingVisible) reportGreetingShown(session, greeting);
+    if (!greetingVisible) return;
+    reportGreetingShown(session, greeting);
+    markGreetingSeen();
   }, [greetingVisible, session, greeting]);
+
+  // "digitando…" curto antes do pedido de WhatsApp, como se o atendente escrevesse
+  useEffect(() => {
+    if (!whatsappRequired) {
+      setWhatsappAskReady(false);
+      return;
+    }
+    const t = setTimeout(() => setWhatsappAskReady(true), 1200);
+    return () => clearTimeout(t);
+  }, [whatsappRequired]);
+
+  // dentro de um modal do Radix (escolha de plano) a rolagem fora do diálogo é
+  // bloqueada no document; parar a propagação aqui libera a lista de mensagens
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const stop = (e: Event) => e.stopPropagation();
+    const events = ['wheel', 'touchstart', 'touchmove'] as const;
+    events.forEach((ev) => el.addEventListener(ev, stop, { passive: true }));
+    return () => events.forEach((ev) => el.removeEventListener(ev, stop));
+  }, []);
 
   // "digitando…" curto antes da saudação aparecer
   useEffect(() => {
@@ -261,7 +303,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
     if (view === 'open') {
       requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }));
     }
-  }, [view, messages.length, operatorTyping, showWhatsapp]);
+  }, [view, messages.length, operatorTyping, showWhatsapp, whatsappAskReady]);
 
   const ensureConversation = async (): Promise<StoredConversation> => {
     if (conv) return conv;
@@ -362,14 +404,23 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
   // quando já existe histórico, a saudação vem do servidor; conversa aberta pelo admin não tem saudação
   const shown =
     messages.some((m) => m.sender === 'system') || messages[0]?.sender === 'operator' ? messages : [greetingMessage, ...messages];
-  const lastOperatorMessage = [...messages].reverse().find((m) => m.sender === 'operator');
+  const lastOperatorMessage = [...messages].reverse().find((m) => m.sender !== 'visitor' && !m.pending);
   const teaserText = lastOperatorMessage?.body ?? greeting;
+  // histórico ainda carregando: "digitando…" em vez de piscar uma saudação recalculada
+  const teaserLoading = !!conv && messages.length === 0;
 
   const launcherBadge = view === 'open' ? 0 : unread > 0 ? unread : view === 'teaser' && greetingReady && !conv ? 1 : 0;
 
   return (
-    <div className="vt-live-chat fixed z-[60] right-4 bottom-24 md:bottom-6 md:right-6 flex flex-col items-end gap-3 font-sans">
+    // pointer-events-auto: um modal do Radix aberto desliga os cliques no body
+    <div
+      ref={rootRef}
+      className="vt-live-chat pointer-events-auto fixed z-[60] right-4 bottom-24 md:bottom-6 md:right-6 flex flex-col items-end gap-3 font-sans"
+    >
       {view === 'open' && (
+        // escopo próprio pausa o foco preso de um modal aberto (escolha de plano)
+        // enquanto a conversa está aberta, sem roubar o foco ao abrir/fechar
+        <FocusScope asChild onMountAutoFocus={(e) => e.preventDefault()} onUnmountAutoFocus={(e) => e.preventDefault()}>
         <div
           role="dialog"
           aria-label={`Conversa com ${displayOperator?.name ?? 'VitrineTurbo'}`}
@@ -447,7 +498,20 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
               </div>
             )}
 
-            {showWhatsapp && (
+            {whatsappRequired && (
+              <div className="flex gap-2">
+                <Avatar url={displayOperator?.avatar_url} name={displayOperator?.name} size={26} />
+                {whatsappAskReady ? (
+                  <div className="max-w-[78%] rounded-2xl rounded-bl-md px-3 py-2 text-[14px] leading-snug bg-white text-ink-900 shadow-sm">
+                    {config.whatsapp_request_message ?? 'Para prosseguir com o seu atendimento, por favor, informe o seu WhatsApp.'}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl rounded-bl-md px-3 py-1.5 shadow-sm"><TypingDots /></div>
+                )}
+              </div>
+            )}
+
+            {(showWhatsapp || (whatsappRequired && whatsappAskReady)) && (
               <div className="bg-white rounded-xl p-3 shadow-sm space-y-2">
                 <label className="block text-[13px] font-medium text-ink-900" htmlFor="vt-chat-phone">
                   Seu WhatsApp (com DDD)
@@ -472,9 +536,11 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
                   Autorizo a VitrineTurbo a me contatar por WhatsApp sobre este atendimento.
                 </label>
                 <div className="flex gap-2 justify-end">
-                  <button type="button" onClick={() => setShowWhatsapp(false)} className="text-[13px] px-3 py-1.5 text-ink-500">
-                    Cancelar
-                  </button>
+                  {!whatsappRequired && (
+                    <button type="button" onClick={() => setShowWhatsapp(false)} className="text-[13px] px-3 py-1.5 text-ink-500">
+                      Cancelar
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={sending}
@@ -491,7 +557,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
           {/* composer */}
           <div className="border-t border-ink-100 bg-white">
             {error && <p className="px-3 pt-2 text-[12px] text-red-600">{error}</p>}
-            {!whatsappSent && !showWhatsapp && (
+            {!whatsappSent && !showWhatsapp && !whatsappRequired && (
               <button
                 type="button"
                 onClick={() => {
@@ -503,6 +569,9 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
                 Prefiro falar pelo WhatsApp
               </button>
             )}
+            {whatsappRequired ? (
+              <p className="px-3 pt-3 pb-1 text-[12px] text-ink-500">Informe seu WhatsApp acima para continuar a conversa.</p>
+            ) : (
             <form
               className="flex items-end gap-2 p-3"
               onSubmit={(e) => {
@@ -536,6 +605,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               </button>
             </form>
+            )}
             <p className="px-3 pb-2 text-[10px] text-ink-400 flex justify-between gap-2">
               <span>
                 Ao conversar, você concorda com nossa{' '}
@@ -547,6 +617,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
             </p>
           </div>
         </div>
+        </FocusScope>
       )}
 
       {view === 'teaser' && (
@@ -563,7 +634,7 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
             <Avatar url={displayOperator?.avatar_url} name={displayOperator?.name} size={34} />
             <div className="min-w-0">
               <p className="text-[12px] font-medium text-ink-900">{displayOperator?.name ?? 'VitrineTurbo'}</p>
-              {greetingReady ? (
+              {greetingReady && !teaserLoading ? (
                 <p className="text-[13px] text-ink-700 leading-snug line-clamp-3">{teaserText}</p>
               ) : (
                 <TypingDots />

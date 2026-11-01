@@ -637,6 +637,30 @@ export default function LiveChatSettingsPage() {
               A mensagem fica: “Boa tarde! Sou Camila, consultora comercial da VitrineTurbo. {settings.greeting_cta}”
             </p>
           </div>
+          <div className="rounded-md border px-3 py-2 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <Label htmlFor="require-whatsapp">Pedir o WhatsApp para continuar</Label>
+                <p className="text-xs text-muted-foreground">
+                  Assim que o visitante responder a saudação, o chat pede o número e só libera o campo de mensagem depois
+                  que ele enviar.
+                </p>
+              </div>
+              <Switch id="require-whatsapp" checked={settings.require_whatsapp} onCheckedChange={(v) => set('require_whatsapp', v)} />
+            </div>
+            {settings.require_whatsapp && (
+              <div className="space-y-1.5">
+                <Label htmlFor="whatsapp-request">Mensagem do pedido</Label>
+                <Textarea
+                  id="whatsapp-request"
+                  rows={2}
+                  maxLength={300}
+                  value={settings.whatsapp_request_message}
+                  onChange={(e) => set('whatsapp_request_message', e.target.value)}
+                />
+              </div>
+            )}
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="qr">Botões de resposta rápida do visitante (um por linha, até 6)</Label>
             <Textarea id="qr" rows={4} value={quickRepliesText} onChange={(e) => setQuickRepliesText(e.target.value)} />

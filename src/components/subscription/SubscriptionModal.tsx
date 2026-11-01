@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import LiveChatLoader from '@/components/liveChat/LiveChatLoader';
 import { Check, CreditCard, ArrowRight, LogOut, Package, FolderOpen, CircleArrowUp as ArrowUpCircle, Lock, TriangleAlert as AlertTriangle, Ban, Tag } from 'lucide-react';
 import BannerClients from '@/components/subscription/BannerClients';
 import { Button } from '@/components/ui/button';
@@ -40,6 +42,7 @@ interface SubscriptionModalProps {
 
 export default function SubscriptionModal({ open, onOpenChange, isForced = false, limitReason, planStatus, offerDiscount, signupOffer }: SubscriptionModalProps) {
   const { clearSignupOffer } = useSubscriptionModal();
+  const { i18n } = useTranslation();
 
   // Signup offer takes priority over the generic overlay-accept discount (the two
   // shouldn't co-occur — forced vs dismissable flows are mutually exclusive — but
@@ -191,6 +194,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
   };
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(newOpen) => {
@@ -205,6 +209,10 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
           if (isForced) {
             e.preventDefault();
           }
+        }}
+        onInteractOutside={(e) => {
+          // clicar ou digitar no chat de atendimento não fecha a escolha de plano
+          if ((e.target as Element | null)?.closest?.('.vt-live-chat')) e.preventDefault();
         }}
         onEscapeKeyDown={(e) => {
           if (isForced) {
@@ -564,5 +572,8 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
         </div>
       </DialogContent>
     </Dialog>
+    {/* atendimento no momento da decisão; fica fora do conteúdo do diálogo para o `fixed` não herdar o transform */}
+    {open && i18n.language === 'pt-BR' && <LiveChatLoader placement="plans" />}
+    </>
   );
 }

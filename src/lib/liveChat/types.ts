@@ -27,6 +27,8 @@ export interface LiveChatPublicConfig {
   trigger_scroll_percent?: number | null;
   trigger_exit_intent?: boolean;
   reopen_cooldown_days?: number;
+  require_whatsapp?: boolean;
+  whatsapp_request_message?: string;
 }
 
 export interface HeartbeatResult {
@@ -102,6 +104,8 @@ export interface LiveChatSettings {
   holidays: string[];
   auto_close_idle_hours: number;
   unanswered_alert_minutes: number;
+  require_whatsapp: boolean;
+  whatsapp_request_message: string;
   updated_at: string;
 }
 

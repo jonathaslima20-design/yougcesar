@@ -73,7 +73,20 @@ function visibleSection(id: string): HTMLElement | null {
  * config, inicia a sessão anônima, roda o heartbeat (30 s, só com aba visível)
  * e, quando um gatilho dispara, carrega o widget de chat em chunk separado.
  */
-export default function LiveChatLoader() {
+interface Props {
+  /**
+   * 'plans': modal de escolha de plano no painel. Abre o balão poucos segundos
+   * depois, sem os gatilhos de rolagem/seção da landing, e só respeita o
+   * fechamento feito nesta aba.
+   */
+  placement?: 'landing' | 'plans';
+}
+
+const PLANS_SECTION = 'escolha-plano';
+const PLANS_OPEN_DELAY_SECONDS = 6;
+
+export default function LiveChatLoader({ placement = 'landing' }: Props) {
+  const isPlans = placement === 'plans';
   const { user, loading: authLoading } = useAuth();
   const [config, setConfig] = useState<LiveChatPublicConfig | null>(null);
   const [session, setSession] = useState<VisitorSession | null>(null);
@@ -84,7 +97,7 @@ export default function LiveChatLoader() {
   const [proactive, setProactive] = useState<StoredConversation | null>(null);
   const [hasConversation, setHasConversation] = useState(() => !!getStoredConversation());
   const onConversationChange = useCallback((has: boolean) => setHasConversation(has), []);
-  const sectionRef = useRef<string | null>(null);
+  const sectionRef = useRef<string | null>(isPlans ? PLANS_SECTION : null);
   const lastInteractionRef = useRef(Date.now());
 
   // cliente com plano ativo não é lead: não oferece o chat (admin continua vendo para testar)
@@ -169,7 +182,8 @@ export default function LiveChatLoader() {
       },
       { threshold: [0, 0.25, 0.5, 0.75, 1] },
     );
-    document.querySelectorAll<HTMLElement>('section[id], footer[id]').forEach((el) => observer.observe(el));
+    // no modal de planos a "seção" é fixa; as seções do painel não interessam
+    if (!isPlans) document.querySelectorAll<HTMLElement>('section[id], footer[id]').forEach((el) => observer.observe(el));
 
     const beat = async (ended = false) => {
       try {
@@ -226,15 +240,16 @@ export default function LiveChatLoader() {
     if (!session || !config || mode === 'teaser' || authLoading) return;
     if (!config.show_on_mobile && window.matchMedia(MOBILE_QUERY).matches) return;
 
-    // conversa em andamento: launcher já, mesmo que o horário de novas conversas tenha acabado
-    if (hasConversation) {
+    // conversa em andamento: launcher já, mesmo que o horário de novas conversas tenha acabado.
+    // No modal de planos o balão volta (com o histórico) depois do atraso.
+    if (hasConversation && !isPlans) {
       setMode('launcher');
       return;
     }
-    if (!chatAvailable || hiddenForCustomer) return;
+    if (!hasConversation && (!chatAvailable || hiddenForCustomer)) return;
 
     // sem abertura automática, ou fechado há pouco: só o botão, sem balão
-    if (config.auto_open === false || isChatDismissed(config.reopen_cooldown_days ?? 1)) {
+    if (config.auto_open === false || isChatDismissed(isPlans ? 0 : config.reopen_cooldown_days ?? 1)) {
       setMode('launcher');
       return;
     }
@@ -247,8 +262,8 @@ export default function LiveChatLoader() {
     };
     const cleanups: (() => void)[] = [];
 
-    if (config.delay_trigger_enabled !== false) {
-      const delay = Math.max(0, config.open_delay_seconds ?? 25);
+    if (isPlans || config.delay_trigger_enabled !== false) {
+      const delay = isPlans ? PLANS_OPEN_DELAY_SECONDS : Math.max(0, config.open_delay_seconds ?? 25);
       let visibleSeconds = 0;
       const tick = setInterval(() => {
         if (document.visibilityState !== 'visible') return;
@@ -260,7 +275,7 @@ export default function LiveChatLoader() {
       cleanups.push(() => clearInterval(tick));
     }
 
-    if (config.trigger_section) {
+    if (!isPlans && config.trigger_section) {
       // a seção pode ser montada depois (preços dependem do país), então procura
       // a cada rolagem; dispara quando o topo dela passa de 60% da altura da tela
       const sectionId = config.trigger_section;
@@ -280,7 +295,7 @@ export default function LiveChatLoader() {
       cleanups.push(() => window.removeEventListener('scroll', onScroll));
     }
 
-    if (config.trigger_scroll_percent) {
+    if (!isPlans && config.trigger_scroll_percent) {
       const threshold = config.trigger_scroll_percent / 100;
       const onScroll = () => {
         const max = document.documentElement.scrollHeight - window.innerHeight;
@@ -290,7 +305,7 @@ export default function LiveChatLoader() {
       cleanups.push(() => window.removeEventListener('scroll', onScroll));
     }
 
-    if (config.trigger_exit_intent && window.matchMedia('(pointer: fine)').matches) {
+    if (!isPlans && config.trigger_exit_intent && window.matchMedia('(pointer: fine)').matches) {
       const onLeave = (e: MouseEvent) => {
         if (!e.relatedTarget && e.clientY <= 0) fire();
       };
@@ -299,7 +314,7 @@ export default function LiveChatLoader() {
     }
 
     return () => cleanups.forEach((c) => c());
-  }, [session, config, chatAvailable, hasConversation, hiddenForCustomer, mode, authLoading]);
+  }, [session, config, chatAvailable, hasConversation, hiddenForCustomer, mode, authLoading, isPlans]);
 
   // conversa iniciada pelo admin aparece mesmo sem gatilho
   useEffect(() => {
@@ -318,6 +333,7 @@ export default function LiveChatLoader() {
         initialView={mode === 'teaser' ? 'teaser' : 'closed'}
         proactive={proactive}
         onConversationChange={onConversationChange}
+        placement={placement}
       />
     </Suspense>
   );

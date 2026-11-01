@@ -185,6 +185,19 @@ export function resumeVisitorSession(session: VisitorSession) {
   });
 }
 
+const GREETING_SEEN_AT_KEY = 'vt_greet_seen_at';
+
+/** Marca que o visitante já viu a apresentação do operador (vale entre abas). */
+export function markGreetingSeen() {
+  safeSet(localStorage, GREETING_SEEN_AT_KEY, String(Date.now()));
+}
+
+/** Viu a apresentação nas últimas 24 h? Então não se apresenta de novo. */
+export function greetingSeenRecently(): boolean {
+  const at = Number(safeGet(localStorage, GREETING_SEEN_AT_KEY));
+  return Number.isFinite(at) && at > 0 && Date.now() - at < CONVERSATION_TTL_MS;
+}
+
 const GREETING_SENT_KEY = 'vt_greet_sent';
 
 /**

@@ -87,6 +87,7 @@ export const LANDING_SECTION_LABELS: Record<string, string> = {
   faq: 'FAQ',
   cta: 'CTA final',
   footer: 'Rodapé',
+  'escolha-plano': 'Escolhendo plano (painel)',
 };
 
 export function sectionLabel(section: string | null): string {
