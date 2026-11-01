@@ -10,6 +10,7 @@ import {
   getStoredConversation,
   isChatDismissed,
   openConversation,
+  reportGreetingShown,
   sendVisitorMessage,
   setChatDismissed,
   setLastReadId,
@@ -142,6 +143,13 @@ export default function LiveChatWidget({ config, session, initialView = 'teaser'
       return isChatDismissed(config.reopen_cooldown_days ?? 1) ? 'closed' : 'teaser';
     });
   }, [proactive, config.reopen_cooldown_days]);
+
+  // saudação exibida (balão ou janela, antes de existir conversa): registra para
+  // que uma conversa iniciada depois pelo admin continue a partir dela
+  const greetingVisible = !conv && greetingReady && (view === 'teaser' || view === 'open');
+  useEffect(() => {
+    if (greetingVisible) reportGreetingShown(session, greeting);
+  }, [greetingVisible, session, greeting]);
 
   // "digitando…" curto antes da saudação aparecer
   useEffect(() => {

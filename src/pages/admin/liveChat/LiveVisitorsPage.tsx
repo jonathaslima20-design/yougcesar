@@ -21,6 +21,12 @@ function statusOf(v: LiveVisitor, now: number): VisitorStatus {
 }
 
 function openingMessage(v: LiveVisitor): string {
+  // já viu a saudação automática: continua a conversa em vez de se apresentar de novo
+  if (v.greeting_shown_at) {
+    if (v.current_section === 'precos') return 'Vi que você está olhando os planos 🙂 Quer ajuda para escolher o ideal para a sua loja?';
+    if (v.current_section === 'faq') return 'Ficou alguma dúvida que eu possa responder? 🙂';
+    return 'Vi que você ainda está por aqui 🙂 Posso te ajudar com alguma dúvida?';
+  }
   const name = v.operator?.display_name;
   const intro = name ? `Oi! Aqui é ${name}, da VitrineTurbo.` : 'Oi! Aqui é da equipe VitrineTurbo.';
   if (v.current_section === 'precos') return `${intro} Vi que você está olhando os planos. Posso te ajudar a escolher o ideal para a sua loja?`;
@@ -213,6 +219,7 @@ export default function LiveVisitorsPage() {
             <DialogDescription>
               O visitante #{target?.visitor_id.slice(0, 6)} recebe o balão do chat com esta mensagem em até 30 segundos, se continuar na
               página com a aba aberta.
+              {target?.greeting_shown_at && ' Ele já viu a saudação automática: ela fica no início da conversa e esta mensagem vem em seguida.'}
             </DialogDescription>
           </DialogHeader>
           <Textarea rows={4} maxLength={2000} value={opening} onChange={(e) => setOpening(e.target.value)} />

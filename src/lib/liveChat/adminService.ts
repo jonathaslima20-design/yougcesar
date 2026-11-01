@@ -97,7 +97,7 @@ export async function fetchLiveVisitors(): Promise<LiveVisitor[]> {
   const { data, error } = await supabase
     .from('visitor_sessions')
     .select(
-      'id, visitor_id, operator_id, started_at, last_seen_at, last_interaction_at, current_path, current_section, sections_seen, referrer_host, utm_source, utm_medium, utm_campaign, device, visit_number, ended_at, operator:live_chat_operators(display_name), conversations:chat_conversations(id, status)',
+      'id, visitor_id, operator_id, started_at, last_seen_at, last_interaction_at, current_path, current_section, sections_seen, referrer_host, utm_source, utm_medium, utm_campaign, device, visit_number, ended_at, greeting_shown_at, operator:live_chat_operators(display_name), conversations:chat_conversations(id, status)',
     )
     .is('ended_at', null)
     .gte('last_seen_at', since)

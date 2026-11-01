@@ -170,6 +170,7 @@ export interface VisitorSessionRow {
   device: 'mobile' | 'desktop' | null;
   visit_number: number;
   ended_at: string | null;
+  greeting_shown_at?: string | null;
 }
 
 export type ConversationStatus = 'open' | 'pending' | 'closed';

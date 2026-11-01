@@ -185,6 +185,27 @@ export function resumeVisitorSession(session: VisitorSession) {
   });
 }
 
+const GREETING_SENT_KEY = 'vt_greet_sent';
+
+/**
+ * Registra (uma vez por sessão) a saudação que o visitante viu, para uma
+ * conversa iniciada depois pelo admin começar por ela.
+ */
+export async function reportGreetingShown(session: VisitorSession, text: string) {
+  if (safeGet(sessionStorage, GREETING_SENT_KEY) === session.session_id) return;
+  safeSet(sessionStorage, GREETING_SENT_KEY, session.session_id);
+  try {
+    await visitorRpc<null>('visitor_greeting_shown', {
+      p_session_id: session.session_id,
+      p_token: session.token,
+      p_text: text,
+    });
+  } catch {
+    // RPC ainda não existe ou rede instável: tenta de novo na próxima sessão
+    safeSet(sessionStorage, GREETING_SENT_KEY, null);
+  }
+}
+
 export function openConversation(session: VisitorSession) {
   return visitorRpc<{ conversation_id: string; channel_key: string; token: string; operator?: LiveChatOperator | null }>(
     'chat_open_conversation',
