@@ -3,7 +3,7 @@ import {
   DELIVERY_SCOPE_PRINT_LABELS,
   ORDER_STATUS_PRINT_LABELS,
   PAYMENT_STATUS_PRINT_LABELS,
-  formatBRL,
+  formatOrderMoney,
   formatCnpj,
   formatPhone,
   formatPrintDateTime,
@@ -61,7 +61,7 @@ export default function OrderPrintDocument({ order, store, payments, generatedAt
   const deliveryValue = order.delivery_is_quote
     ? 'A combinar'
     : order.delivery_fee && order.delivery_fee > 0
-      ? formatBRL(order.delivery_fee)
+      ? formatOrderMoney(order.delivery_fee, store.currency)
       : 'Grátis';
 
   return (
@@ -162,8 +162,8 @@ export default function OrderPrintDocument({ order, store, payments, generatedAt
                     {item.item_notes && <p className="text-[11px] italic text-neutral-600">Obs.: {item.item_notes}</p>}
                   </td>
                   <td className="py-2 px-2 text-center tabular-nums">{item.quantity}</td>
-                  <td className="py-2 px-2 text-right tabular-nums">{formatBRL(item.unit_price)}</td>
-                  <td className="py-2 pl-2 text-right tabular-nums font-medium">{formatBRL(item.subtotal)}</td>
+                  <td className="py-2 px-2 text-right tabular-nums">{formatOrderMoney(item.unit_price, store.currency)}</td>
+                  <td className="py-2 pl-2 text-right tabular-nums font-medium">{formatOrderMoney(item.subtotal, store.currency)}</td>
                 </tr>
               );
             })}
@@ -176,21 +176,21 @@ export default function OrderPrintDocument({ order, store, payments, generatedAt
         <div className="w-full max-w-xs space-y-1 text-[12px] tabular-nums">
           <div className="flex justify-between">
             <span className="text-neutral-600">Subtotal</span>
-            <span>{formatBRL(order.subtotal)}</span>
+            <span>{formatOrderMoney(order.subtotal, store.currency)}</span>
           </div>
           {order.coupon_code && (
             <div className="flex justify-between">
               <span className="text-neutral-600">Cupom {order.coupon_code}</span>
-              <span>-{formatBRL(order.discount_amount)}</span>
+              <span>-{formatOrderMoney(order.discount_amount, store.currency)}</span>
             </div>
           )}
           {!!order.payment_method_discount && order.payment_method_discount > 0 && (
             <div className="flex justify-between">
               <span className="text-neutral-600">Desconto {order.payment_method}</span>
-              <span>-{formatBRL(order.payment_method_discount)}</span>
+              <span>-{formatOrderMoney(order.payment_method_discount, store.currency)}</span>
             </div>
           )}
-          {!isPickup && (order.delivery_option || order.delivery_fee) && (
+          {!isPickup && !!(order.delivery_option || order.delivery_fee) && (
             <div className="flex justify-between">
               <span className="text-neutral-600">Entrega</span>
               <span>{deliveryValue}</span>
@@ -199,12 +199,12 @@ export default function OrderPrintDocument({ order, store, payments, generatedAt
           {!!order.insurance_fee && order.insurance_fee > 0 && (
             <div className="flex justify-between">
               <span className="text-neutral-600">Seguro de frete</span>
-              <span>{formatBRL(order.insurance_fee)}</span>
+              <span>{formatOrderMoney(order.insurance_fee, store.currency)}</span>
             </div>
           )}
           <div className="flex justify-between items-baseline border-t-2 border-neutral-900 pt-2 mt-2">
             <span className="text-[13px] font-bold">Total</span>
-            <span className="text-[16px] font-bold">{formatBRL(order.total)}</span>
+            <span className="text-[16px] font-bold">{formatOrderMoney(order.total, store.currency)}</span>
           </div>
           {order.payment_method && (
             <p className="text-right text-[11px] text-neutral-600 pt-1">Pagamento: {order.payment_method}</p>
@@ -230,7 +230,7 @@ export default function OrderPrintDocument({ order, store, payments, generatedAt
                 <tr key={p.id} className="break-inside-avoid border-b border-neutral-100">
                   <td className="py-1 pr-2">{formatPrintDateTime(p.created_at)}</td>
                   <td className="py-1 px-2">{p.payment_method === 'pix' ? 'Pix' : `Cartão final ${p.card_last4 ?? '----'}`}</td>
-                  <td className="py-1 px-2 text-right tabular-nums">{formatBRL(p.amount_cents / 100)}</td>
+                  <td className="py-1 px-2 text-right tabular-nums">{formatOrderMoney(p.amount_cents / 100, store.currency)}</td>
                   <td className="py-1 pl-2">{PAYMENT_ATTEMPT_PRINT_LABELS[p.status] ?? p.status}</td>
                 </tr>
               ))}

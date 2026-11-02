@@ -3,6 +3,7 @@ import { Package, Search, Filter, Loader as Loader2, ShoppingBag, Clock, CircleC
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOrders, getOrderStats, type OrderStats } from '@/lib/orderService';
 import { getMerchantPaymentConfig } from '@/lib/merchantPayments';
+import { formatOrderMoney } from '@/lib/orderPrint';
 import { useCheckoutSettings } from '@/hooks/useCheckoutSettings';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import PaymentStatusBadge, { PAYMENT_STATUS_CONFIG } from '@/components/orders/PaymentStatusBadge';
@@ -47,12 +48,9 @@ const PAYMENT_STATUS_OPTIONS: { value: string; label: string }[] = [
   })),
 ];
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}
-
 export default function OrdersPage() {
   const { user } = useAuth();
+  const formatCurrency = (value: number) => formatOrderMoney(value, user?.currency);
   const { settings: checkoutSettings } = useCheckoutSettings();
 
   const [orders, setOrders] = useState<Order[]>([]);

@@ -36,6 +36,7 @@ export interface PrintStoreInfo {
   logoUrl: string | null;
   companyName: string | null;
   cnpj: string | null;
+  currency: string;
 }
 
 export interface OrderPaymentRow {
@@ -61,11 +62,19 @@ export function buildPrintStoreInfo(
     logoUrl: user.social_icon_url || user.avatar_url || null,
     companyName: company.companyName,
     cnpj: company.cnpj,
+    currency: user.currency || 'BRL',
   };
 }
 
-export function formatBRL(value: number | null | undefined): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value ?? 0);
+// Valores do pedido seguem a moeda configurada pelo lojista (users.currency);
+// o locale fica em pt-BR porque o restante do dashboard e da impressão é em
+// português, então um lojista em dólar vê "US$ 20,50".
+export function formatOrderMoney(value: number | null | undefined, currency?: string | null): string {
+  try {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: currency || 'BRL' }).format(value ?? 0);
+  } catch {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value ?? 0);
+  }
 }
 
 export function formatPrintDateTime(iso: string): string {

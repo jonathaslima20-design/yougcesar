@@ -2,7 +2,7 @@ import type { Order } from '@/types';
 import {
   ORDER_STATUS_PRINT_LABELS,
   PAYMENT_STATUS_PRINT_LABELS,
-  formatBRL,
+  formatOrderMoney,
   formatCnpj,
   formatPhone,
   formatPrintDate,
@@ -96,7 +96,7 @@ export default function OrderListPrintDocument({ orders, store, filters, generat
 
       <section className="mt-4 grid grid-cols-4 gap-4 rounded border border-neutral-300 p-4">
         <SummaryItem label="Pedidos" value={String(orders.length)} />
-        <SummaryItem label="Receita" value={formatBRL(revenue)} />
+        <SummaryItem label="Receita" value={formatOrderMoney(revenue, store.currency)} />
         <SummaryItem label="Itens vendidos" value={String(itemsCount)} />
         <SummaryItem label="Pendentes / cancelados" value={`${pending} / ${cancelled}`} />
       </section>
@@ -132,12 +132,12 @@ export default function OrderListPrintDocument({ orders, store, filters, generat
               <td className="py-1.5 px-2 text-center tabular-nums">
                 {o.order_items?.reduce((s, i) => s + i.quantity, 0) ?? 0}
               </td>
-              <td className="py-1.5 pl-2 text-right tabular-nums font-medium">{formatBRL(o.total)}</td>
+              <td className="py-1.5 pl-2 text-right tabular-nums font-medium">{formatOrderMoney(o.total, store.currency)}</td>
             </tr>
           ))}
           <tr className="border-t-2 border-neutral-900 font-bold">
             <td colSpan={7} className="py-2 pr-2 text-right text-[11px]">Receita (sem cancelados)</td>
-            <td className="py-2 pl-2 text-right tabular-nums text-[13px]">{formatBRL(revenue)}</td>
+            <td className="py-2 pl-2 text-right tabular-nums text-[13px]">{formatOrderMoney(revenue, store.currency)}</td>
           </tr>
         </tbody>
       </table>

@@ -47,6 +47,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Order, OrderStatus, OrderPaymentStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatOrderMoney } from '@/lib/orderPrint';
 
 interface OrderPaymentRow {
   id: string;
@@ -86,10 +87,6 @@ const STATUS_TRANSITIONS: Record<string, { label: string; next: OrderStatus }[]>
   cancelled: [],
 };
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}
-
 // Mirrors SERVICE_CARRIER_NAMES in supabase/functions/merchant-shipping-label
 // — used here only to show a friendly name while a purchase is in flight,
 // before the order's own `carrier` column (written by that edge function)
@@ -122,6 +119,7 @@ export default function OrderDetailsPanel({
 }: OrderDetailsPanelProps) {
   const [updating, setUpdating] = useState(false);
   const { user } = useAuth();
+  const formatCurrency = (value: number) => formatOrderMoney(value, user?.currency);
   const { inventoryEnabled, autoDeductStock } = useInventoryEnabled();
   const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false);
   const [inventoryDialogMode, setInventoryDialogMode] = useState<'deduct' | 'restore'>('deduct');
@@ -795,7 +793,7 @@ export default function OrderDetailsPanel({
                             {LABEL_STATUS_LABELS[shippingLabel.status]}
                           </Badge>
                           {shippingLabel.price != null && (
-                            <span className="text-sm font-medium">{formatCurrency(shippingLabel.price)}</span>
+                            <span className="text-sm font-medium">{formatOrderMoney(shippingLabel.price, 'BRL')}</span>
                           )}
                         </div>
                         {shippingLabel.tracking_code && (
