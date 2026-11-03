@@ -42,6 +42,19 @@
 -- partner (who is then the only non-admin allowed to lift it).
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS blocked_by uuid REFERENCES public.users(id) ON DELETE SET NULL;
 
+-- The partner account whose clients the caller manages. Just auth.uid() for
+-- now; the Partners v2 migration makes it team-aware (agency staff act on
+-- behalf of the owning partner).
+CREATE OR REPLACE FUNCTION public.partner_scope_id()
+RETURNS uuid
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT auth.uid();
+$$;
+
 CREATE OR REPLACE FUNCTION public.protect_users_sensitive_columns()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -164,15 +177,15 @@ BEGIN
   END IF;
 
   IF NEW.is_blocked IS DISTINCT FROM OLD.is_blocked THEN
-    IF is_self OR NOT public.is_partner() OR OLD.managed_by_partner_id IS DISTINCT FROM caller THEN
+    IF is_self OR NOT public.is_partner() OR OLD.managed_by_partner_id IS DISTINCT FROM public.partner_scope_id() THEN
       RAISE EXCEPTION 'Not allowed to change is_blocked' USING ERRCODE = '42501';
     END IF;
     -- A partner can only lift a block they placed themselves, never one set
     -- by an admin (e.g. "pendência financeira").
-    IF NOT NEW.is_blocked AND OLD.blocked_by IS DISTINCT FROM caller THEN
+    IF NOT NEW.is_blocked AND OLD.blocked_by IS DISTINCT FROM public.partner_scope_id() THEN
       RAISE EXCEPTION 'This account was blocked by VitrineTurbo support' USING ERRCODE = '42501';
     END IF;
-    NEW.blocked_by := CASE WHEN NEW.is_blocked THEN caller ELSE NULL END;
+    NEW.blocked_by := CASE WHEN NEW.is_blocked THEN public.partner_scope_id() ELSE NULL END;
   END IF;
 
   RETURN NEW;
