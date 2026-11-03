@@ -1660,7 +1660,7 @@ BEGIN
   -- High reversal ratio over 90 days freezes payouts for review.
   FOR v_partner IN
     SELECT partner_id,
-           SUM(amount) FILTER (WHERE status = 'reversed' OR type = 'clawback') AS bad,
+           SUM(abs(amount)) FILTER (WHERE status = 'reversed' OR type = 'clawback') AS bad,
            SUM(abs(amount)) FILTER (WHERE type IN ('new', 'renewal', 'clawback')) AS total
     FROM partner_commissions
     WHERE created_at > now() - interval '90 days'
