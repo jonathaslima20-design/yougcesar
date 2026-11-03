@@ -248,6 +248,14 @@ SECURITY INVOKER
 SET search_path = public
 AS $$
 BEGIN
+  -- The document type always follows the document itself (CPF = 11 digits,
+  -- CNPJ = 14), so the monthly cap for individuals can't be dodged.
+  NEW.document := NULLIF(regexp_replace(COALESCE(NEW.document, ''), '\D', '', 'g'), '');
+  NEW.document_type := CASE length(NEW.document) WHEN 11 THEN 'cpf' WHEN 14 THEN 'cnpj' END;
+  IF NEW.document IS NOT NULL AND NEW.document_type IS NULL THEN
+    RAISE EXCEPTION 'CPF ou CNPJ inválido' USING ERRCODE = '22023';
+  END IF;
+
   IF current_user NOT IN ('authenticated', 'anon') OR public.is_admin() THEN
     NEW.updated_at := now();
     RETURN NEW;
@@ -279,7 +287,7 @@ $$;
 
 DROP TRIGGER IF EXISTS a_protect_partner_profile_columns ON public.partner_profiles;
 CREATE TRIGGER a_protect_partner_profile_columns
-  BEFORE UPDATE ON public.partner_profiles
+  BEFORE INSERT OR UPDATE ON public.partner_profiles
   FOR EACH ROW EXECUTE FUNCTION public.protect_partner_profile_columns();
 
 -- Backfill: every existing partner becomes an approved founder with the

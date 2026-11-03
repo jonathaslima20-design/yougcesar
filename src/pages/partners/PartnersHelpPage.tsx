@@ -1,176 +1,81 @@
-import { useState, useEffect } from 'react';
-import { Wallet, Clock, Link2, Landmark, MessageCircle, CircleCheck as CheckCircle2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
-import { usePartnerCommissionStats } from '@/hooks/usePartnerCommissionStats';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrencyI18n } from '@/lib/i18n';
-
-interface PartnerRules {
-  payment_deadline_hours: number;
-  self_referral_block: boolean;
-  renewal_commissions_enabled: boolean;
-}
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { BookOpen, ChevronDown, FileText, MessageCircle, Users } from 'lucide-react';
+import { usePartner } from '@/contexts/PartnerContext';
+import { formatBRL } from '@/lib/partners/partnerApi';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/partners/PartnerUi';
 
 export default function PartnersHelpPage() {
-  const { user } = useAuth();
-  const { tiers, currentTier, activeUserCount, minimumWithdrawalAmount, loading: statsLoading } = usePartnerCommissionStats(user?.id);
-  const [rules, setRules] = useState<PartnerRules | null>(null);
+  const { settings } = usePartner();
+  const [open, setOpen] = useState<number | null>(0);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from('partner_settings')
-        .select('payment_deadline_hours, self_referral_block, renewal_commissions_enabled')
-        .limit(1)
-        .maybeSingle();
-      setRules(data);
-    })();
-  }, []);
+  const faq = [
+    {
+      q: 'Como é calculada a minha comissão?',
+      a: 'Cada mensalidade paga pelos seus clientes gera uma comissão com a taxa do seu nível naquele momento. A taxa vale para toda a carteira, inclusive clientes antigos.',
+    },
+    {
+      q: 'Quando posso sacar?',
+      a: `Cada comissão fica ${settings?.holding_days ?? 30} dias em carência e depois aparece como disponível. O saque mínimo é ${formatBRL(settings?.minimum_withdrawal_amount)} e o pagamento é feito via PIX, normalmente até o dia ${settings?.payout_day ?? 10} do mês.`,
+    },
+    {
+      q: 'O que acontece se o cliente pedir reembolso?',
+      a: 'A comissão daquele pagamento é estornada. Se ela já tiver sido paga, o valor é descontado das próximas comissões.',
+    },
+    {
+      q: 'E se o cliente assinar o plano anual?',
+      a: 'A comissão do anual é paga em 12 parcelas mensais, cada uma com a sua própria carência.',
+    },
+    {
+      q: 'Como garanto que o cliente é meu?',
+      a: `Registre o contato em Oportunidades assim que começar a conversa: ele fica protegido por ${settings?.lead_protection_days ?? 60} dias. Quem se cadastra pelo seu link em até ${settings?.attribution_window_days ?? 90} dias, ou usa o seu cupom, também entra na sua carteira.`,
+    },
+    {
+      q: 'Como entro na loja de um cliente?',
+      a: 'Em Clientes, abra o cliente e clique em "Gerenciar loja". Isso só funciona se o cliente tiver liberado o acesso de gestor. Você entra como o cliente nesta aba; para voltar ao painel Partners, use o aviso no topo da loja.',
+    },
+    {
+      q: 'Preciso emitir nota fiscal?',
+      a: `Se você recebe por CNPJ, sim: anexe a nota fiscal de serviço em cada saque. Como pessoa física, você recebe até ${formatBRL(settings?.max_pf_monthly_payout)} por mês sem nota.`,
+    },
+    {
+      q: 'Posso perder o meu nível?',
+      a: 'Só se a carteira ficar abaixo do critério do nível por 2 meses seguidos. E, se você passar 12 meses sem trazer nenhum cliente novo, a taxa volta para o nível inicial até a próxima venda.',
+    },
+  ];
 
   return (
-    <div className="container mx-auto p-6 max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Central de Ajuda</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Como funciona o programa VitrineTurbo Partners — comissões, prazos e regras.
-        </p>
+    <div className="container mx-auto p-4 sm:p-6 space-y-6 max-w-4xl">
+      <PageHeader title="Ajuda" description="Regras do programa, dúvidas frequentes e como falar com a gente." />
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {settings?.support_whatsapp && (
+          <Card><CardContent className="pt-5 space-y-2"><MessageCircle className="h-5 w-5" /><p className="font-medium text-sm">Suporte de parceiros</p>
+            <Button size="sm" variant="outline" asChild><a href={`https://wa.me/${settings.support_whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">WhatsApp</a></Button></CardContent></Card>
+        )}
+        {settings?.community_url && (
+          <Card><CardContent className="pt-5 space-y-2"><Users className="h-5 w-5" /><p className="font-medium text-sm">Comunidade</p>
+            <Button size="sm" variant="outline" asChild><a href={settings.community_url} target="_blank" rel="noopener noreferrer">Entrar</a></Button></CardContent></Card>
+        )}
+        <Card><CardContent className="pt-5 space-y-2"><BookOpen className="h-5 w-5" /><p className="font-medium text-sm">Academia</p>
+          <Button size="sm" variant="outline" asChild><Link to="/partners/academy">Ver aulas</Link></Button></CardContent></Card>
+        <Card><CardContent className="pt-5 space-y-2"><FileText className="h-5 w-5" /><p className="font-medium text-sm">Termos do programa</p>
+          <Button size="sm" variant="outline" asChild><Link to="/parceiros/termos" target="_blank">Ler termos</Link></Button></CardContent></Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Wallet className="h-4 w-4" />
-            Como você ganha comissão
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Você recebe uma porcentagem sobre o valor pago por cada usuário que gerenciar — e a comissão se repete
-            {' '}<strong className="text-foreground">a cada renovação</strong> do plano dele, não só na primeira venda
-            {rules && !rules.renewal_commissions_enabled && ' (recorrência atualmente desativada pelo administrador)'}.
-            Quanto mais usuários ativos você mantém, maior a sua taxa:
-          </p>
-
-          <div className="space-y-2">
-            {statsLoading ? (
-              <Skeleton className="h-16 w-full" />
-            ) : (
-              tiers.map((tier) => {
-                const isCurrent = currentTier?.id === tier.id;
-                return (
-                  <div
-                    key={tier.id}
-                    className={`flex items-center justify-between rounded-lg border p-3 ${
-                      isCurrent ? 'border-foreground/30 bg-foreground/[0.03]' : 'border-border'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {isCurrent && <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />}
-                      <div>
-                        <p className="text-sm font-medium">
-                          {tier.min_active_users === 0 ? 'A partir de 0 usuários ativos' : `A partir de ${tier.min_active_users} usuários ativos`}
-                          {tier.label && <span className="text-muted-foreground"> — {tier.label}</span>}
-                        </p>
-                        {isCurrent && <p className="text-xs text-muted-foreground">Sua faixa atual</p>}
-                      </div>
-                    </div>
-                    <Badge variant={isCurrent ? 'default' : 'outline'} className="text-sm">
-                      {tier.commission_percentage}%
-                    </Badge>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {!statsLoading && (
-            <p className="text-xs text-muted-foreground">
-              Você tem hoje <strong className="text-foreground">{activeUserCount}</strong> usuário(s) ativo(s) contando para sua faixa.
-            </p>
-          )}
-
-          {rules?.self_referral_block && (
-            <p className="text-xs text-muted-foreground">
-              Indicações do próprio parceiro (autoindicação) não geram comissão.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Cadastro de usuários e pagamento pendente
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Ao cadastrar um usuário em "Cadastrar Usuário" com um plano selecionado, a conta dele é ativada
-            {' '}<strong className="text-foreground">imediatamente</strong> — ele já pode usar a vitrine normalmente.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Ele tem{' '}
-            <strong className="text-foreground">
-              {rules ? `${rules.payment_deadline_hours} hora(s)` : 'algumas horas'}
-            </strong>{' '}
-            para efetuar o pagamento do plano. Se o prazo vencer sem pagamento, a conta é bloqueada automaticamente —
-            o mesmo ambiente de um usuário com plano vencido — até que o pagamento seja feito.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Link2 className="h-4 w-4" />
-            Seu link de indicação
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Qualquer pessoa que se cadastrar pelo seu link (disponível em "Meu Link") entra automaticamente em
-            "Meus Usuários" — mas apenas no{' '}
-            <strong className="text-foreground">plano Free</strong>. Para vender um plano pago diretamente, use
-            "Cadastrar Usuário".
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Landmark className="h-4 w-4" />
-            Saques
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Suas comissões ficam pendentes até serem liberadas para saque via PIX, em "Comissões". O valor mínimo
-            para solicitar um saque é{' '}
-            <strong className="text-foreground">
-              {statsLoading ? '...' : formatCurrencyI18n(minimumWithdrawalAmount, 'BRL', 'pt-BR')}
-            </strong>.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-5 text-center space-y-3">
-          <h3 className="text-sm font-semibold">Ainda com dúvidas?</h3>
-          <p className="text-sm text-muted-foreground">Fale com o suporte diretamente pelo WhatsApp.</p>
-          <a
-            href="https://wa.me/5591982465495?text=Ol%C3%A1!%20Tenho%20d%C3%BAvidas%20sobre%20o%20programa%20VitrineTurbo%20Partners."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:bg-foreground/90 transition-colors"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Falar com Suporte
-          </a>
+        <CardContent className="p-0 divide-y">
+          {faq.map((item, idx) => (
+            <div key={item.q}>
+              <button type="button" className="w-full flex items-center justify-between gap-4 p-4 text-left" onClick={() => setOpen(open === idx ? null : idx)} aria-expanded={open === idx}>
+                <span className="font-medium text-sm">{item.q}</span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open === idx ? 'rotate-180' : ''}`} />
+              </button>
+              {open === idx && <p className="px-4 pb-4 text-sm text-muted-foreground leading-relaxed">{item.a}</p>}
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>

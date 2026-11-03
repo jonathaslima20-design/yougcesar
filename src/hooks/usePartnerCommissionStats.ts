@@ -67,23 +67,33 @@ export function usePartnerCommissionStats(partnerId: string | undefined) {
           .eq('partner_id', partnerId)
           .gte('created_at', twelveMonthsAgo.toISOString())
           .order('created_at', { ascending: true }),
+        // Partners v2: levels (partner_levels) replaced the old user-count tiers;
+        // they're mapped onto the same shape so existing screens keep working.
         supabase
-          .from('partner_commission_tiers')
-          .select('id, min_active_users, commission_percentage, label')
+          .from('partner_levels')
+          .select('id, min_active_clients, commission_percentage, name')
           .eq('is_active', true)
-          .order('min_active_users', { ascending: true }),
+          .order('sort_order', { ascending: true }),
         supabase.rpc('partner_active_user_count', { p_partner_id: partnerId }),
         supabase.from('partner_settings').select('minimum_withdrawal_amount').limit(1).maybeSingle(),
       ]);
 
       const commissions = commissionsRes.data || [];
-      const tiers = tiersRes.data || [];
+      const tiers: PartnerCommissionTier[] = (tiersRes.data || []).map((l) => ({
+        id: l.id,
+        min_active_users: l.min_active_clients,
+        commission_percentage: Number(l.commission_percentage),
+        label: l.name,
+      }));
       const activeUserCount = activeCountRes.data || 0;
 
       const totalEarned = commissions
-        .filter((c) => c.status === 'pending' || c.status === 'paid')
+        .filter((c) => c.status !== 'reversed')
         .reduce((sum, c) => sum + Number(c.amount), 0);
-      const pendingAmount = commissions.filter((c) => c.status === 'pending').reduce((sum, c) => sum + Number(c.amount), 0);
+      // Not paid yet: in holding, available or already requested for withdrawal.
+      const pendingAmount = commissions
+        .filter((c) => c.status === 'holding' || c.status === 'available' || c.status === 'requested')
+        .reduce((sum, c) => sum + Number(c.amount), 0);
       const paidAmount = commissions.filter((c) => c.status === 'paid').reduce((sum, c) => sum + Number(c.amount), 0);
 
       const buckets = new Map<string, MonthlyBucket>();

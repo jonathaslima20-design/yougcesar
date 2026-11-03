@@ -2,6 +2,8 @@ import { Outlet } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import PartnersSidebar from '@/components/partners/PartnersSidebar';
 import PartnersHeader from '@/components/partners/PartnersHeader';
+import PartnerTermsGate from '@/components/partners/PartnerTermsGate';
+import { PartnerProvider } from '@/contexts/PartnerContext';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
@@ -18,20 +20,24 @@ export default function PartnersLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background">
-      <PartnersSidebar
-        mobileOpen={mobileMenuOpen}
-        onMobileToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-      />
-      <div className="flex-1 flex flex-col min-w-0">
-        <PartnersHeader />
-        <motion.main
-          className="flex-1 w-full"
-          key={location.pathname}
-        >
-          <Outlet />
-        </motion.main>
+    <PartnerProvider>
+      <div className="min-h-screen flex flex-col md:flex-row bg-background">
+        <PartnersSidebar
+          mobileOpen={mobileMenuOpen}
+          onMobileToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+        />
+        <div className="flex-1 flex flex-col min-w-0">
+          <PartnersHeader />
+          <motion.main
+            className="flex-1 w-full"
+            key={location.pathname}
+          >
+            <PartnerTermsGate>
+              <Outlet />
+            </PartnerTermsGate>
+          </motion.main>
+        </div>
       </div>
-    </div>
+    </PartnerProvider>
   );
 }

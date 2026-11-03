@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserPlus, Link2, Wallet, CircleHelp as HelpCircle, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Link2, Wallet, CircleHelp as HelpCircle, LogOut, Menu, X, Target, BarChart3, Megaphone, GraduationCap, UsersRound, IdCard } from 'lucide-react';
+import { usePartner } from '@/contexts/PartnerContext';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,17 +18,43 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { name: 'Dashboard', href: '/partners', icon: LayoutDashboard },
-  { name: 'Usuários', href: '/partners/users', icon: Users },
-  { name: 'Cadastrar Usuário', href: '/partners/users/new', icon: UserPlus },
-  { name: 'Meu Link', href: '/partners/referral', icon: Link2 },
-  { name: 'Comissões', href: '/partners/commissions', icon: Wallet },
-  { name: 'Ajuda', href: '/partners/help', icon: HelpCircle },
+type TeamRole = 'owner' | 'manager' | 'operator';
+
+const NAV_SECTIONS: { title?: string; items: (NavItem & { roles?: TeamRole[] })[] }[] = [
+  {
+    items: [
+      { name: 'Início', href: '/partners', icon: LayoutDashboard },
+      { name: 'Clientes', href: '/partners/clients', icon: Users },
+      { name: 'Nova loja', href: '/partners/new-store', icon: UserPlus, roles: ['owner', 'manager'] },
+      { name: 'Oportunidades', href: '/partners/leads', icon: Target, roles: ['owner', 'manager'] },
+    ],
+  },
+  {
+    title: 'Crescer',
+    items: [
+      { name: 'Links & Campanhas', href: '/partners/links', icon: Link2 },
+      { name: 'Desempenho', href: '/partners/performance', icon: BarChart3 },
+      { name: 'Materiais', href: '/partners/materials', icon: Megaphone },
+      { name: 'Academia', href: '/partners/academy', icon: GraduationCap },
+    ],
+  },
+  {
+    title: 'Conta',
+    items: [
+      { name: 'Financeiro', href: '/partners/finance', icon: Wallet, roles: ['owner'] },
+      { name: 'Equipe', href: '/partners/team', icon: UsersRound, roles: ['owner'] },
+      { name: 'Perfil público', href: '/partners/profile', icon: IdCard, roles: ['owner'] },
+      { name: 'Ajuda', href: '/partners/help', icon: HelpCircle },
+    ],
+  },
 ];
+
+const ROLE_LABELS: Record<TeamRole, string> = { owner: 'Parceiro', manager: 'Gestor da equipe', operator: 'Operador da equipe' };
 
 export default function PartnersSidebar({ mobileOpen = false, onMobileToggle }: PartnersSidebarProps) {
   const { signOut, user } = useAuth();
+  const { overview } = usePartner();
+  const role: TeamRole = overview?.team_role ?? 'owner';
 
   const sidebarContent = (isMobile: boolean) => (
     <>
@@ -49,17 +76,28 @@ export default function PartnersSidebar({ mobileOpen = false, onMobileToggle }: 
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        <nav className="space-y-0.5">
-          {NAV_ITEMS.map((item) => (
-            <PartnersNavItem
-              key={item.name}
-              name={item.name}
-              href={item.href}
-              icon={item.icon}
-              end={item.href === '/partners'}
-              onClick={() => isMobile && onMobileToggle?.()}
-            />
-          ))}
+        <nav className="space-y-4">
+          {NAV_SECTIONS.map((section, idx) => {
+            const items = section.items.filter((item) => !item.roles || item.roles.includes(role));
+            if (items.length === 0) return null;
+            return (
+              <div key={section.title ?? idx} className="space-y-0.5">
+                {section.title && (
+                  <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{section.title}</p>
+                )}
+                {items.map((item) => (
+                  <PartnersNavItem
+                    key={item.name}
+                    name={item.name}
+                    href={item.href}
+                    icon={item.icon}
+                    end={item.href === '/partners'}
+                    onClick={() => isMobile && onMobileToggle?.()}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </nav>
       </div>
 
@@ -75,7 +113,7 @@ export default function PartnersSidebar({ mobileOpen = false, onMobileToggle }: 
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-[15px] truncate leading-tight tracking-tight">{user?.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Parceiro</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{overview?.level && role === 'owner' ? `Parceiro ${overview.level.name}` : ROLE_LABELS[role]}</p>
             </div>
           </div>
           <button

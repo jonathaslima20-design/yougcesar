@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -140,15 +140,32 @@ const LiveChatMetricsPage = lazy(() => import('@/pages/admin/liveChat/LiveChatMe
 const LandingVisitsPage = lazy(() => import('@/pages/admin/liveChat/LandingVisitsPage.tsx'));
 
 // Partners Pages
-import PartnersDashboardPage from '@/pages/partners/PartnersDashboardPage.tsx';
-import PartnersUsersPage from '@/pages/partners/PartnersUsersPage.tsx';
-import PartnersCreateUserPage from '@/pages/partners/PartnersCreateUserPage.tsx';
-import PartnersUserDetailPage from '@/pages/partners/PartnersUserDetailPage.tsx';
-import PartnersReferralPage from '@/pages/partners/PartnersReferralPage.tsx';
-import PartnersCommissionsPage from '@/pages/partners/PartnersCommissionsPage.tsx';
-import PartnersHelpPage from '@/pages/partners/PartnersHelpPage.tsx';
 import PartnersLoginPage from '@/pages/partners/PartnersLoginPage.tsx';
 import PartnersLayout from '@/components/layouts/PartnersLayout';
+import PartnerAttributionTracker from '@/components/partners/PartnerAttributionTracker';
+const PartnersDashboardPage = lazy(() => import('@/pages/partners/PartnersDashboardPage.tsx'));
+const PartnersClientsPage = lazy(() => import('@/pages/partners/PartnersClientsPage.tsx'));
+const PartnersClientDetailPage = lazy(() => import('@/pages/partners/PartnersClientDetailPage.tsx'));
+const PartnersNewStorePage = lazy(() => import('@/pages/partners/PartnersNewStorePage.tsx'));
+const PartnersLeadsPage = lazy(() => import('@/pages/partners/PartnersLeadsPage.tsx'));
+const PartnersLinksPage = lazy(() => import('@/pages/partners/PartnersLinksPage.tsx'));
+const PartnersPerformancePage = lazy(() => import('@/pages/partners/PartnersPerformancePage.tsx'));
+const PartnersFinancePage = lazy(() => import('@/pages/partners/PartnersFinancePage.tsx'));
+const PartnersMaterialsPage = lazy(() => import('@/pages/partners/PartnersMaterialsPage.tsx'));
+const PartnersProposalPage = lazy(() => import('@/pages/partners/PartnersProposalPage.tsx'));
+const PartnersAcademyPage = lazy(() => import('@/pages/partners/PartnersAcademyPage.tsx'));
+const PartnersLessonPage = lazy(() => import('@/pages/partners/PartnersAcademyPage.tsx').then((m) => ({ default: m.PartnersLessonPage })));
+const PartnersCertificationPage = lazy(() => import('@/pages/partners/PartnersAcademyPage.tsx').then((m) => ({ default: m.PartnersCertificationPage })));
+const PartnersTeamPage = lazy(() => import('@/pages/partners/PartnersTeamPage.tsx'));
+const PartnersProfilePage = lazy(() => import('@/pages/partners/PartnersProfilePage.tsx'));
+const PartnersHelpPage = lazy(() => import('@/pages/partners/PartnersHelpPage.tsx'));
+// Public Partners pages
+const PartnersProgramPage = lazy(() => import('@/pages/partners/public/PartnersProgramPage.tsx'));
+const PartnerTermsPage = lazy(() => import('@/pages/partners/public/PartnerTermsPage.tsx'));
+const SpecialistsDirectoryPage = lazy(() => import('@/pages/partners/public/SpecialistsDirectoryPage.tsx').then((m) => ({ default: m.SpecialistsDirectoryPage })));
+const SpecialistProfilePage = lazy(() => import('@/pages/partners/public/SpecialistsDirectoryPage.tsx').then((m) => ({ default: m.SpecialistProfilePage })));
+const PartnerLinkRedirectPage = lazy(() => import('@/pages/partners/public/PartnerLinkRedirectPage.tsx'));
+const InviteAcceptPage = lazy(() => import('@/pages/partners/public/InviteAcceptPage.tsx'));
 
 // Route Guards
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -278,6 +295,7 @@ function AppContent() {
       <SessionManager />
       <MetaPixel />
       <GtmSnippet />
+      {!isCustomDomain && <PartnerAttributionTracker />}
       <GoogleAdsSnippet />
       <Routes>
         {/* Custom Domain Routes - when accessed via user's own domain */}
@@ -307,6 +325,17 @@ function AppContent() {
             </>
           )}
           <Route path="/partners/login" element={<PartnersLoginPage />} />
+          {!isCustomDomain && (
+            <>
+              <Route path="/parceiros" element={<PartnersProgramPage />} />
+              <Route path="/parceiros/termos" element={<PartnerTermsPage />} />
+              <Route path="/especialistas" element={<SpecialistsDirectoryPage />} />
+              <Route path="/especialistas/:slug" element={<SpecialistProfilePage />} />
+              <Route path="/p/:code" element={<PartnerLinkRedirectPage />} />
+              <Route path="/p/:code/:link" element={<PartnerLinkRedirectPage />} />
+              <Route path="/convite/:token" element={<InviteAcceptPage />} />
+            </>
+          )}
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
           {/* Buyer Account Routes (customer login, separate from merchant auth) */}
@@ -438,12 +467,27 @@ function AppContent() {
         <Route element={<PartnerRoute />}>
           <Route element={<PartnersLayout />}>
             <Route path="/partners" element={<PartnersDashboardPage />} />
-            <Route path="/partners/users" element={<PartnersUsersPage />} />
-            <Route path="/partners/users/new" element={<PartnersCreateUserPage />} />
-            <Route path="/partners/users/:id" element={<PartnersUserDetailPage />} />
-            <Route path="/partners/referral" element={<PartnersReferralPage />} />
-            <Route path="/partners/commissions" element={<PartnersCommissionsPage />} />
+            <Route path="/partners/clients" element={<PartnersClientsPage />} />
+            <Route path="/partners/clients/:id" element={<PartnersClientDetailPage />} />
+            <Route path="/partners/new-store" element={<PartnersNewStorePage />} />
+            <Route path="/partners/leads" element={<PartnersLeadsPage />} />
+            <Route path="/partners/links" element={<PartnersLinksPage />} />
+            <Route path="/partners/performance" element={<PartnersPerformancePage />} />
+            <Route path="/partners/finance" element={<PartnersFinancePage />} />
+            <Route path="/partners/materials" element={<PartnersMaterialsPage />} />
+            <Route path="/partners/proposal" element={<PartnersProposalPage />} />
+            <Route path="/partners/academy" element={<PartnersAcademyPage />} />
+            <Route path="/partners/academy/certificacao" element={<PartnersCertificationPage />} />
+            <Route path="/partners/academy/:lessonId" element={<PartnersLessonPage />} />
+            <Route path="/partners/team" element={<PartnersTeamPage />} />
+            <Route path="/partners/profile" element={<PartnersProfilePage />} />
             <Route path="/partners/help" element={<PartnersHelpPage />} />
+            {/* Old Partners panel paths */}
+            <Route path="/partners/users" element={<Navigate to="/partners/clients" replace />} />
+            <Route path="/partners/users/new" element={<Navigate to="/partners/new-store" replace />} />
+            <Route path="/partners/users/:id" element={<LegacyPartnerUserRedirect />} />
+            <Route path="/partners/referral" element={<Navigate to="/partners/links" replace />} />
+            <Route path="/partners/commissions" element={<Navigate to="/partners/finance" replace />} />
           </Route>
         </Route>
 
@@ -460,6 +504,11 @@ function AppContent() {
       </Routes>
     </Suspense>
   );
+}
+
+function LegacyPartnerUserRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/partners/clients/${id}`} replace />;
 }
 
 export default function App() {

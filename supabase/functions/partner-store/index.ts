@@ -145,7 +145,8 @@ Deno.serve(async (req: Request) => {
       const whatsapp = String(body.whatsapp ?? '').replace(/\D/g, '');
       const storeName = String(body.store_name ?? '').trim() || name;
       const countryCode = String(body.country_code ?? '55').replace(/\D/g, '') || '55';
-      const niche = String(body.niche ?? 'diversos').trim() || 'diversos';
+      // users.niche_type only accepts 'diversos' today (src/types NicheType).
+      const niche = 'diversos';
       if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'Informe nome e e-mail válidos do cliente.' }, 400);
       if (whatsapp.length < 10) return json({ error: 'Informe o WhatsApp do cliente com DDD.' }, 400);
 
