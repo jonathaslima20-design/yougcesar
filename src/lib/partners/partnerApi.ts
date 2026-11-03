@@ -289,6 +289,9 @@ async function invokeFunction<T>(name: string, body: Record<string, unknown>): P
         if (e instanceof Error && e.message) throw e;
       }
     }
+    if ((error as { name?: string }).name === 'FunctionsFetchError') {
+      throw new Error('Não foi possível conectar ao servidor. Verifique sua internet e tente de novo.');
+    }
     throw new Error(error.message || 'Erro inesperado');
   }
   if (data?.error) throw new Error(data.error);
