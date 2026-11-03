@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -43,10 +43,12 @@ export default function PartnersLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returningEmail = (location.state as { email?: string } | null)?.email ?? '';
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: returningEmail, password: '' },
   });
 
   const onSubmit = async (data: FormValues) => {
@@ -197,6 +199,10 @@ export default function PartnersLoginPage() {
                 </Button>
               </form>
             </Form>
+            <p className="text-center text-sm text-muted-foreground mt-5">
+              Ainda não é parceiro?{' '}
+              <Link to="/parceiros" className="font-medium text-primary hover:underline">Conheça o programa</Link>
+            </p>
           </CardContent>
         </Card>
       </motion.div>

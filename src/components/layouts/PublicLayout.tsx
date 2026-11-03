@@ -20,6 +20,8 @@ const MARKETING_PATH_PREFIXES = [
   '/termos-indicacoes',
   '/excluir-minha-conta',
   '/completar-cadastro',
+  '/parceiros',
+  '/especialistas',
 ];
 
 export default function PublicLayout() {

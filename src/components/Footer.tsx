@@ -128,6 +128,11 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
               Blog
             </Link>
           )}
+          {!hideBlogLink && (
+            <Link to="/parceiros" className="hover:text-muted-foreground transition-colors py-2">
+              Seja parceiro
+            </Link>
+          )}
           {showLegalLinks && (
             <>
               <Link to="/politica-de-privacidade" className="hover:text-muted-foreground transition-colors py-2">

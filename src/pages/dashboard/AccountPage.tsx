@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PartnerAccessCard from '@/components/partners/PartnerAccessCard';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -330,6 +331,8 @@ export default function AccountPage() {
           </CardContent>
         </Card>
       )}
+
+      <PartnerAccessCard />
 
       {user?.plan_status === 'active' && user?.subscription_end_date && (
         <Card>

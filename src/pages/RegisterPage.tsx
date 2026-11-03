@@ -38,6 +38,7 @@ import { PhoneInputWithCountry } from '@/components/ui/phone-input-with-country'
 import { Checkbox } from '@/components/ui/checkbox';
 import { cleanWhatsAppNumber, generateWhatsAppUrl } from '@/lib/utils';
 import Logo from '@/components/Logo';
+import { PARTNER_COUPON_KEY } from '@/lib/partners/partnerAttribution';
 import GoogleIcon from '@/components/icons/GoogleIcon';
 import { supabase } from '@/lib/supabase';
 import { injectMetaPixel } from '@/lib/tracking';
@@ -115,7 +116,15 @@ export default function RegisterPage() {
     },
   });
 
+  const [showPartnerCoupon, setShowPartnerCoupon] = useState(false);
+  const [partnerCoupon, setPartnerCoupon] = useState('');
+
   const onSubmit = async (data: FormValues) => {
+    try {
+      if (partnerCoupon.length >= 4) localStorage.setItem(PARTNER_COUPON_KEY, partnerCoupon);
+    } catch {
+      /* storage unavailable: coupon just isn't applied */
+    }
     setIsLoading(true);
     setRegisterError(null);
 
@@ -447,6 +456,23 @@ export default function RegisterPage() {
                     </FormItem>
                   )}
                 />
+
+                {!referralCode && (
+                  <div>
+                    {showPartnerCoupon ? (
+                      <Input
+                        placeholder="Código do parceiro"
+                        value={partnerCoupon}
+                        onChange={(e) => setPartnerCoupon(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20))}
+                        aria-label="Código do parceiro"
+                      />
+                    ) : (
+                      <button type="button" className="text-xs text-muted-foreground underline underline-offset-2" onClick={() => setShowPartnerCoupon(true)}>
+                        Tem um código de parceiro?
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <Button
                   type="submit"
