@@ -271,6 +271,54 @@ Deno.serve(async (req: Request) => {
       .from('user_storefront_settings')
       .upsert({ user_id: userId, settings: { enableInventory: true } }, { onConflict: 'user_id' });
 
+    // Partner accounts need an active profile and a default link, otherwise the
+    // partner panel reports "Sua conta de parceiro não está ativa".
+    if (role === 'partner') {
+      const { data: level } = await supabaseAdmin
+        .from('partner_levels')
+        .select('id')
+        .eq('is_active', true)
+        .order('sort_order')
+        .limit(1)
+        .maybeSingle();
+
+      const base = name
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 25) || 'parceiro';
+      let publicSlug = base.length >= 3 ? base : `${base}-parceiro`;
+      const { data: taken } = await supabaseAdmin.from('partner_profiles').select('user_id').eq('public_slug', publicSlug).maybeSingle();
+      if (taken) publicSlug = `${base}-${userId.replace(/-/g, '').slice(0, 6)}`;
+
+      const { error: partnerProfileError } = await supabaseAdmin.from('partner_profiles').insert({
+        user_id: userId,
+        status: 'approved',
+        public_slug: publicSlug,
+        level_id: level?.id ?? null,
+        approved_at: new Date().toISOString(),
+      });
+
+      if (partnerProfileError) {
+        console.error('Error creating partner profile:', partnerProfileError);
+        await supabaseAdmin.from('users').delete().eq('id', userId);
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create partner profile' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      await supabaseAdmin
+        .from('partner_links')
+        .insert({ partner_id: userId, slug: 'inicio', name: 'Link principal', destination: '/', offer: 'trial' });
+    }
+
     // Partner-assigned plan: grant immediate access while payment is pending,
     // with an admin-configurable deadline (in hours) before auto-block.
     if (requestingRole === 'partner' && planId) {
