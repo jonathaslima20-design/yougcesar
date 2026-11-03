@@ -302,8 +302,9 @@ export const partnerApi = {
   overview: async () => unwrap<PartnerOverview>(await supabase.rpc('partner_overview')),
   settings: async () =>
     unwrap<PartnerSettings>(await supabase.from('partner_settings').select('*').limit(1).maybeSingle()),
-  profile: async (userId: string) =>
-    unwrap<PartnerProfile | null>(await supabase.from('partner_profiles').select('*').eq('user_id', userId).maybeSingle()),
+  // Internal notes stay hidden; the document only comes back to the account owner.
+  profile: async (_userId: string) =>
+    unwrap<PartnerProfile | null>(await supabase.rpc('my_partner_profile')),
   updateProfile: async (userId: string, patch: Partial<PartnerProfile>) =>
     unwrap(await supabase.from('partner_profiles').update(patch).eq('user_id', userId)),
   levels: async () =>

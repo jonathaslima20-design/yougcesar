@@ -78,6 +78,15 @@ export default function PartnersFinancePage() {
   const minimum = Number(settings?.minimum_withdrawal_amount ?? 50);
   const hasPending = withdrawals.some((w) => w.status === 'pending');
   const isCompany = profile?.document_type === 'cnpj';
+  // Individuals (CPF) receive up to the monthly cap; the RPC takes the oldest
+  // commissions that fit, so this is the most the request can pay.
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const paidThisMonth = withdrawals
+    .filter((w) => (w.status === 'pending' || w.status === 'approved') && w.created_at >= monthStart)
+    .reduce((sum, w) => sum + Number(w.amount), 0);
+  const pfRemaining = Math.max(0, Number(settings?.max_pf_monthly_payout ?? 2000) - paidThisMonth);
+  const withdrawCapped = !isCompany && available > pfRemaining;
+  const withdrawAmount = withdrawCapped ? pfRemaining : available;
 
   const forecast = useMemo(() => {
     const buckets = new Map<string, number>();
@@ -312,8 +321,10 @@ export default function PartnersFinancePage() {
       <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Solicitar saque de {formatBRL(available)}</DialogTitle>
-            <DialogDescription>O saque inclui todo o saldo disponível. Pagamos via PIX, normalmente até o dia {settings?.payout_day ?? 10} do mês.</DialogDescription>
+            <DialogTitle>Solicitar saque de {withdrawCapped ? 'até ' : ''}{formatBRL(withdrawAmount)}</DialogTitle>
+            <DialogDescription>{withdrawCapped
+              ? `Como pessoa física, você recebe até ${formatBRL(settings?.max_pf_monthly_payout)} por mês. O restante fica disponível para o próximo mês, ou cadastre um CNPJ (MEI serve) para sacar tudo.`
+              : 'O saque inclui todo o saldo disponível.'} Pagamos via PIX, normalmente até o dia {settings?.payout_day ?? 10} do mês.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">

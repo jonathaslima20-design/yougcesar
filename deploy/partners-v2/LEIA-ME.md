@@ -36,3 +36,9 @@ SUPABASE_SERVICE_ROLE_KEY, que já existem). Opcional: `SITE_URL=https://vitrine
 ## 3. Frontend
 
 Só depois dos passos acima: push do código para a `main` (Netlify).
+
+## 4. Correções da revisão (depois dos passos acima)
+
+No SQL Editor, rode `02_correcoes_revisao.sql` do mesmo jeito. Logo em seguida o
+frontend correspondente vai para a `main`: entre um e outro, a tela de Perfil e
+Financeiro do parceiro pode falhar por alguns minutos.
