@@ -342,7 +342,7 @@ export default function PartnersProgramPage() {
               </div>
             )}
             <div className="mt-8 grid grid-cols-2 gap-4">
-              <Stat label="Receita da carteira" value={formatBRL(mrr)} sub="por mês" />
+              <Stat label="Receita da carteira" value={formatBRL(plan ? Number(plan.price) * clients : 0)} sub={`por ${cycleLabel}`} />
               <Stat label={`Nível ${reachedLevel?.name ?? ''}`} value={`${rate}%`} sub="de comissão" />
             </div>
             <div className="mt-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/30 p-5">
