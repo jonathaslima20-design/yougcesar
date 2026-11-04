@@ -23,7 +23,6 @@ import { Slider } from '@/components/ui/slider';
 import { partnerApi, formatBRL, PARTNER_TYPE_LABELS, type PartnerType, type PublicProgramInfo } from '@/lib/partners/partnerApi';
 
 const DURATION_MONTHS: Record<string, number> = { Mensal: 1, Trimestral: 3, Semestral: 6, Anual: 12 };
-const CYCLE_LABELS: Record<number, string> = { 1: 'mês', 3: 'trimestre', 6: 'semestre', 12: 'ano' };
 
 const NICHES = ['Moda', 'Calçados', 'Beleza', 'Alimentação', 'Eletrônicos', 'Casa e decoração', 'Infantil', 'Pet', 'Saúde', 'Outros'];
 const STATES = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
@@ -142,8 +141,6 @@ export default function PartnersProgramPage() {
   const rate = Number(reachedLevel?.commission_percentage ?? 0);
   // Multi-month plans pay the whole period's commission at once, so show it per sale.
   const cycleCommission = plan ? (Number(plan.price) * clients * rate) / 100 : 0;
-  const yearlyCommission = cycleCommission * (12 / cycleMonths);
-  const cycleLabel = CYCLE_LABELS[cycleMonths] ?? 'mês';
   const maxRate = levels.length ? Math.max(...levels.map((l) => Number(l.commission_percentage))) : 40;
   const baseRate = levels.length ? Number(levels[0].commission_percentage) : 25;
 
@@ -342,22 +339,20 @@ export default function PartnersProgramPage() {
               </div>
             )}
             <div className="mt-8 grid grid-cols-2 gap-4">
-              <Stat label="Receita da carteira" value={formatBRL(plan ? Number(plan.price) * clients : 0)} sub={`por ${cycleLabel}`} />
+              <Stat label={cycleMonths === 1 ? 'Receita da carteira' : 'Valor das vendas'} value={formatBRL(plan ? Number(plan.price) * clients : 0)} sub={cycleMonths === 1 ? 'por mês' : `${clients} ${clients === 1 ? 'venda' : 'vendas'} do ${plan?.name ?? 'plano'}`} />
               <Stat label={`Nível ${reachedLevel?.name ?? ''}`} value={`${rate}%`} sub="de comissão" />
             </div>
             <div className="mt-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/30 p-5">
               <p className="text-[13px] text-emerald-200">Sua comissão</p>
-              <p className="font-display text-[34px] font-semibold mt-1">{formatBRL(cycleCommission)}<span className="text-[16px] text-emerald-200 font-normal"> /{cycleLabel}</span></p>
+              <p className="font-display text-[34px] font-semibold mt-1">{formatBRL(cycleCommission)}{cycleMonths === 1 && <span className="text-[16px] text-emerald-200 font-normal"> /mês</span>}</p>
               <p className="text-[13px] text-emerald-200 mt-1">
-                {cycleMonths === 12
-                  ? 'Paga de uma vez, 24h após o pagamento, a cada renovação anual'
-                  : cycleMonths > 1
-                    ? `Paga de uma vez, 24h após o pagamento · ${formatBRL(yearlyCommission)} por ano, recorrente`
-                    : `${formatBRL(yearlyCommission)} por ano, recorrente`}
+                {cycleMonths === 1
+                  ? 'Paga em até 24h após cada mensalidade'
+                  : 'Paga de uma vez, em até 24h após a venda'}
               </p>
             </div>
             <p className="text-[12px] text-ink-400 mt-4">
-              Simulação com base nos preços atuais. Nos planos trimestral, semestral e anual, você recebe a comissão do período inteiro de uma vez, a cada venda ou renovação. O nível usa a receita mensal equivalente da carteira.
+              Simulação com base nos preços atuais. A comissão é calculada sobre o valor total de cada venda e paga em até 24h após o pagamento, inclusive nos planos semestral e anual.
             </p>
           </div>
         </div>
