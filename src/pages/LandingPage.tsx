@@ -940,10 +940,7 @@ function FooterLanding() {
             )}
             <a href="mailto:contato@vitrineturbo.com" className="text-[13px] text-ink-600 hover:text-ink-900 transition-colors">contato@vitrineturbo.com</a>
             {i18n.language === 'pt-BR' && (
-              <>
-                <Link to="/parceiros" className="text-[13px] text-ink-600 hover:text-ink-900 transition-colors">Seja parceiro</Link>
-                <Link to="/especialistas" className="text-[13px] text-ink-600 hover:text-ink-900 transition-colors">Encontre um especialista</Link>
-              </>
+              <Link to="/parceiros" className="text-[13px] text-ink-600 hover:text-ink-900 transition-colors">Programa de Parceiros</Link>
             )}
           </div>
 
