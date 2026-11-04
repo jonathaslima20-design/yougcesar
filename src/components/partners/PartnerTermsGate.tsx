@@ -90,8 +90,8 @@ export default function PartnerTermsGate({ children }: { children: React.ReactNo
         <CardContent className="space-y-4 text-sm">
           <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
             <li>Comissão recorrente pelo seu nível, enquanto o cliente pagar e você estiver ativo.</li>
-            <li>Carência de {settings.holding_days} dias antes do saque; reembolsos e contestações estornam a comissão.</li>
-            <li>Planos anuais pagam a comissão em 12 parcelas mensais.</li>
+            <li>Comissão disponível para saque 24 horas depois do pagamento do cliente.</li>
+            <li>Planos anuais pagam a comissão sobre o valor anual inteiro de uma vez.</li>
             <li>Contatos registrados ficam protegidos por {settings.lead_protection_days} dias.</li>
             <li>Proibido usar a marca VitrineTurbo em anúncios, spam ou autoindicação.</li>
             <li>Acesso às lojas só com permissão do cliente, e uso dos dados conforme a LGPD.</li>

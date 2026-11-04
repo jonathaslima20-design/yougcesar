@@ -6,6 +6,7 @@ import { usePartner } from '@/contexts/PartnerContext';
 import {
   LINK_DESTINATIONS,
   SITE_URL,
+  formatBRL,
   partnerApi,
   partnerLinkUrl,
   whatsappShareUrl,
@@ -36,7 +37,7 @@ function slugify(v: string) {
 }
 
 export default function PartnersLinksPage() {
-  const { partnerId, profile, canManage } = usePartner();
+  const { partnerId, profile, canManage, settings } = usePartner();
   const [links, setLinks] = useState<PartnerLink[] | null>(null);
   const [funnel, setFunnel] = useState<PartnerFunnelRow[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -184,7 +185,7 @@ export default function PartnersLinksPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Conhece outros profissionais de marketing? Quem se inscrever no programa por este link e for aprovado gera um bônus para você sobre as comissões dele nos primeiros meses.
+              Conhece outros profissionais de marketing? Quem se inscrever no programa por este link e for aprovado gera para você {Number(settings?.recruit_override_percentage ?? 5)}% de tudo o que ele receber de comissão nos primeiros {settings?.recruit_override_months ?? 12} meses dele. Exemplo: se ele ganhar {formatBRL(1000)} em um mês, você recebe {formatBRL(Number(settings?.recruit_override_percentage ?? 5) * 10)}. Esse bônus não diminui a comissão dele.
             </p>
             <div className="flex gap-2">
               <Input readOnly value={recruitUrl} className="font-mono text-xs" />

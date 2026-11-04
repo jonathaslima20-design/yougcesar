@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BadgeCheck,
   BarChart3,
-  BookOpen,
   Check,
   ChevronDown,
   Gift,
@@ -30,16 +29,12 @@ const STATES = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT'
 
 const FAQ = [
   {
-    q: 'Quanto custa para ser parceiro?',
-    a: 'Nada. O programa é gratuito. Você só precisa ser aprovado e seguir as regras do programa.',
-  },
-  {
     q: 'Por quanto tempo recebo a comissão de um cliente?',
     a: 'Enquanto o cliente continuar pagando e você continuar ativo no programa (trazendo pelo menos um cliente novo a cada 12 meses). Cada renovação gera uma nova comissão.',
   },
   {
     q: 'Quando posso sacar?',
-    a: 'Cada comissão fica em carência por 30 dias, para cobrir reembolsos e contestações. Depois disso, ela fica disponível e você solicita o saque via PIX pelo painel.',
+    a: 'A comissão fica disponível 24 horas depois que o pagamento do cliente é confirmado. No plano anual, você recebe a comissão sobre o valor do ano inteiro de uma vez. O saque é feito via PIX pelo painel.',
   },
   {
     q: 'Preciso ter CNPJ?',
@@ -96,6 +91,15 @@ const EMPTY_FORM: FormState = {
 export default function PartnersProgramPage() {
   const [searchParams] = useSearchParams();
   const [info, setInfo] = useState<PublicProgramInfo | null>(null);
+  const recruitPct = Number(info?.recruit_override_percentage ?? 5);
+  const recruitMonths = info?.recruit_override_months ?? 12;
+  const faq = [
+    ...FAQ,
+    {
+      q: 'Quanto ganho indicando outro parceiro?',
+      a: `Quando um profissional se inscreve pelo seu link de indicação e é aprovado, você ganha ${recruitPct}% de tudo o que ele receber de comissão nos primeiros ${recruitMonths} meses dele no programa. Exemplo: se ele ganhar ${formatBRL(1000)} de comissão em um mês, você recebe ${formatBRL(recruitPct * 10)}. Esse bônus é pago pelo VitrineTurbo e não diminui a comissão dele.`,
+    },
+  ];
   const [clients, setClients] = useState(10);
   const [planName, setPlanName] = useState<string>('');
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -288,9 +292,9 @@ export default function PartnersProgramPage() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-14">
             <Step n="01" title="Inscreva-se" text="Leva 2 minutos. Respondemos em até 48h." />
-            <Step n="02" title="Faça a trilha" text="Aulas curtas sobre produto e vendas, com certificação." />
+            <Step n="02" title="Acesse o painel" text="Links, materiais e loja demo prontos para usar." />
             <Step n="03" title="Traga clientes" text="Links, materiais prontos, proposta com a sua marca." />
-            <Step n="04" title="Receba todo mês" text="Comissão liberada após 30 dias, saque via PIX." />
+            <Step n="04" title="Receba todo mês" text="Comissão liberada em 24h, saque via PIX." />
           </div>
         </div>
       </section>
@@ -312,7 +316,7 @@ export default function PartnersProgramPage() {
               <label className="text-[14px] text-ink-300">Clientes ativos</label>
               <span className="font-display text-[28px] font-semibold">{clients}</span>
             </div>
-            <Slider className="mt-4" value={[clients]} min={1} max={100} step={1} onValueChange={(v) => setClients(v[0])} />
+            <Slider className="mt-4" trackClassName="h-2 bg-white/20" rangeClassName="bg-emerald-400" thumbClassName="h-5 w-5 border-2 border-emerald-400 bg-white shadow-lg shadow-emerald-500/30" value={[clients]} min={1} max={100} step={1} onValueChange={(v) => setClients(v[0])} />
             {info && info.plans.length > 0 && (
               <div className="mt-6">
                 <label className="text-[14px] text-ink-300">Plano mais comum dos seus clientes</label>
@@ -342,7 +346,7 @@ export default function PartnersProgramPage() {
               <p className="text-[13px] text-emerald-200 mt-1">{formatBRL(monthlyCommission * 12)} por ano, recorrente</p>
             </div>
             <p className="text-[12px] text-ink-400 mt-4">
-              Simulação com base nos preços atuais. Planos trimestrais, semestrais e anuais são convertidos para o valor mensal; o anual é pago em 12 parcelas.
+              Simulação com base nos preços atuais. Planos trimestrais, semestrais e anuais são convertidos para o valor mensal; no anual, a comissão do ano inteiro é paga de uma vez.
             </p>
           </div>
         </div>
@@ -386,8 +390,8 @@ export default function PartnersProgramPage() {
             <Feature icon={Link2} title="Links e campanhas" text="Um link por canal, QR Code, cupom e o funil completo de cada um." />
             <Feature icon={Layers} title="Oportunidades protegidas" text="Registre seus contatos: eles ficam protegidos por 60 dias." />
             <Feature icon={Megaphone} title="Materiais prontos" text="Textos para WhatsApp, Instagram e e-mail, respostas para objeções e proposta com a sua marca." />
-            <Feature icon={BookOpen} title="Academia e certificação" text="Aulas curtas de produto, vendas e implantação, com selo de parceiro certificado." />
-            <Feature icon={ShieldCheck} title="Regras claras" text="Carência, estorno e atribuição definidos nos termos. Sem surpresas." />
+            <Feature icon={Users} title="Indique outros parceiros" text={`Ganhe ${recruitPct}% de tudo o que o parceiro indicado receber de comissão nos primeiros ${recruitMonths} meses dele.`} />
+            <Feature icon={ShieldCheck} title="Regras claras" text="Comissão, atribuição e saque definidos nos termos. Sem surpresas." />
           </div>
         </div>
       </section>
@@ -493,7 +497,7 @@ export default function PartnersProgramPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <SectionTitle eyebrow="FAQ" title="Perguntas frequentes" center />
           <div className="mt-10 divide-y hairline border-y hairline">
-            {FAQ.map((item, idx) => (
+            {faq.map((item, idx) => (
               <div key={item.q}>
                 <button
                   type="button"

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ChevronDown, FileText, MessageCircle, Users } from 'lucide-react';
+import { ChevronDown, FileText, MessageCircle, Users } from 'lucide-react';
 import { usePartner } from '@/contexts/PartnerContext';
 import { formatBRL } from '@/lib/partners/partnerApi';
 import { Button } from '@/components/ui/button';
@@ -18,15 +18,11 @@ export default function PartnersHelpPage() {
     },
     {
       q: 'Quando posso sacar?',
-      a: `Cada comissão fica ${settings?.holding_days ?? 30} dias em carência e depois aparece como disponível. O saque mínimo é ${formatBRL(settings?.minimum_withdrawal_amount)} e o pagamento é feito via PIX, normalmente até o dia ${settings?.payout_day ?? 10} do mês.`,
-    },
-    {
-      q: 'O que acontece se o cliente pedir reembolso?',
-      a: 'A comissão daquele pagamento é estornada. Se ela já tiver sido paga, o valor é descontado das próximas comissões.',
+      a: `A comissão fica disponível para saque 24 horas depois que o pagamento do cliente é confirmado. O saque mínimo é ${formatBRL(settings?.minimum_withdrawal_amount)} e o pagamento é feito via PIX, normalmente até o dia ${settings?.payout_day ?? 10} do mês.`,
     },
     {
       q: 'E se o cliente assinar o plano anual?',
-      a: 'A comissão do anual é paga em 12 parcelas mensais, cada uma com a sua própria carência.',
+      a: 'Você recebe a comissão sobre o valor anual inteiro de uma vez, disponível para saque 24 horas depois do pagamento.',
     },
     {
       q: 'Como garanto que o cliente é meu?',
@@ -59,8 +55,6 @@ export default function PartnersHelpPage() {
           <Card><CardContent className="pt-5 space-y-2"><Users className="h-5 w-5" /><p className="font-medium text-sm">Comunidade</p>
             <Button size="sm" variant="outline" asChild><a href={settings.community_url} target="_blank" rel="noopener noreferrer">Entrar</a></Button></CardContent></Card>
         )}
-        <Card><CardContent className="pt-5 space-y-2"><BookOpen className="h-5 w-5" /><p className="font-medium text-sm">Academia</p>
-          <Button size="sm" variant="outline" asChild><Link to="/partners/academy">Ver aulas</Link></Button></CardContent></Card>
         <Card><CardContent className="pt-5 space-y-2"><FileText className="h-5 w-5" /><p className="font-medium text-sm">Termos do programa</p>
           <Button size="sm" variant="outline" asChild><Link to="/parceiros/termos" target="_blank">Ler termos</Link></Button></CardContent></Card>
       </div>

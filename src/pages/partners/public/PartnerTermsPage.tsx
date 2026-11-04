@@ -7,7 +7,7 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: '1. Sobre o programa',
     body: [
-      'O VitrineTurbo Partners é um programa para profissionais e empresas que indicam, implantam e gerenciam lojas na plataforma VitrineTurbo ("Parceiro"). A participação é gratuita, depende de aprovação e não cria vínculo empregatício, societário ou de representação comercial exclusiva entre as partes.',
+      'O VitrineTurbo Partners é um programa para profissionais e empresas que indicam, implantam e gerenciam lojas na plataforma VitrineTurbo ("Parceiro"). A participação depende de aprovação e não cria vínculo empregatício, societário ou de representação comercial exclusiva entre as partes.',
       'O Parceiro atua de forma independente, em nome próprio, e é o único responsável pelos serviços que presta aos seus clientes, inclusive pelos preços que cobra pela implantação e pela gestão das lojas.',
     ],
   },
@@ -16,14 +16,14 @@ const SECTIONS: { title: string; body: string[] }[] = [
     body: [
       'O Parceiro recebe uma comissão recorrente sobre o valor de cada assinatura paga pelos lojistas atribuídos a ele ("Clientes"), conforme o percentual do seu nível vigente no momento do pagamento. Bônus, campanhas e multiplicadores seguem as condições divulgadas no painel.',
       'A comissão é devida enquanto o Cliente mantiver a assinatura paga e o Parceiro permanecer ativo no programa. É considerado ativo o Parceiro que trouxer ao menos um Cliente novo a cada 12 meses; caso contrário, o percentual volta ao nível inicial até a próxima venda.',
-      'Planos com cobrança anual geram comissão paga em 12 parcelas mensais.',
+      'Planos com cobrança anual geram a comissão sobre o valor anual inteiro, de uma só vez.',
       'Não há comissão sobre valores não pagos, reembolsados, contestados (chargeback), sobre tributos ou sobre contas do próprio Parceiro, de seus sócios ou de pessoas que atuem em conjunto com ele.',
     ],
   },
   {
-    title: '3. Carência, estorno e saque',
+    title: '3. Liberação, estorno e saque',
     body: [
-      'Cada comissão fica em carência por 30 dias a partir do pagamento do Cliente. Após esse prazo, fica disponível para saque no painel.',
+      'Cada comissão fica disponível para saque no painel 24 horas após a confirmação do pagamento do Cliente.',
       'Se o pagamento que originou a comissão for reembolsado, cancelado ou contestado, a comissão será estornada. Se já tiver sido paga, o valor será descontado das comissões futuras.',
       'O saque é feito via PIX para chave de titularidade do Parceiro, respeitado o valor mínimo informado no painel. Pessoas físicas podem receber até o limite mensal informado no painel; acima dele, é necessário CNPJ (MEI é aceito) e a emissão de nota fiscal de serviço em nome do VitrineTurbo a cada saque.',
       'O Parceiro é responsável pelos tributos incidentes sobre os valores que recebe.',

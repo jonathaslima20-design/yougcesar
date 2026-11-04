@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserPlus, Link2, Wallet, CircleHelp as HelpCircle, LogOut, Menu, X, Target, BarChart3, Megaphone, GraduationCap, UsersRound, IdCard } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Link2, Wallet, CircleHelp as HelpCircle, LogOut, Menu, X, Target, BarChart3, Megaphone, UsersRound, IdCard } from 'lucide-react';
 import { usePartner } from '@/contexts/PartnerContext';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
@@ -35,7 +35,6 @@ const NAV_SECTIONS: { title?: string; items: (NavItem & { roles?: TeamRole[] })[
       { name: 'Links & Campanhas', href: '/partners/links', icon: Link2 },
       { name: 'Desempenho', href: '/partners/performance', icon: BarChart3 },
       { name: 'Materiais', href: '/partners/materials', icon: Megaphone },
-      { name: 'Academia', href: '/partners/academy', icon: GraduationCap },
     ],
   },
   {

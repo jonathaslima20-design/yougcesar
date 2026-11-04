@@ -52,7 +52,6 @@ export default function PartnersDashboardPage() {
   const [clients, setClients] = useState<PartnerClient[] | null>(null);
   const [commissions, setCommissions] = useState<PartnerCommission[]>([]);
   const [campaigns, setCampaigns] = useState<PartnerCampaign[]>([]);
-  const [lessonsDone, setLessonsDone] = useState(0);
   const [hasPixKey, setHasPixKey] = useState(false);
   const [clickCount, setClickCount] = useState(0);
 
@@ -60,7 +59,6 @@ export default function PartnersDashboardPage() {
     if (!partnerId || !user?.id) return;
     partnerApi.clients().then(setClients).catch(() => setClients([]));
     partnerApi.campaigns().then(setCampaigns).catch(() => undefined);
-    supabase.from('partner_lesson_progress').select('lesson_id', { count: 'exact', head: true }).eq('user_id', user.id).then(({ count }) => setLessonsDone(count ?? 0));
     supabase.from('partner_clicks').select('id', { count: 'exact', head: true }).eq('partner_id', partnerId).then(({ count }) => setClickCount(count ?? 0));
     if (isOwner) {
       partnerApi.commissions(partnerId).then(setCommissions).catch(() => undefined);
@@ -121,7 +119,6 @@ export default function PartnersDashboardPage() {
   const steps = [
     { done: !!(profile?.company_name || profile?.bio || profile?.logo_url), label: 'Complete seu perfil de parceiro', href: '/partners/profile', ownerOnly: true },
     { done: hasPixKey, label: 'Cadastre sua chave PIX para receber', href: '/partners/finance', ownerOnly: true },
-    { done: lessonsDone > 0, label: 'Assista à primeira aula da Academia', href: '/partners/academy' },
     { done: clickCount > 0, label: 'Compartilhe seu link pela primeira vez', href: '/partners/links' },
     { done: (clients?.length ?? 0) > 0, label: 'Traga seu primeiro cliente', href: canManage ? '/partners/new-store' : '/partners/links' },
   ].filter((s) => isOwner || !s.ownerOnly);

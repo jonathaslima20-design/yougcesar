@@ -194,6 +194,7 @@ export interface PublicProgramInfo {
   first_sale_bonus_amount: number;
   first_sale_bonus_days: number;
   recruit_override_percentage: number;
+  recruit_override_months: number;
   store_trial_days: number;
   minimum_withdrawal_amount: number;
   terms_version: string;

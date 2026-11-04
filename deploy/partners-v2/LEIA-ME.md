@@ -42,3 +42,11 @@ Só depois dos passos acima: push do código para a `main` (Netlify).
 No SQL Editor, rode `02_correcoes_revisao.sql` do mesmo jeito. Logo em seguida o
 frontend correspondente vai para a `main`: entre um e outro, a tela de Perfil e
 Financeiro do parceiro pode falhar por alguns minutos.
+
+## 5. Comissão liberada em 24h
+
+No SQL Editor, rode `03_comissao_24h.sql`. Ele muda a carência para 24h, faz o
+plano anual pagar a comissão inteira de uma vez, libera em 24h as comissões que
+já estão em carência e agenda a liberação de hora em hora (`partner-release-commissions`).
+Também tira a exigência de certificação dos níveis enquanto a Academia está oculta.
+Pode rodar antes ou depois do push do frontend.
