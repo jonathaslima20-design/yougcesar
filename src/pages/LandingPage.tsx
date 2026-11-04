@@ -186,7 +186,7 @@ function Header({ refCode }: { refCode: string | null }) {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
-        <a href="#top" className="flex items-center">
+        <a href="#top" className="flex items-center shrink-0">
           <img
             src="/logos/vitrinelogo-black.png"
             alt="VitrineTurbo"
@@ -201,12 +201,13 @@ function Header({ refCode }: { refCode: string | null }) {
             }}
           />
         </a>
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-6 xl:gap-8 mx-4 whitespace-nowrap">
           <a href="#recursos" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.features')}</a>
           <a href="#usuarios" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.users')}</a>
           <a href="#precos" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.plans')}</a>
           <a href="#faq" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.faq')}</a>
           <Link to="/blog" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.blog')}</Link>
+          <Link to="/parceiros" className="font-mono-label uppercase text-[12px] text-ink-500 hover:text-ink-900 transition-colors">{t('nav.partners')}</Link>
         </nav>
         <div className="flex items-center gap-2">
           <a

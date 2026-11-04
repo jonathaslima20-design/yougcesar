@@ -518,12 +518,6 @@ export default function PartnersProgramPage() {
               </div>
             ))}
           </div>
-          <div className="text-center mt-12">
-            <p className="text-ink-500">Procurando alguém para montar a sua loja?</p>
-            <Link to="/especialistas" className="inline-flex items-center gap-1 mt-2 font-display font-medium underline">
-              Conheça os especialistas VitrineTurbo <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
         </div>
       </section>
     </div>

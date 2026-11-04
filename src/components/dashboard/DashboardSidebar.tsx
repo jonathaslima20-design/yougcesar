@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, LogOut, Menu, X, Settings, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, TriangleAlert as AlertTriangle, LineChart, Handshake, MessageCircle, Users, LayoutGrid } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Menu, X, Settings, FolderTree, Gift, CircleHelp as HelpCircle, ShoppingBag, ClipboardList, ChevronDown, BookOpen, ArrowLeftRight, Warehouse, ChartBar as BarChart3, Ticket, TriangleAlert as AlertTriangle, LineChart, Handshake, MessageCircle, Users, LayoutGrid, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -158,6 +158,7 @@ export default function DashboardSidebar() {
               onItemClick={() => isMobile && toggleMobileSidebar()}
               badge={pendingOrders}
             />
+            <PartnerProgramNavItem onClick={() => isMobile && toggleMobileSidebar()} />
             {user?.affiliate_program_enabled ? (
               <InkNavItem
                 name="Afiliados"
@@ -294,6 +295,27 @@ export default function DashboardSidebar() {
 }
 
 const AFFILIATE_TEASER_WHATSAPP_URL = `https://wa.me/5591982465495?text=${encodeURIComponent('Tenho interesse em ativar o módulo de afiliados em meu painel')}`;
+
+function PartnerProgramNavItem({ onClick }: { onClick: () => void }) {
+  return (
+    <a
+      href="/parceiros"
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onClick}
+      className="flex flex-row items-center gap-3 py-2.5 px-3 text-[15px] tracking-tight transition-colors duration-150 relative text-muted-foreground hover:text-foreground"
+    >
+      <span className="relative shrink-0 flex items-center justify-center">
+        <Award className="h-[19px] w-[19px]" />
+        <span className="absolute -top-1 -right-1 flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        </span>
+      </span>
+      <span className="whitespace-nowrap">Programa de Parceiros</span>
+    </a>
+  );
+}
 
 function AffiliateTeaserNavItem({ onClick }: { onClick: () => void }) {
   return (
