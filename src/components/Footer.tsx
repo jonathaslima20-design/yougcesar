@@ -23,7 +23,6 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
   const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(footerLogoHint?.logoUrl ?? null);
   const [footerLogoMode, setFooterLogoMode] = useState<string>(footerLogoHint?.mode ?? 'default');
   const [footerLogoFormat, setFooterLogoFormat] = useState<string>(footerLogoHint?.format ?? 'rectangular');
-  const [referralLink, setReferralLink] = useState<string | null>(null);
   const [isStorefront, setIsStorefront] = useState(false);
   const [hidePlatformFooter, setHidePlatformFooter] = useState(
     () => getRememberedStorefrontTheme(location.pathname) === 'eletronicos'
@@ -43,7 +42,6 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
       } else {
         setBgColor(undefined);
       }
-      setReferralLink(root.getAttribute('data-referral-link'));
       // Only the presence of `data-theme-resolved` means "the real theme/appearance
       // is now known for sure" (StorefrontThemeProvider only mounts once corretor
       // data has loaded). Before that — e.g. right after a hard reload, or while
@@ -70,7 +68,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
     const observer = new MutationObserver(readState);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format', 'data-referral-link', 'data-hide-platform-footer', 'data-theme-resolved', 'data-footer-legal-links'],
+      attributeFilter: ['class', 'style', 'data-custom-logo-url', 'data-footer-logo-mode', 'data-footer-logo-format','data-hide-platform-footer', 'data-theme-resolved', 'data-footer-legal-links'],
     });
 
     return () => observer.disconnect();
@@ -101,8 +99,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
         ? window.location.hostname
         : slugFromPathname(location.pathname)
       : null;
-    const landingHref = referralLink ?? (storeKey ? 'https://vitrineturbo.com/' : null);
-    const outboundHref = landingHref && storeKey ? withStorefrontFooterUtm(landingHref, storeKey) : landingHref;
+    const outboundHref = storeKey ? withStorefrontFooterUtm('https://vitrineturbo.com/', storeKey) : null;
 
     return (
       <>

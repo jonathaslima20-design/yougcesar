@@ -25,7 +25,6 @@ import { StorefrontThemeProvider } from '@/contexts/StorefrontThemeContext';
 import StorefrontThemedBody from '@/components/storefront-themes/StorefrontThemedBody';
 import { useInventoryEnabledForStore } from '@/hooks/useInventoryEnabled';
 import { useCheckoutSettingsForStore } from '@/hooks/useCheckoutSettings';
-import { generateReferralLink } from '@/lib/referralUtils';
 import { captureAffiliateClick, captureAffiliateClickBySlug } from '@/lib/affiliateUtils';
 
 interface CorretorPageProps {
@@ -279,17 +278,6 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
       updateMetaTags(metaConfig);
     }
   }, [corretor, language]);
-
-  // ─── Footer referral link ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (corretor?.referral_code) {
-      const link = generateReferralLink(corretor.referral_code);
-      document.documentElement.setAttribute('data-referral-link', link);
-    }
-    return () => {
-      document.documentElement.removeAttribute('data-referral-link');
-    };
-  }, [corretor?.referral_code]);
 
   // ─── Footer legal links (admin-gated per store, see UserDetailPage) ────────
   useEffect(() => {
