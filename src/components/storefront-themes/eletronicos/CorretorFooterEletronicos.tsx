@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapPin, Phone, Mail, ArrowUp } from 'lucide-react';
 import { getWhatsAppContactUrl, cn } from '@/lib/utils';
 import { generateWhatsAppMessage } from '@/lib/i18n';
+import { withStorefrontFooterUtm } from '@/lib/referralUtils';
 import { useStorefrontTheme } from '@/contexts/StorefrontThemeContext';
 import type { StorefrontPageBodyProps } from '@/components/storefront-themes/types';
 
@@ -44,14 +45,14 @@ const SECURITY_LOGOS = [
   { src: 'https://auth.vitrineturbo.com/storage/v1/object/public/landing/logossl.webp', alt: 'Pagamento seguro', className: 'h-10' },
 ];
 
-const VITRINETURBO_URL = 'https://vitrineturbo.com';
+const VITRINETURBO_URL = 'https://vitrineturbo.com/';
 
 /** Platform credit — "VitrineTurbo" itself links out to the landing page. */
-function CreatedWithCredit({ className }: { className?: string }) {
+function CreatedWithCredit({ storeSlug, className }: { storeSlug?: string; className?: string }) {
   return (
     <p className={cn('text-xs opacity-60', className)}>
       Criado com{' '}
-      <a href={VITRINETURBO_URL} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">
+      <a href={withStorefrontFooterUtm(VITRINETURBO_URL, storeSlug || window.location.hostname)} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">
         VitrineTurbo
       </a>
     </p>
@@ -178,7 +179,7 @@ export default function CorretorFooterEletronicos({ corretor, language, currency
                       ))}
                     </div>
                   </div>
-                  <CreatedWithCredit />
+                  <CreatedWithCredit storeSlug={corretor.slug} />
                 </div>
               </FooterSection>
             )}
@@ -189,7 +190,7 @@ export default function CorretorFooterEletronicos({ corretor, language, currency
               stores without it still get a plain, unobtrusive line here. */}
           {!(appearance.footer_payment_enabled && currency === 'BRL') && (
             <div className="mt-8 pt-6 border-t text-center" style={DIVIDER_STYLE}>
-              <CreatedWithCredit />
+              <CreatedWithCredit storeSlug={corretor.slug} />
             </div>
           )}
         </div>

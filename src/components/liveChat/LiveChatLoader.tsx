@@ -15,6 +15,7 @@ import {
   storeSession,
 } from '@/lib/liveChat/visitorApi';
 import type { LiveChatPublicConfig, StoredConversation, VisitorSession } from '@/lib/liveChat/types';
+import { createBehaviorTracker } from '@/lib/liveChat/behaviorTracker';
 
 const LiveChatWidget = lazy(() => import('./LiveChatWidget'));
 
@@ -47,8 +48,18 @@ function whenIdleAfterLoad(cb: () => void): () => void {
 
 function readUtm() {
   const params = new URLSearchParams(window.location.search);
+  const source = params.get('utm_source');
+  const ref = params.get('ref');
+  // links de indicação (?ref=CODIGO) circulam sem UTM, quase sempre pelo WhatsApp
+  if (!source && ref) {
+    return {
+      source: 'indicacao',
+      medium: params.get('teste') ? 'link-teste-gratis' : 'link',
+      campaign: ref.slice(0, 40),
+    };
+  }
   return {
-    source: params.get('utm_source'),
+    source,
     medium: params.get('utm_medium'),
     campaign: params.get('utm_campaign'),
   };
@@ -166,6 +177,7 @@ export default function LiveChatLoader({ placement = 'landing' }: Props) {
     window.addEventListener('keydown', markInteraction, opts);
     window.addEventListener('scroll', markInteraction, opts);
 
+    const tracker = createBehaviorTracker({ trackScroll: !isPlans, ignoreSelector: '.vt-live-chat' });
     const ratios = new Map<string, number>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -178,12 +190,16 @@ export default function LiveChatLoader({ placement = 'landing' }: Props) {
             bestRatio = r;
           }
         });
-        if (best) sectionRef.current = best;
+        if (best) {
+          sectionRef.current = best;
+          tracker.setSection(best);
+        }
       },
       { threshold: [0, 0.25, 0.5, 0.75, 1] },
     );
     // no modal de planos a "seção" é fixa; as seções do painel não interessam
-    if (!isPlans) document.querySelectorAll<HTMLElement>('section[id], footer[id]').forEach((el) => observer.observe(el));
+    if (isPlans) tracker.setSection(PLANS_SECTION);
+    else document.querySelectorAll<HTMLElement>('section[id], footer[id]').forEach((el) => observer.observe(el));
 
     const beat = async (ended = false) => {
       try {
@@ -194,6 +210,7 @@ export default function LiveChatLoader({ placement = 'landing' }: Props) {
             section: sectionRef.current,
             idleSeconds: (Date.now() - lastInteractionRef.current) / 1000,
             ended,
+            behavior: tracker.flush(),
           },
           ended,
         );
@@ -227,6 +244,7 @@ export default function LiveChatLoader({ placement = 'landing' }: Props) {
     return () => {
       clearInterval(interval);
       observer.disconnect();
+      tracker.dispose();
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('pointerdown', markInteraction);

@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type {
   AdminChatMessageRow,
   CannedReply,
+  LandingVisitLog,
   LandingVisitMetrics,
   LiveChatAdminStatus,
   LiveChatMetrics,
@@ -423,8 +424,18 @@ export async function exportWhatsappLeadsCsv(): Promise<number> {
   return rows.length;
 }
 
-export async function fetchLandingVisitMetrics(days: number): Promise<LandingVisitMetrics> {
-  const { data, error } = await supabase.rpc('admin_landing_visit_metrics', { p_days: days });
+export async function fetchLandingVisitMetrics(days: number, offsetDays = 0): Promise<LandingVisitMetrics> {
+  const { data, error } = await supabase.rpc('admin_landing_visit_metrics', { p_days: days, p_offset_days: offsetDays });
   if (error) throw error;
   return data as LandingVisitMetrics;
+}
+
+export async function fetchLandingVisitLog(days: number, offsetDays = 0, limit = 300): Promise<LandingVisitLog> {
+  const { data, error } = await supabase.rpc('admin_landing_visit_log', {
+    p_days: days,
+    p_offset_days: offsetDays,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return data as LandingVisitLog;
 }

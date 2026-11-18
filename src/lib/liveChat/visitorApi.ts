@@ -1,3 +1,4 @@
+import type { BehaviorPayload } from './behaviorTracker';
 import type { ChatMessage, HeartbeatResult, LiveChatOperator, LiveChatPublicConfig, StoredConversation, VisitorSession } from './types';
 
 // O visitante fala com o banco por fetch puro com a anon key: não toca nos
@@ -156,9 +157,10 @@ export function startVisitorSession(args: {
 
 export function sendHeartbeat(
   session: VisitorSession,
-  data: { path: string; section: string | null; idleSeconds: number; ended?: boolean },
+  data: { path: string; section: string | null; idleSeconds: number; ended?: boolean; behavior?: BehaviorPayload },
   keepalive = false,
 ) {
+  const b = data.behavior;
   return visitorRpc<HeartbeatResult>(
     'visitor_heartbeat',
     {
@@ -168,6 +170,9 @@ export function sendHeartbeat(
       p_section: data.section,
       p_idle_seconds: Math.round(data.idleSeconds),
       p_ended: data.ended ?? false,
+      p_scroll_pct: b?.scrollPct ?? null,
+      p_sections: b?.sections.length ? b.sections : null,
+      p_events: b?.events.length ? b.events : null,
     },
     keepalive,
   );

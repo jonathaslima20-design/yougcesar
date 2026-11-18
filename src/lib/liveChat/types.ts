@@ -206,8 +206,43 @@ export interface AdminChatMessageRow extends ChatMessage {
   admin_user_id: string | null;
 }
 
+export interface LandingVisitEvent {
+  at: string;
+  k: 'click' | 'section';
+  l: string;
+}
+
+export interface LandingVisitLogEntry {
+  id: string;
+  visitor_id: string;
+  started_at: string;
+  last_seen_at: string;
+  ended_at: string | null;
+  current_path: string | null;
+  current_section: string | null;
+  sections_seen: string[];
+  section_seconds: Record<string, number>;
+  max_scroll_pct: number;
+  events: LandingVisitEvent[];
+  referrer_host: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  device: 'mobile' | 'desktop' | null;
+  visit_number: number;
+  conversation: { id: string; status: ConversationStatus; whatsapp: boolean } | null;
+}
+
+export interface LandingVisitLog {
+  total: number;
+  sessions: LandingVisitLogEntry[];
+}
+
 export interface LandingVisitMetrics {
   days: number;
+  offset_days?: number;
+  from?: string;
+  to?: string;
   timezone: string;
   tracking_enabled: boolean;
   session_retention_days: number;

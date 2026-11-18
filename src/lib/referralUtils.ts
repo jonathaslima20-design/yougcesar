@@ -52,6 +52,15 @@ export function generateReferralLink(referralCode: string): string {
   return `https://vitrineturbo.com/?ref=${referralCode}`;
 }
 
+/** Link da logo/crédito no rodapé das vitrines, marcado para o painel de visitas da landing. */
+export function withStorefrontFooterUtm(url: string, storeKey: string): string {
+  const u = new URL(url);
+  u.searchParams.set('utm_source', 'vitrine');
+  u.searchParams.set('utm_medium', 'rodape');
+  u.searchParams.set('utm_campaign', storeKey);
+  return u.toString();
+}
+
 export const TRIAL_DAYS = 15;
 
 export function generateTrialReferralLink(referralCode: string): string {

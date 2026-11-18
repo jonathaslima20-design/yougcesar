@@ -9,8 +9,16 @@ import { fetchLandingVisitMetrics } from '@/lib/liveChat/adminService';
 import { LANDING_SECTION_LABELS } from '@/lib/liveChat/format';
 import type { LandingVisitMetrics } from '@/lib/liveChat/types';
 import { cn } from '@/lib/utils';
+import LandingVisitLogCard from './LandingVisitLogCard';
 
-const PERIODS = [7, 30, 90] as const;
+const PERIODS = [
+  { id: 'today', label: 'Hoje', days: 1, offset: 0 },
+  { id: 'yesterday', label: 'Ontem', days: 1, offset: 1 },
+  { id: '7', label: '7 dias', days: 7, offset: 0 },
+  { id: '30', label: '30 dias', days: 30, offset: 0 },
+  { id: '90', label: '90 dias', days: 90, offset: 0 },
+] as const;
+type Period = (typeof PERIODS)[number];
 const AXIS_TICK = { fill: 'hsl(var(--muted-foreground))', fontSize: 12 };
 const TOOLTIP_STYLE = {
   backgroundColor: 'hsl(var(--popover))',
@@ -62,15 +70,17 @@ function ShareBar({ value, max }: { value: number; max: number }) {
 }
 
 export default function LandingVisitsPage() {
-  const [days, setDays] = useState<(typeof PERIODS)[number]>(7);
+  const [period, setPeriod] = useState<Period>(PERIODS[0]);
   const [data, setData] = useState<LandingVisitMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTable, setShowTable] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const singleDay = period.days === 1;
 
-  const load = (d: number) => {
+  const load = (p: Period) => {
     setLoading(true);
-    fetchLandingVisitMetrics(d)
+    fetchLandingVisitMetrics(p.days, p.offset)
       .then((m) => {
         setData(m);
         setError(null);
@@ -80,8 +90,8 @@ export default function LandingVisitsPage() {
   };
 
   useEffect(() => {
-    load(days);
-  }, [days]);
+    load(period);
+  }, [period]);
 
   const daily = useMemo(
     () => (data?.by_day ?? []).map((d) => ({ ...d, label: shortDay(d.day) })),
@@ -98,6 +108,8 @@ export default function LandingVisitsPage() {
       .map(([id, count]) => ({ id, count }));
     return [...known, ...others];
   }, [data]);
+  const hoursCard = data && <HoursCard data={data} hours={hours} peakHour={peakHour} singleDay={singleDay} />;
+  const sourcesCard = data && <SourcesCard data={data} />;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -112,16 +124,25 @@ export default function LandingVisitsPage() {
           <div className="flex rounded-md border overflow-hidden">
             {PERIODS.map((p) => (
               <button
-                key={p}
+                key={p.id}
                 type="button"
-                onClick={() => setDays(p)}
-                className={cn('px-3 py-1.5 text-sm', days === p ? 'bg-foreground text-background' : 'hover:bg-muted')}
+                onClick={() => setPeriod(p)}
+                className={cn('px-3 py-1.5 text-sm whitespace-nowrap', period.id === p.id ? 'bg-foreground text-background' : 'hover:bg-muted')}
               >
-                {p} dias
+                {p.label}
               </button>
             ))}
           </div>
-          <Button variant="outline" size="icon" onClick={() => load(days)} aria-label="Atualizar" disabled={loading}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              load(period);
+              setReloadKey((k) => k + 1);
+            }}
+            aria-label="Atualizar"
+            disabled={loading}
+          >
             <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </Button>
         </div>
@@ -173,6 +194,7 @@ export default function LandingVisitsPage() {
             </Card>
           </div>
 
+          {singleDay ? hoursCard : (
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
               <div>
@@ -234,14 +256,15 @@ export default function LandingVisitsPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <div className="grid lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Até onde as pessoas rolam</CardTitle>
                 <CardDescription>
-                  % das visitas que chegaram a ver cada seção, na ordem da página. A seção é registrada a cada 30 s e na saída,
-                  então quem passa muito rápido por uma seção pode não ser contado nela.
+                  % das visitas que chegaram a ver cada seção, na ordem da página. Conta toda seção que ficou ao menos 1 s
+                  na tela (visitas anteriores a 17/11 só registravam a seção a cada 30 s).
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -257,69 +280,102 @@ export default function LandingVisitsPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Horário das visitas</CardTitle>
-                <CardDescription>
-                  Visitas por hora do dia ({data.timezone.replace('America/', '').replace('_', ' ')}).
-                  {peakHour && peakHour.sessions > 0 && ` Pico às ${String(peakHour.hour).padStart(2, '0')}h.`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={hours} margin={{ top: 5, right: 5, left: 0, bottom: 5 }} barCategoryGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-                    <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} interval={2} />
-                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
-                    <Tooltip
-                      cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }}
-                      contentStyle={TOOLTIP_STYLE}
-                      formatter={(value: number) => [`${value} visitas`, 'Visitas']}
-                    />
-                    <Bar dataKey="sessions" name="Visitas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={20} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            {singleDay ? sourcesCard : hoursCard}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">De onde vieram</CardTitle>
-              <CardDescription>Origem pela UTM (utm_source) ou pelo site que mandou a visita. “Direto” = sem origem conhecida.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Origem</TableHead>
-                    <TableHead className="text-right w-24">Visitas</TableHead>
-                    <TableHead className="w-[40%]">Participação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.sources.length === 0 ? (
-                    <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Sem visitas no período.</TableCell></TableRow>
-                  ) : (
-                    data.sources.map((s) => (
-                      <TableRow key={s.source}>
-                        <TableCell className="max-w-[260px] truncate">{s.source}</TableCell>
-                        <TableCell className="text-right tabular-nums">{s.sessions}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <ShareBar value={s.sessions} max={data.sessions} />
-                            <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">{pct(s.sessions, data.sessions)}</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          {!singleDay && sourcesCard}
+
+          <LandingVisitLogCard
+            days={period.days}
+            offsetDays={period.offset}
+            timezone={data.timezone}
+            retentionDays={data.session_retention_days}
+            reloadKey={reloadKey}
+          />
         </>
       )}
     </div>
+  );
+}
+
+function HoursCard({
+  data,
+  hours,
+  peakHour,
+  singleDay,
+}: {
+  data: LandingVisitMetrics;
+  hours: { hour: number; sessions: number; label: string }[];
+  peakHour: { hour: number; sessions: number } | null;
+  singleDay: boolean;
+}) {
+  const tz = data.timezone.replace('America/', '').replace('_', ' ');
+  const dayLabel = singleDay && data.to ? ` em ${shortDay(data.to)}` : '';
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{singleDay ? 'Visitas por hora' : 'Horário das visitas'}</CardTitle>
+        <CardDescription>
+          {singleDay ? `Quantas visitas começaram em cada hora${dayLabel} (${tz}).` : `Visitas por hora do dia, somando o período (${tz}).`}
+          {peakHour && peakHour.sessions > 0 && ` Pico às ${String(peakHour.hour).padStart(2, '0')}h.`}
+          {singleDay && ' O horário exato de cada visita está no log abaixo.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={singleDay ? 260 : 220}>
+          <BarChart data={hours} margin={{ top: 5, right: 5, left: 0, bottom: 5 }} barCategoryGap={2}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+            <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} interval={singleDay ? 1 : 2} />
+            <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
+            <Tooltip
+              cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }}
+              contentStyle={TOOLTIP_STYLE}
+              formatter={(value: number) => [`${value} visitas`, 'Visitas']}
+            />
+            <Bar dataKey="sessions" name="Visitas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={singleDay ? 28 : 20} />
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SourcesCard({ data }: { data: LandingVisitMetrics }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">De onde vieram</CardTitle>
+        <CardDescription>Origem pela UTM (utm_source) ou pelo site que mandou a visita. “Direto” = sem origem conhecida.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Origem</TableHead>
+              <TableHead className="text-right w-24">Visitas</TableHead>
+              <TableHead className="w-[40%]">Participação</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.sources.length === 0 ? (
+              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Sem visitas no período.</TableCell></TableRow>
+            ) : (
+              data.sources.map((s) => (
+                <TableRow key={s.source}>
+                  <TableCell className="max-w-[260px] truncate">{s.source}</TableCell>
+                  <TableCell className="text-right tabular-nums">{s.sessions}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <ShareBar value={s.sessions} max={data.sessions} />
+                      <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">{pct(s.sessions, data.sessions)}</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

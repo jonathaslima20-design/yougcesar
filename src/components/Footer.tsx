@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Logo from '@/components/Logo';
-import { getRememberedStorefrontTheme, getRememberedFooterLogoHint } from '@/lib/storefrontThemeHint';
+import { getRememberedStorefrontTheme, getRememberedFooterLogoHint, slugFromPathname } from '@/lib/storefrontThemeHint';
+import { isCustomDomainHostname } from '@/lib/customDomain';
+import { withStorefrontFooterUtm } from '@/lib/referralUtils';
 
 interface FooterProps {
   hideLogo?: boolean;
@@ -22,6 +24,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
   const [footerLogoMode, setFooterLogoMode] = useState<string>(footerLogoHint?.mode ?? 'default');
   const [footerLogoFormat, setFooterLogoFormat] = useState<string>(footerLogoHint?.format ?? 'rectangular');
   const [referralLink, setReferralLink] = useState<string | null>(null);
+  const [isStorefront, setIsStorefront] = useState(false);
   const [hidePlatformFooter, setHidePlatformFooter] = useState(
     () => getRememberedStorefrontTheme(location.pathname) === 'eletronicos'
   );
@@ -51,6 +54,7 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
       if (root.hasAttribute('data-theme-resolved')) {
         setHidePlatformFooter(root.hasAttribute('data-hide-platform-footer'));
       }
+      setIsStorefront(root.hasAttribute('data-theme-resolved'));
       if (root.hasAttribute('data-footer-logo-mode')) {
         setCustomLogoUrl(root.getAttribute('data-custom-logo-url'));
         setFooterLogoMode(root.getAttribute('data-footer-logo-mode') || 'default');
@@ -91,11 +95,19 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
     }
 
     const logoElement = <Logo size="md" showText={false} backgroundColor={bgColor} noLink />;
+    // dentro de uma vitrine a logo leva à landing com a loja como origem
+    const storeKey = isStorefront
+      ? isCustomDomainHostname(window.location.hostname)
+        ? window.location.hostname
+        : slugFromPathname(location.pathname)
+      : null;
+    const landingHref = referralLink ?? (storeKey ? 'https://vitrineturbo.com/' : null);
+    const outboundHref = landingHref && storeKey ? withStorefrontFooterUtm(landingHref, storeKey) : landingHref;
 
     return (
       <>
-        {referralLink ? (
-          <a href={referralLink} target="_blank" rel="noopener noreferrer">
+        {outboundHref ? (
+          <a href={outboundHref} target="_blank" rel="noopener noreferrer">
             {logoElement}
           </a>
         ) : (
@@ -104,8 +116,8 @@ export default function Footer({ hideLogo = false, hideBlogLink = false }: Foote
           </Link>
         )}
         <div className="flex items-center gap-4 text-sm -mt-1">
-          {referralLink ? (
-            <a href={referralLink} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+          {outboundHref ? (
+            <a href={outboundHref} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
               Crie sua Vitrine Digital
             </a>
           ) : (
