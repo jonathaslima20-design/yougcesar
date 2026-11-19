@@ -1,5 +1,5 @@
-import { Outlet } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import RouteOutlet from '@/components/layouts/RouteOutlet';
 import PartnersSidebar from '@/components/partners/PartnersSidebar';
 import PartnersHeader from '@/components/partners/PartnersHeader';
 import PartnerTermsGate from '@/components/partners/PartnerTermsGate';
@@ -33,7 +33,7 @@ export default function PartnersLayout() {
             key={location.pathname}
           >
             <PartnerTermsGate>
-              <Outlet />
+              <RouteOutlet />
             </PartnerTermsGate>
           </motion.main>
         </div>

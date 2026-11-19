@@ -1,4 +1,5 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import RouteOutlet from '@/components/layouts/RouteOutlet';
 import { Loader } from 'lucide-react';
 import BuyerAccountSidebar from '@/components/layouts/BuyerAccountSidebar';
 import BuyerAccountHeader from '@/components/layouts/BuyerAccountHeader';
@@ -48,7 +49,7 @@ function BuyerAccountShell() {
       <div className="flex-1 flex flex-col">
         <BuyerAccountHeader />
         <main className="flex-1 w-full">
-          <Outlet />
+          <RouteOutlet />
         </main>
       </div>
     </div>

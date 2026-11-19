@@ -1,5 +1,5 @@
-import { Outlet } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import RouteOutlet from '@/components/layouts/RouteOutlet';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
 import { motion } from 'framer-motion';
@@ -29,7 +29,7 @@ export default function AdminLayout() {
           className="flex-1 w-full"
           key={location.pathname}
         >
-          <Outlet />
+          <RouteOutlet />
         </motion.main>
       </div>
     </div>

@@ -1,5 +1,5 @@
-import { Outlet } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import RouteOutlet from '@/components/layouts/RouteOutlet';
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import PartnerManagingBanner from '@/components/partners/PartnerManagingBanner';
@@ -31,7 +31,7 @@ export default function DashboardLayout() {
           className="flex-1 w-full"
           key={location.pathname}
         >
-          <Outlet />
+          <RouteOutlet />
         </motion.main>
       </div>
     </div>

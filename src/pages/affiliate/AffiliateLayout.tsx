@@ -1,4 +1,5 @@
-import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import RouteOutlet from '@/components/layouts/RouteOutlet';
 import { useEffect } from 'react';
 import { Loader } from 'lucide-react';
 import AffiliateSidebar from '@/components/affiliate/AffiliateSidebar';
@@ -28,7 +29,7 @@ export default function AffiliateLayout() {
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
       <AffiliateSidebar />
       <div className="flex-1 min-w-0">
-        <Outlet />
+        <RouteOutlet />
       </div>
     </div>
   );

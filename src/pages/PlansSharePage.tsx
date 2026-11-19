@@ -69,7 +69,7 @@ export default function PlansSharePage() {
         <div className="max-w-5xl mx-auto px-6 lg:px-10 h-16 flex items-center">
           <div className="flex items-center">
             <img
-              src="/logos/vitrinelogo-black.png"
+              src="https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png"
               alt="VitrineTurbo"
               width={160}
               height={48}
@@ -77,9 +77,6 @@ export default function PlansSharePage() {
               fetchpriority="high"
               loading="eager"
               decoding="async"
-              onError={(e) => {
-                e.currentTarget.src = 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png';
-              }}
             />
           </div>
         </div>

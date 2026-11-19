@@ -188,7 +188,7 @@ function Header({ refCode }: { refCode: string | null }) {
       <div className="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
         <a href="#top" className="flex items-center shrink-0">
           <img
-            src="/logos/vitrinelogo-black.png"
+            src="https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png"
             alt="VitrineTurbo"
             width={180}
             height={56}
@@ -196,9 +196,6 @@ function Header({ refCode }: { refCode: string | null }) {
             fetchpriority="high"
             loading="eager"
             decoding="async"
-            onError={(e) => {
-              e.currentTarget.src = 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png';
-            }}
           />
         </a>
         <nav className="hidden lg:flex items-center gap-6 xl:gap-8 mx-4 whitespace-nowrap">
@@ -900,16 +897,13 @@ function FooterLanding() {
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1 flex flex-col gap-3">
             <img
-              src="/logos/vitrinelogo-black.png"
+              src="https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png"
               alt="VitrineTurbo"
               width={160}
               height={40}
               className="h-10 w-auto max-w-[160px] object-contain object-left"
               loading="lazy"
               decoding="async"
-              onError={(e) => {
-                e.currentTarget.src = 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png';
-              }}
             />
             <p className="text-[13px] text-ink-400 leading-relaxed max-w-[200px]">
               {t('footer.tagline')}

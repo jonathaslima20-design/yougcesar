@@ -1,1 +1,7 @@
-/* /index.html 200
+# Missing static files must 404 instead of falling through to the SPA's index.html
+# (a 200 HTML body for an image/JS/API request wastes bandwidth and hides the error).
+/assets/*      /404.html   404
+/logos/*       /404.html   404
+/api/*         /404.html   404
+/favicon.ico   /404.html   404
+/*             /index.html 200

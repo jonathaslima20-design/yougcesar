@@ -1,5 +1,5 @@
-import { Outlet } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import RouteOutlet from '@/components/layouts/RouteOutlet';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -59,7 +59,7 @@ export default function PublicLayout() {
         transition={{ duration: 0.3 }}
         key={location.pathname}
       >
-        <Outlet />
+        <RouteOutlet />
       </motion.main>
       {!hideFooter && <Footer hideLogo={hideFooterLogo} hideBlogLink={!showBlogLink} />}
     </div>

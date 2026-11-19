@@ -36,8 +36,8 @@ export default function Logo({ className, size = 'md', showText = true, backgrou
   const useLightVersion = backgroundColor ? shouldUseLightLogo(backgroundColor) : isDark;
 
   const logoUrl = useLightVersion
-    ? '/logos/vitrinelogo-white.png'
-    : '/logos/vitrinelogo-black.png';
+    ? 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-white.png.png'
+    : 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png';
 
   // Increased sizes by 20%
   const logoSizes = {
@@ -51,12 +51,6 @@ export default function Logo({ className, size = 'md', showText = true, backgrou
       src={logoUrl}
       alt="VitrineTurbo"
       className={cn(logoSizes[size], 'w-auto')}
-      onError={(e) => {
-        const fallbackUrl = useLightVersion
-          ? 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-white.png.png'
-          : 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png';
-        e.currentTarget.src = fallbackUrl;
-      }}
     />
   );
 

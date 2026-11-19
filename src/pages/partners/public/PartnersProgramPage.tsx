@@ -180,14 +180,9 @@ export default function PartnersProgramPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2 shrink-0">
             <img
-              src="/logos/vitrinelogo-black.png"
+              src="https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png"
               alt="VitrineTurbo"
               className="h-10 sm:h-12 w-auto"
-              onError={(e) => {
-                // Same fallback as the landing header when the local asset is missing.
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/vitrinelogo-black.png.png';
-              }}
             />
             <span className="hidden sm:inline font-serif italic text-lg text-ink-700">Partners</span>
           </Link>
