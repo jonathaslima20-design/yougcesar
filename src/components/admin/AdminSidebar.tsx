@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Palette, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt, MessageCircle, Radio, UserRound, SlidersHorizontal, BarChart3, LineChart } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, Menu, X, ShieldCheck, Gift, CreditCard, CircleHelp as HelpCircle, UsersRound, Wallet, Scale, UserX, Smartphone, Paintbrush, Palette, Megaphone, Globe, Link2, Bell, Tag, Newspaper, Handshake, Eye, Boxes, MessageSquareQuote, Percent, Receipt, MessageCircle, Radio, UserRound, SlidersHorizontal, BarChart3, LineChart, Sparkles } from 'lucide-react';
 import { useLiveChatUnreadCount } from '@/hooks/useLiveChatUnreadCount';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
@@ -54,6 +54,7 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
       items: [
         { name: 'Planos', href: '/admin/plans', icon: CreditCard, roles: ['admin'] },
         { name: 'Desconto de Boas-vindas', href: '/admin/signup-discount', icon: Tag, roles: ['admin'] },
+        { name: 'Campanhas da Landing', href: '/admin/landing-campaigns', icon: Sparkles, roles: ['admin'] },
         { name: 'Ofertas Promocionais', href: '/admin/offers', icon: Megaphone, roles: ['admin'] },
         { name: 'Mercado Pago', href: '/admin/mercadopago', icon: Wallet, roles: ['admin'] },
         { name: 'Vendas Online', href: '/admin/online-sales', icon: Receipt, roles: ['admin'] },

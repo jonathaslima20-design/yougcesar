@@ -2,12 +2,22 @@ import { ArrowRight, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { PricingPlan } from '@/lib/pricingPlans';
 
+export interface PricingCardCampaign {
+  /** Full price before the campaign discount, already formatted (e.g. "R$ 57,00"). */
+  originalPrice: string;
+  /** Short pill text, e.g. "30% OFF · Black Friday". */
+  badge: string;
+  accentColor: string;
+  accentTextColor: string;
+}
+
 export default function PricingCard({
   plan,
   ctaHref,
   ctaLabel,
   ctaExternal,
   priceDisplay,
+  campaign,
 }: {
   plan: PricingPlan;
   ctaHref?: string;
@@ -16,6 +26,8 @@ export default function PricingCard({
   ctaExternal?: boolean;
   /** Fully-formatted headline price (e.g. "$199.00", "12,99 €"). Defaults to "R$ {priceSuffix}". */
   priceDisplay?: string;
+  /** Seasonal landing campaign (display only): strikethrough price + themed pill. */
+  campaign?: PricingCardCampaign;
 }) {
   const { t } = useTranslation('pricing');
   const { tag, name, priceSuffix, priceUnit, billedNote, savingsBadge, featured = false, benefits } = plan;
@@ -38,7 +50,20 @@ export default function PricingCard({
           {tag}
         </span>
       </div>
-      <div className="mt-8">
+      {campaign && (
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <span
+            className="font-mono-label uppercase text-[10px] font-semibold px-2.5 py-1 rounded-full"
+            style={{ backgroundColor: campaign.accentColor, color: campaign.accentTextColor }}
+          >
+            {campaign.badge}
+          </span>
+          <span className={`text-[14px] line-through ${featured ? 'text-white/50' : 'text-ink-400'}`}>
+            {campaign.originalPrice}
+          </span>
+        </div>
+      )}
+      <div className={campaign ? 'mt-2' : 'mt-8'}>
         <span className="font-display font-semibold text-[44px] lg:text-[52px] tracking-[-0.03em] leading-none">{priceDisplay ?? `R$ ${priceSuffix}`}</span>
         <span className={`text-[14px] ml-1 ${featured ? 'text-white/60' : 'text-ink-500'}`}>{priceUnit ?? t('card.perMonth')}</span>
       </div>

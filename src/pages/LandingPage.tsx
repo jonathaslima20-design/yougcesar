@@ -11,6 +11,8 @@ import { PUBLIC_PRICING_BY_CURRENCY, formatPublicPrice, annualMonthlyEquivalent,
 import { useReveal } from '@/hooks/useReveal';
 import { supabase } from '@/lib/supabase';
 import LiveChatLoader from '@/components/liveChat/LiveChatLoader';
+import { CampaignRibbon, CampaignTopBar, campaignCardProps } from '@/components/landing/LandingCampaign';
+import { fetchLiveLandingCampaign, type LandingCampaign } from '@/lib/landingCampaigns';
 
 const LandingSocialProof = lazy(() => import('@/components/landing/LandingSocialProof'));
 const LandingTestimonials = lazy(() => import('@/components/landing/LandingTestimonials'));
@@ -167,7 +169,7 @@ function getRegisterHref(refCode: string | null): string {
   return refCode ? `/register?ref=${refCode}` : '/register';
 }
 
-function Header({ refCode }: { refCode: string | null }) {
+function Header({ refCode, campaign, onCampaignEnd }: { refCode: string | null; campaign: LandingCampaign | null; onCampaignEnd: () => void }) {
   const { t } = useTranslation('landing');
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -185,6 +187,7 @@ function Header({ refCode }: { refCode: string | null }) {
         scrolled ? 'glass-light' : 'bg-transparent'
       }`}
     >
+      {campaign?.show_top_bar && <CampaignTopBar campaign={campaign} onEnd={onCampaignEnd} />}
       <div className="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
         <a href="#top" className="flex items-center shrink-0">
           <img
@@ -741,14 +744,33 @@ function SocialProofSection() {
   );
 }
 
-function PricingSection({ refCode }: { refCode: string | null }) {
-  const { currency } = useDetectedCountry();
-
+function PricingSection({ refCode, currency, campaign, onCampaignEnd }: { refCode: string | null; currency: string; campaign: LandingCampaign | null; onCampaignEnd: () => void }) {
   if (currency !== 'BRL') {
     return <InternationalPricingSection currency={currency as PublicCurrency} refCode={refCode} />;
   }
 
-  return <BRLPricingSection refCode={refCode} />;
+  return <BRLPricingSection refCode={refCode} campaign={campaign} onCampaignEnd={onCampaignEnd} />;
+}
+
+// Seasonal campaign (Admin > Campanhas da Landing) — display only, BRL visitors
+// only (its prices/copy are Brazilian). Cleared client-side when its countdown
+// hits zero so the strikethrough prices never outlive the campaign.
+function useLiveLandingCampaign(enabled: boolean) {
+  const [campaign, setCampaign] = useState<LandingCampaign | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setCampaign(null);
+      return;
+    }
+    let cancelled = false;
+    fetchLiveLandingCampaign().then((c) => {
+      if (!cancelled) setCampaign(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+  return { campaign, clear: () => setCampaign(null) };
 }
 
 function InternationalPricingSection({ currency, refCode }: { currency: PublicCurrency; refCode: string | null }) {
@@ -795,7 +817,7 @@ function InternationalPricingSection({ currency, refCode }: { currency: PublicCu
   );
 }
 
-function BRLPricingSection({ refCode }: { refCode: string | null }) {
+function BRLPricingSection({ refCode, campaign, onCampaignEnd }: { refCode: string | null; campaign: LandingCampaign | null; onCampaignEnd: () => void }) {
   const { t } = useTranslation('landing');
   const { t: tp } = useTranslation('pricing');
 
@@ -822,9 +844,15 @@ function BRLPricingSection({ refCode }: { refCode: string | null }) {
       <div className="max-w-5xl mx-auto px-6 lg:px-10">
         <SectionHeading kicker={t('pricing.kicker')} title={t('pricing.title')} />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-14">
+        {campaign?.show_ribbon && (
+          <div className="mt-12">
+            <CampaignRibbon campaign={campaign} onEnd={onCampaignEnd} />
+          </div>
+        )}
+
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-5 ${campaign?.show_ribbon ? 'mt-5' : 'mt-14'}`}>
           {translatedPlans.map((plan) => (
-            <PricingCard key={plan.id} plan={plan} ctaHref={getRegisterHref(refCode)} />
+            <PricingCard key={plan.id} plan={plan} ctaHref={getRegisterHref(refCode)} {...campaignCardProps(plan, campaign)} />
           ))}
         </div>
       </div>
@@ -1038,9 +1066,11 @@ export default function LandingPage() {
   useLandingTracking();
   const refCode = useReferralTracking();
   const { i18n } = useTranslation();
+  const { currency } = useDetectedCountry();
+  const { campaign, clear: clearCampaign } = useLiveLandingCampaign(currency === 'BRL');
   return (
     <div className="vt-root min-h-screen bg-white text-ink-900">
-      <Header refCode={refCode} />
+      <Header refCode={refCode} campaign={campaign} onCampaignEnd={clearCampaign} />
       <Hero refCode={refCode} />
       <HowItWorksSection />
       <MemoizedBentoGrid />
@@ -1049,7 +1079,7 @@ export default function LandingPage() {
       <Suspense fallback={null}>
         <LandingTestimonials />
       </Suspense>
-      <PricingSection refCode={refCode} />
+      <PricingSection refCode={refCode} currency={currency} campaign={campaign} onCampaignEnd={clearCampaign} />
       <MemoizedFaqSection />
       <FinalCTA refCode={refCode} />
       <MemoizedFooterLanding />

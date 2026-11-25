@@ -134,6 +134,7 @@ const OfferEditorPage = lazy(() => import('@/pages/admin/OfferEditorPage.tsx'));
 const OfferAnalyticsPage = lazy(() => import('@/pages/admin/OfferAnalyticsPage.tsx'));
 const StorefrontThemesPage = lazy(() => import('@/pages/admin/StorefrontThemesPage.tsx'));
 const SignupDiscountPage = lazy(() => import('@/pages/admin/SignupDiscountPage.tsx'));
+const LandingCampaignsPage = lazy(() => import('@/pages/admin/LandingCampaignsPage.tsx'));
 const NotificationSettingsPage = lazy(() => import('@/pages/admin/NotificationSettingsPage.tsx'));
 const AdminTrackingPage = lazy(() => import('@/pages/admin/TrackingPage.tsx'));
 const AffiliateTeaserMonitoringPage = lazy(() => import('@/pages/admin/AffiliateTeaserMonitoringPage.tsx'));
@@ -465,6 +466,7 @@ function AppContent() {
             <Route path="/admin/offers/:offerId/analytics" element={<OfferAnalyticsPage />} />
             <Route path="/admin/storefront-themes" element={<StorefrontThemesPage />} />
             <Route path="/admin/signup-discount" element={<SignupDiscountPage />} />
+            <Route path="/admin/landing-campaigns" element={<LandingCampaignsPage />} />
           </Route>
         </Route>
 
