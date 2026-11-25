@@ -16,7 +16,7 @@ const allPaidBenefits = [
   'Catálogo Digital via Link',
   'Painel Administrativo completo',
   'Carrinho de compras',
-  'Controle de Estoque e Inventário',
+  'Controle de Estoque',
   'Gestão de Pedidos e Vendas',
   'Sistema de Cupons',
   'Personalização de cores e fontes',

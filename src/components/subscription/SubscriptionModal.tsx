@@ -137,7 +137,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
     'Catálogo Digital via Link',
     'Painel Administrativo',
     'Carrinho de compras',
-    'Controle de Estoque e Inventário',
+    'Controle de Estoque',
     'Gestão de Pedidos e Vendas',
     'Cupons de desconto',
     'Preços por quantidade (atacado)',
@@ -159,7 +159,7 @@ export default function SubscriptionModal({ open, onOpenChange, isForced = false
     'Catálogo Digital via Link',
     'Painel Administrativo',
     'Carrinho de compras',
-    'Controle de Estoque e Inventário',
+    'Controle de Estoque',
     'Gestão de Pedidos e Vendas',
   ];
 

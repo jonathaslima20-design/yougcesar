@@ -8,7 +8,7 @@ export const PAID_BENEFIT_KEYS: Record<string, string> = {
   'Catálogo Digital via Link': 'benefits.digital_catalog',
   'Painel Administrativo completo': 'benefits.admin_panel',
   'Carrinho de compras': 'benefits.cart',
-  'Controle de Estoque e Inventário': 'benefits.inventory',
+  'Controle de Estoque': 'benefits.inventory',
   'Gestão de Pedidos e Vendas': 'benefits.orders',
   'Sistema de Cupons': 'benefits.coupons',
   'Personalização de cores e fontes': 'benefits.customization',
