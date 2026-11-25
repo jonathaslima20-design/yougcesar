@@ -1,10 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { isPlatformPath } from '@/lib/platformRoutes';
 
-export default function MetaPixel() {
+// VitrineTurbo's own Meta pixel. Loaded only on the platform's own pages, never on
+// merchant storefronts or custom domains: fbq('track') fans out to EVERY
+// initialized pixel, so loading it there fed store shoppers' PageViews (and any
+// store events) into VitrineTurbo's ad optimization. The separate admin "global
+// pixel" (site_settings.global_meta_pixel_id) injected by useCorretorData is
+// intentional and untouched.
+export default function MetaPixel({ isCustomDomain = false }: { isCustomDomain?: boolean }) {
   const [pixelId, setPixelId] = useState<string | null>(null);
+  const { pathname } = useLocation();
+  const shouldLoad = !isCustomDomain && isPlatformPath(pathname);
 
   useEffect(() => {
+    if (!shouldLoad || pixelId) return;
     (async () => {
       const { data } = await supabase
         .from('landing_tracking_config')
@@ -15,7 +26,7 @@ export default function MetaPixel() {
         setPixelId(data.meta_pixel_id);
       }
     })();
-  }, []);
+  }, [shouldLoad, pixelId]);
 
   useEffect(() => {
     if (!pixelId) return;

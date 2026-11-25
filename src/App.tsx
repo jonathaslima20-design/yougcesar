@@ -299,7 +299,7 @@ function AppContent() {
       </div>
     }>
       <SessionManager />
-      <MetaPixel />
+      <MetaPixel isCustomDomain={isCustomDomain} />
       <GtmSnippet />
       {!isCustomDomain && <PartnerAttributionTracker />}
       <GoogleAdsSnippet />
