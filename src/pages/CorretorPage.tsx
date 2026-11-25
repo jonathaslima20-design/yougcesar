@@ -401,31 +401,50 @@ export default function CorretorPage({ customDomainSlug }: CorretorPageProps = {
     }
 
     let attempts = 0;
+    let finished = false;
     const maxAttempts = 8;
     const delays = [50, 100, 150, 250, 400, 600, 900, 1200];
+    // Retries only exist for pages still too short to reach targetY (products or
+    // images still loading). They must stop as soon as the position is reached or
+    // the shopper touches the page — otherwise each pending retry yanks them back
+    // to the saved spot while they're already scrolling (~3.6s of fighting).
+    const userInputEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (scrollRestorationTimeoutRef.current) {
+        clearTimeout(scrollRestorationTimeoutRef.current);
+        scrollRestorationTimeoutRef.current = null;
+      }
+      userInputEvents.forEach((evt) => window.removeEventListener(evt, finish));
+      setRestorationPhase('done');
+      scrollCoordinator.endScrollRestoration();
+    };
+
+    userInputEvents.forEach((evt) => window.addEventListener(evt, finish, { passive: true }));
 
     const tryScroll = () => {
+      if (finished) return;
       window.scrollTo(0, targetY);
       attempts++;
 
-      if (attempts < maxAttempts) {
-        scrollRestorationTimeoutRef.current = setTimeout(tryScroll, delays[attempts]);
+      const reached = Math.abs(window.scrollY - targetY) <= 2;
+      if (reached || attempts >= maxAttempts) {
+        finish();
       } else {
-        setRestorationPhase('done');
-        scrollCoordinator.endScrollRestoration();
+        scrollRestorationTimeoutRef.current = setTimeout(tryScroll, delays[attempts]);
       }
     };
 
     requestAnimationFrame(tryScroll);
 
     // Safety cleanup in case something goes wrong
-    const safetyTimeout = setTimeout(() => {
-      setRestorationPhase('done');
-      scrollCoordinator.endScrollRestoration();
-    }, 8000);
+    const safetyTimeout = setTimeout(finish, 8000);
 
     return () => {
       clearTimeout(safetyTimeout);
+      userInputEvents.forEach((evt) => window.removeEventListener(evt, finish));
       if (scrollRestorationTimeoutRef.current) {
         clearTimeout(scrollRestorationTimeoutRef.current);
       }
