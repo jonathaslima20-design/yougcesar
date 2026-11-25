@@ -69,7 +69,9 @@ export default function PricingCard({
       </div>
       <div className="flex items-center gap-2 mt-2">
         <p className={`text-[12px] ${featured ? 'text-white/60' : 'text-ink-400'}`}>{billedNote}</p>
-        {savingsBadge && (
+        {/* Hidden during a campaign: next to "50% OFF" the static "Economize 33%"
+            (plan vs. monthly) reads as contradictory, and it's wrong for fixed-R$ campaigns. */}
+        {savingsBadge && !campaign && (
           <span className="font-mono-label uppercase text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
             {savingsBadge}
           </span>
