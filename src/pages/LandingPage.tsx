@@ -11,8 +11,8 @@ import { PUBLIC_PRICING_BY_CURRENCY, formatPublicPrice, annualMonthlyEquivalent,
 import { useReveal } from '@/hooks/useReveal';
 import { supabase } from '@/lib/supabase';
 import LiveChatLoader from '@/components/liveChat/LiveChatLoader';
-import { CampaignRibbon, CampaignTopBar, campaignCardProps } from '@/components/landing/LandingCampaign';
-import { fetchLiveLandingCampaign, type LandingCampaign } from '@/lib/landingCampaigns';
+import { CampaignRibbon, CampaignTopBar, campaignCardProps, useLiveLandingCampaign } from '@/components/landing/LandingCampaign';
+import type { LandingCampaign } from '@/lib/landingCampaigns';
 
 const LandingSocialProof = lazy(() => import('@/components/landing/LandingSocialProof'));
 const LandingTestimonials = lazy(() => import('@/components/landing/LandingTestimonials'));
@@ -750,27 +750,6 @@ function PricingSection({ refCode, currency, campaign, onCampaignEnd }: { refCod
   }
 
   return <BRLPricingSection refCode={refCode} campaign={campaign} onCampaignEnd={onCampaignEnd} />;
-}
-
-// Seasonal campaign (Admin > Campanhas da Landing) — display only, BRL visitors
-// only (its prices/copy are Brazilian). Cleared client-side when its countdown
-// hits zero so the strikethrough prices never outlive the campaign.
-function useLiveLandingCampaign(enabled: boolean) {
-  const [campaign, setCampaign] = useState<LandingCampaign | null>(null);
-  useEffect(() => {
-    if (!enabled) {
-      setCampaign(null);
-      return;
-    }
-    let cancelled = false;
-    fetchLiveLandingCampaign().then((c) => {
-      if (!cancelled) setCampaign(c);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
-  return { campaign, clear: () => setCampaign(null) };
 }
 
 function InternationalPricingSection({ currency, refCode }: { currency: PublicCurrency; refCode: string | null }) {

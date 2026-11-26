@@ -5,11 +5,14 @@ import { PAID_BENEFIT_KEYS, translateBenefit } from '@/lib/pricingBenefitKeys';
 import { useReveal } from '@/hooks/useReveal';
 import { useDetectedCountry } from '@/lib/billing/useDetectedCountry';
 import { PUBLIC_PRICING_BY_CURRENCY, formatPublicPrice, annualMonthlyEquivalent, annualSavingsPercent, type PublicCurrency } from '@/lib/billing/publicPricing';
+import { CampaignRibbon, campaignCardProps, useLiveLandingCampaign } from '@/components/landing/LandingCampaign';
 
 export default function PlansSharePage() {
   useReveal();
   const { t } = useTranslation('pricing');
   const { currency } = useDetectedCountry();
+  // Same live campaign as the landing pricing section (BRL only) — or none.
+  const { campaign, clear: clearCampaign } = useLiveLandingCampaign(currency === 'BRL');
 
   const anualBenefits = PAID_PLANS.find((p) => p.id === 'anual')!.benefits;
 
@@ -59,8 +62,10 @@ export default function PlansSharePage() {
         annual: formatPublicPrice(annualMonthlyEquivalent(currency as PublicCurrency), currency as PublicCurrency),
       };
 
+  const showRibbon = currency === 'BRL' && !!campaign?.show_ribbon;
+
   const gridClass = currency === 'BRL'
-    ? 'grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mt-10 sm:mt-14'
+    ? `grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 ${showRibbon ? 'mt-5' : 'mt-10 sm:mt-14'}`
     : 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 mt-10 sm:mt-14 max-w-2xl';
 
   return (
@@ -94,9 +99,20 @@ export default function PlansSharePage() {
             </p>
           </div>
 
+          {showRibbon && campaign && (
+            <div className="mt-10 sm:mt-12">
+              <CampaignRibbon campaign={campaign} onEnd={clearCampaign} />
+            </div>
+          )}
+
           <div className={gridClass}>
             {translatedPlans.map((plan) => (
-              <PricingCard key={plan.id} plan={plan} priceDisplay={priceDisplays[plan.id]} />
+              <PricingCard
+                key={plan.id}
+                plan={plan}
+                priceDisplay={priceDisplays[plan.id]}
+                {...(currency === 'BRL' ? campaignCardProps(plan, campaign) : {})}
+              />
             ))}
           </div>
         </div>

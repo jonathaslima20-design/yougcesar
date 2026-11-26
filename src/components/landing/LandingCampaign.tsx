@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Flame, PartyPopper, ShoppingBag, Sparkles, TreePine, type LucideIcon } from 'lucide-react';
 import {
+  fetchLiveLandingCampaign,
   applyCampaignDiscount,
   campaignAppliesToPlan,
   formatBRL,
@@ -11,6 +12,31 @@ import {
 } from '@/lib/landingCampaigns';
 import type { PricingPlan } from '@/lib/pricingPlans';
 import type { PricingCardCampaign } from '@/components/pricing/PricingCard';
+
+/**
+ * The campaign live right now (Admin > Campanhas da Landing), shared by the landing
+ * pricing section and the /planos page so both always show the same offer — or
+ * none. Display only, BRL visitors only (its prices/copy are Brazilian). `clear`
+ * drops it client-side when the countdown hits zero so the strikethrough prices
+ * never outlive the campaign.
+ */
+export function useLiveLandingCampaign(enabled: boolean) {
+  const [campaign, setCampaign] = useState<LandingCampaign | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setCampaign(null);
+      return;
+    }
+    let cancelled = false;
+    fetchLiveLandingCampaign().then((c) => {
+      if (!cancelled) setCampaign(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+  return { campaign, clear: () => setCampaign(null) };
+}
 
 /**
  * Extra PricingCard props for a BRL plan while a campaign is live: discounted
